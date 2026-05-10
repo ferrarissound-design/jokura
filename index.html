@@ -254,8 +254,10 @@ function unlockWeaponByDrop(wi){
 }
 
 const $craftBtn=document.getElementById('craftBtn');
-$craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();toggleCraftPanel();});
-$craftBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();toggleCraftPanel();},{passive:false});
+let _craftBtnLastT=0;
+function _onCraftBtnTap(){const now=Date.now();if(now-_craftBtnLastT<100)return;_craftBtnLastT=now;toggleCraftPanel();}
+$craftBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onCraftBtnTap();},{passive:false});
+$craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onCraftBtnTap();});
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
