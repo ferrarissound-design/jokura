@@ -41,7 +41,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 #hotbar{position:absolute;bottom:calc(135px + var(--safeB));left:50%;transform:translateX(-50%);display:flex;gap:4px;pointer-events:auto;z-index:10}
 .hslot{width:40px;height:40px;border-radius:6px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:7px;color:#aaa;-webkit-tap-highlight-color:transparent;cursor:pointer;transition:transform .15s,border-color .15s}
 .hslot.active{border-color:#f9d342;color:#f9d342;transform:scale(1.08)}
-.hslot.locked{opacity:.35;cursor:default}
 .dot{width:16px;height:16px;border-radius:3px}
 #joyWrap{position:absolute;left:calc(10px + var(--safeL));bottom:calc(14px + var(--safeB));width:120px;height:120px;pointer-events:auto;touch-action:none;z-index:10}
 #joyBase{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04)}
@@ -158,6 +157,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 (function(){
 if(typeof THREE==='undefined'){document.getElementById('ovTitle').textContent='読込失敗';return;}
 
+// ═══ STORAGE POLYFILL ═══
+if(!window.storage){
+  window.storage={
+    get:function(k){var v=localStorage.getItem(k);return Promise.resolve(v!=null?{value:v}:null);},
+    set:function(k,v){try{localStorage.setItem(k,v);return Promise.resolve(true);}catch(e){return Promise.resolve(false);}},
+    delete:function(k){localStorage.removeItem(k);return Promise.resolve();}
+  };
+}
+
 // ═══ DEVICE ═══
 const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const isDesktop=!isTouch;
@@ -179,6 +187,7 @@ const CRAFT_RECIPES=[
   {name:'🪄 Magic',  wi:4,  needs:{brick:5,stone:5}, desc:'🧱×5+🪨×5'},
   {name:'📦 Chest',  wi:-1, needs:{wood:10},         desc:'🪵×10'},
   {name:'🛏 Bed',    wi:-2, needs:{wood:6,grass:4},  desc:'🪵×6+🌿×4'},
+  {name:'🧱 Brick×3',wi:-3, needs:{stone:5},         desc:'🪨×5'},
 ];
 
 const $invWood=document.getElementById('invWood');
@@ -220,6 +229,10 @@ function doCraft(){
       bedCount++;
       updateBedHUD();
       showBonus('🛏 ベッド×'+bedCount);
+    } else if(r.wi===-3){
+      inv.brick+=3;
+      updateInvHUD();
+      showBonus('🧱 レンガ×3 CRAFTED!');
     } else {
       unlockedWeapons[r.wi]=true;
       showBonus('🛠 '+r.name+' CRAFTED!');
@@ -546,7 +559,7 @@ function spawnEnemy(){
   const built=et.builder(mat);
   built.root.position.set(sx,h+1.85,sz);scene.add(built.root);
   const mhp=et.hp+Math.floor(gs.wave*.7);
-  enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx,lastZ:sz,flashMeshes:[built.body,built.head]});
+  enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx,lastZ:sz,flashMeshes:[built.body,built.head],dead:false});
 }
 function moveEnemy(e,vx,vz,dt){const p=e.root.position,fy=p.y-.85;e.velY-=GRAV*dt;const nx=p.x+vx*dt;if(!overlaps(nx,fy,p.z,.5,1.7))p.x=nx;const nz=p.z+vz*dt;if(!overlaps(p.x,fy,nz,.5,1.7))p.z=nz;const ny=fy+e.velY*dt;if(!overlaps(p.x,ny,p.z,.5,1.7)){p.y=ny+.85;e.onGround=false;}else{if(e.velY<0)e.onGround=true;e.velY=0;}if(p.y<-20)e.hp=0;}
 
@@ -886,7 +899,7 @@ function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPO
 
 // ═══ COMBAT ═══
 function flashEnemy(e){for(const m of e.flashMeshes||[e.body,e.head]){m.material.emissive.setHex(0xffffff);m.material.emissiveIntensity=1.5;}setTimeout(()=>{try{for(const m of e.flashMeshes||[e.body,e.head]){m.material.emissive.setHex(e.type.emissive);m.material.emissiveIntensity=e.type.emissiveIntensity||.15;}}catch(x){}},100);}
-function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0,en.hp/en.maxHp);en.hpBar.scale.x=Math.max(.01,ratio);en.hpBar.material.color.setHex(ratio>.5?0x44ff44:ratio>.25?0xffaa00:0xff2222);if(en.hp<=0){const ep=en.root.position;spawnParticles(ep.x,ep.y,ep.z,en.type.color,4);dropItem(ep.x,ep.y,ep.z,en.type);scene.remove(en.root);const idx=enemies.indexOf(en);if(idx>=0)enemies.splice(idx,1);gs.kills++;const pts=en.type.score*(gs.wave||1);gs.score+=pts;sfxKill();showBonus('+'+pts);}}
+function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0,en.hp/en.maxHp);en.hpBar.scale.x=Math.max(.01,ratio);en.hpBar.material.color.setHex(ratio>.5?0x44ff44:ratio>.25?0xffaa00:0xff2222);if(en.hp<=0&&!en.dead){en.dead=true;const ep=en.root.position;spawnParticles(ep.x,ep.y,ep.z,en.type.color,4);dropItem(ep.x,ep.y,ep.z,en.type);scene.remove(en.root);const idx=enemies.indexOf(en);if(idx>=0)enemies.splice(idx,1);gs.kills++;const pts=en.type.score*(gs.wave||1);gs.score+=pts;sfxKill();showBonus('+'+pts);}}
 
 // ブロック破壊共通処理
 function breakBlock(bh){
@@ -1067,7 +1080,7 @@ function tick(now){
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
-    if(e.hp<=0){spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
+    if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
     if(dist>50){scene.remove(e.root);enemies.splice(i,1);continue;}
     e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,6.5);
