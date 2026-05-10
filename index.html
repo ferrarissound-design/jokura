@@ -112,6 +112,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
     <div class="invRow" id="invSand">🏖 SAND: 0</div>
     <div class="invRow" id="invGrass">🌿 GRASS: 0</div>
     <div class="invRow" id="invBrick">🧱 BRICK: 0</div>
+    <div class="invRow" id="invArrow">🏹 ARROW: 0</div>
     <div class="invRow" id="invChest">📦 CHEST: 0</div>
     <div class="invRow" id="invBed">🛏 BED: 0</div>
   </div>
@@ -181,7 +182,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0};
 const unlockedWeapons=[true,false,false,false,false];
 const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null];
 const SLOT_MAT=['grass','stone','sand','wood','brick'];
@@ -194,6 +195,8 @@ const CRAFT_RECIPES=[
   {name:'📦 Chest',  wi:-1, needs:{wood:10},         desc:'🪵×10'},
   {name:'🛏 Bed',    wi:-2, needs:{wood:6,grass:4},  desc:'🪵×6+🌿×4'},
   {name:'🧱 Brick×3',wi:-3, needs:{stone:5},         desc:'🪨×5'},
+  {name:'💊 ポーション',wi:-4, needs:{grass:3},        desc:'🌿×3'},
+  {name:'🏹 矢束×10',  wi:-5, needs:{wood:2},          desc:'🪵×2', req:3},
 ];
 
 const $invWood=document.getElementById('invWood');
@@ -201,6 +204,7 @@ const $invStone=document.getElementById('invStone');
 const $invSand=document.getElementById('invSand');
 const $invGrass=document.getElementById('invGrass');
 const $invBrick=document.getElementById('invBrick');
+const $invArrow=document.getElementById('invArrow');
 const $craftPanel=document.getElementById('craftPanel');
 
 function updateInvHUD(){
@@ -209,6 +213,7 @@ function updateInvHUD(){
   $invSand.textContent='🏖 SAND: '+inv.sand;
   $invGrass.textContent='🌿 GRASS: '+inv.grass;
   $invBrick.textContent='🧱 BRICK: '+inv.brick;
+  $invArrow.textContent='🏹 ARROW: '+inv.arrow;
 }
 
 function addMaterial(ti){
@@ -224,11 +229,14 @@ function canCraft(recipe){
 function doCraft(idx){
   const r=CRAFT_RECIPES[idx];if(!r)return;
   if(r.wi>=0&&unlockedWeapons[r.wi])return;
+  if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に弓を入手しよう 🏹');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
   if(r.wi===-1){chestCount++;updateChestHUD();showBonus('📦 チェスト×'+chestCount);}
   else if(r.wi===-2){bedCount++;updateBedHUD();showBonus('🛏 ベッド×'+bedCount);}
   else if(r.wi===-3){inv.brick+=3;showBonus('🧱 レンガ×3 CRAFTED!');}
+  else if(r.wi===-4){P.hp=Math.min(P.maxHp,P.hp+30);showBonus('💊 HP+30 HEALED!');}
+  else if(r.wi===-5){inv.arrow+=10;showBonus('🏹 矢×10 CRAFTED!');}
   else{unlockedWeapons[r.wi]=true;showBonus('🛠 '+r.name+' CRAFTED!');}
   updateInvHUD();playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);
   closeCraftPanel();
@@ -240,7 +248,7 @@ function buildCraftPanel(){
     const el=document.createElement('div');
     el.className='citem';
     if(r.wi>=0&&unlockedWeapons[r.wi]){el.classList.add('done');el.textContent='✅ '+r.name;}
-    else if(!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
+    else if((r.req!=null&&!unlockedWeapons[r.req])||!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
   });
@@ -261,7 +269,7 @@ $craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagat
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;
   for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=(i===0);
   updateInvHUD();
 }
@@ -916,8 +924,11 @@ function breakBlock(bh){
 function doAttack(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();if(attackCD>0)return;
   if(!unlockedWeapons[weaponIdx]){showBonus('🔒 武器未解放！クラフトしよう');playTone(200,.08,.08,'sawtooth');return;}
-  const w=WEAPONS[weaponIdx];attackCD=w.cd;w.sfx();
+  const w=WEAPONS[weaponIdx];
+  if(w.type==='ranged'&&inv.arrow<=0){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
+  attackCD=w.cd;w.sfx();
   if(w.type==='ranged'){
+    inv.arrow--;updateInvHUD();
     const eh=castEnemiesFar(w.range);if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
     fireArrow();return;
   }
