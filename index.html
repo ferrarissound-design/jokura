@@ -85,6 +85,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 #cdFill{height:100%;width:0%;background:#f80;border-radius:2px;transition:width .05s}
 #saveToast{position:absolute;top:calc(110px + var(--safeT));left:50%;transform:translateX(-50%);background:rgba(38,198,218,.85);color:#fff;font-size:11px;font-weight:800;padding:5px 16px;border-radius:20px;letter-spacing:1px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:50;white-space:nowrap}
 #saveToast.show{opacity:1}
+#chestInfo{position:absolute;bottom:calc(148px + var(--safeB));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);border:1px solid rgba(255,200,80,.35);border-radius:8px;padding:4px 12px;font-size:10px;font-weight:700;color:#ffe082;text-shadow:1px 1px 0 #000;letter-spacing:.3px;z-index:10;pointer-events:none;white-space:nowrap;display:none}
+#chestInfo.show{display:block}
 #bossHpWrap{position:absolute;bottom:calc(120px + var(--safeB));left:50%;transform:translateX(-50%);width:min(320px,85vw);pointer-events:none;z-index:15;opacity:0;transition:opacity .5s}
 #bossHpWrap.show{opacity:1}
 #bossName{text-align:center;font-size:13px;font-weight:900;color:#ff6666;text-shadow:0 0 10px #ff0000,1px 1px 0 #000;letter-spacing:2px;margin-bottom:4px}
@@ -123,6 +125,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
   <button id="saveFloatBtn">💾</button>
   <div id="waveAlert"></div>
   <div id="bonusPopup"></div>
+  <div id="chestInfo"></div>
   <div id="saveToast">💾 SAVED!</div>
   <div id="xhair"></div>
   <div id="dmgFlash"></div>
@@ -644,6 +647,19 @@ let chests=[];
 let chestCount=0;
 const $chestLabel=document.getElementById('invChest');
 function updateChestHUD(){if($chestLabel)$chestLabel.textContent='📦 CHEST: '+chestCount;}
+const $chestInfo=document.getElementById('chestInfo');
+function updateChestInfo(){
+  if(!gs.running||chests.length===0){$chestInfo.classList.remove('show');return;}
+  let nearest=null,nearDist=99;
+  for(const c of chests){const dx=c.x+.5-P.x,dz=c.z+.5-P.z,dy=c.y+.35-(P.y+.8);const d=Math.hypot(dx,dy,dz);if(d<2.5&&d<nearDist){nearDist=d;nearest=c;}}
+  if(!nearest){$chestInfo.classList.remove('show');return;}
+  const ct=nearest.contents;const parts=[];
+  if(ct.wood>0)parts.push('🪵'+ct.wood);if(ct.stone>0)parts.push('🪨'+ct.stone);
+  if(ct.sand>0)parts.push('🏖'+ct.sand);if(ct.grass>0)parts.push('🌿'+ct.grass);
+  if(ct.brick>0)parts.push('🧱'+ct.brick);if(ct.meat>0)parts.push('🥩'+ct.meat);
+  $chestInfo.textContent=parts.length?'📦 '+parts.join(' '):'📦 空';
+  $chestInfo.classList.add('show');
+}
 
 const _chestGeo=new THREE.BoxGeometry(.9,.7,.7);
 const _chestMatBody=new THREE.MeshStandardMaterial({color:0x6d3a1e,roughness:.85});
@@ -841,6 +857,7 @@ function updateHUD(){
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
+  updateChestInfo();
 }
 
 const miniCanvas=document.getElementById('miniCanvas');const miniCtx=miniCanvas.getContext('2d');
