@@ -953,8 +953,10 @@ breakBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagati
 breakBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);},{passive:false});
 jumpBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();doJump();});
 jumpBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doJump();},{passive:false});
-weaponBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();cycleWeapon();});
-weaponBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();cycleWeapon();},{passive:false});
+let _weaponBtnLastT=0;
+function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
+weaponBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();},{passive:false});
+weaponBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();});
 saveFloatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();if(gs.running)saveGame();});
 saveFloatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();if(gs.running)saveGame();},{passive:false});
 
