@@ -807,8 +807,10 @@ function updateMobs(dt){
 // ═══ MEAT HUD ═══
 function updateMeatHUD(){$meatLabel.textContent='🥩 MEAT: '+meat;if(meat>0)$eatBtn.classList.remove('disabled');else $eatBtn.classList.add('disabled');}
 function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.hp=Math.min(P.maxHp,P.hp+MEAT_HP);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('🍖 +'+MEAT_HP+'HP  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
-$eatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();eatMeat();});
-$eatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();eatMeat();},{passive:false});
+let _eatBtnLastT=0;
+function _onEatBtnTap(){const now=Date.now();if(now-_eatBtnLastT<100)return;_eatBtnLastT=now;eatMeat();}
+$eatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onEatBtnTap();},{passive:false});
+$eatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onEatBtnTap();});
 
 // ═══ GAME STATE ═══
 const gs={running:false,score:0,kills:0,day:1,time:0,wave:0,nextWave:15};
@@ -951,20 +953,25 @@ function doPlace(e){
 const breakBtn=document.getElementById('breakBtn'),placeBtn=document.getElementById('placeBtn'),jumpBtn=document.getElementById('jumpBtn'),weaponBtn=document.getElementById('weaponBtn'),saveFloatBtn=document.getElementById('saveFloatBtn');
 breakBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);});
 breakBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);},{passive:false});
-jumpBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();doJump();});
-jumpBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doJump();},{passive:false});
+let _jumpBtnLastT=0;
+function _onJumpBtnTap(){const now=Date.now();if(now-_jumpBtnLastT<100)return;_jumpBtnLastT=now;doJump();}
+jumpBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onJumpBtnTap();},{passive:false});
+jumpBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onJumpBtnTap();});
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
 weaponBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();},{passive:false});
 weaponBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();});
-saveFloatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();if(gs.running)saveGame();});
-saveFloatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();if(gs.running)saveGame();},{passive:false});
+let _saveBtnLastT=0;
+function _onSaveBtnTap(){const now=Date.now();if(now-_saveBtnLastT<100)return;_saveBtnLastT=now;if(gs.running)saveGame();}
+saveFloatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onSaveBtnTap();},{passive:false});
+saveFloatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onSaveBtnTap();});
 
 // PLACEボタン長押し：近くにベッド→睡眠、チェスト→操作、ベッド所持→設置、チェスト所持→設置
 let placeLongPressTimer=null;
 function _bedNearby(){return beds.some(b=>{const dx=b.x+.5-P.x,dz=b.z+.9-P.z,dy=b.y+.3-(P.y+.8);return Math.hypot(dx,dy,dz)<2.5;});}
 function _chestNearby(){return chests.some(c=>{const dx=c.x+.5-P.x,dz=c.z+.5-P.z,dy=c.y+.35-(P.y+.8);return Math.hypot(dx,dy,dz)<2.2;});}
 function _startPlacePress(){
+  if(placeLongPressTimer!==null)return;
   initAudio();
   placeLongPressTimer=setTimeout(()=>{
     placeLongPressTimer=null;
@@ -1040,8 +1047,14 @@ function pickupItem(info){
   else if(info.type==='weapon'){weaponIdx=info.wi;unlockWeaponByDrop(info.wi);showBonus(info.name+' GET!');playTone(900,.15,.1);}
   else if(info.type==='score'){gs.score+=info.value;showBonus(info.name);playTone(1000,.1,.08);}
 }
-ovBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();startGame();});ovBtn.addEventListener('touchend',(e)=>{e.preventDefault();startGame();},{passive:false});ovBtn.addEventListener('click',(e)=>{e.preventDefault();startGame();});
-$contBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();if(!$contBtn.classList.contains('disabled'))continueGame();});$contBtn.addEventListener('touchend',(e)=>{e.preventDefault();if(!$contBtn.classList.contains('disabled'))continueGame();},{passive:false});$contBtn.addEventListener('click',(e)=>{e.preventDefault();if(!$contBtn.classList.contains('disabled'))continueGame();});
+let _ovBtnLastT=0;
+function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startGame();}
+ovBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onOvBtnTap();},{passive:false});
+ovBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onOvBtnTap();});
+let _contBtnLastT=0;
+function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))continueGame();}
+$contBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContBtnTap();},{passive:false});
+$contBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContBtnTap();});
 
 // ═══ MAIN LOOP ═══
 let lavaParticleT=0,snowParticleT=0,lastT=0,minimapT=0,hudT=0,chunkT=0;
