@@ -54,13 +54,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 #joyWrap{position:absolute;left:calc(10px + var(--safeL));bottom:calc(14px + var(--safeB));width:120px;height:120px;pointer-events:auto;touch-action:none;z-index:10}
 #joyBase{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04)}
 #joyKnob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.2),rgba(255,255,255,.06));will-change:left,top}
-#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(14px + var(--safeB));display:flex;flex-direction:column;gap:6px;pointer-events:auto;z-index:10}
+#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(18px + var(--safeB));display:grid;grid-template-columns:82px 82px;gap:14px;pointer-events:auto;z-index:10}
 .abtn{min-width:88px;padding:10px 6px;border-radius:9px;border:1.5px solid rgba(255,255,255,.2);color:#eee;font-size:11px;font-weight:800;letter-spacing:.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;background:rgba(0,0,0,.45);transition:transform .1s;touch-action:manipulation}
 .abtn:active{transform:scale(.92)}
-#breakBtn{border-color:#e5393566;background:rgba(229,57,53,.22)}
+#breakBtn{border-color:#e5393566;background:rgba(229,57,53,.22);grid-column:1/3;justify-self:center}
 #placeBtn{border-color:#43a04766;background:rgba(67,160,71,.22)}
 #jumpBtn{border-color:#1e88e566;background:rgba(30,136,229,.22)}
-#weaponBtn{border-color:#f9d34266;background:rgba(249,211,66,.18)}
+#weaponBtn{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:80px;padding:7px 4px;border-radius:8px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#f9d342;font-size:9px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.3px;text-align:center}
+#weaponBtn:active{transform:scale(.92)}
 #saveFloatBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(8px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #26c6da44;background:rgba(38,198,218,.15);color:#7fffff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #dmgFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(220,30,30,.4);transition:opacity .1s;z-index:30}
 #dmgFlash.on{opacity:1}
@@ -151,8 +152,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
   <div id="hint">左スティック移動 / 右スワイプ視点 / ⛏攻撃 / 🧱設置(長押し=家具) / 🔄武器切替</div>
   <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / 1-5:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
+  <button id="weaponBtn">🔄 WEAPON</button>
   <div id="actionWrap">
-    <button class="abtn" id="weaponBtn">🔄 WEAPON</button>
     <button class="abtn" id="breakBtn">⛏ ATTACK</button>
     <button class="abtn" id="placeBtn">🧱 PLACE</button>
     <button class="abtn" id="jumpBtn">↑ JUMP</button>
@@ -186,7 +187,7 @@ const isDesktop=!isTouch;
 const FRAME_MIN=isTouch?(1000/30):0;
 const DRAW_R=isTouch?2:4;
 const MINIMAP_INTERVAL=isTouch?.7:.35;
-if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
+if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
 const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0};
@@ -900,7 +901,7 @@ if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAu
 
 // ═══ INPUT ═══
 let lActive=false,lId=null,lX=0,lY=0;const LS=.006;const uiPointers=new Set();
-if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.closest('#craftPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
+if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='weaponBtn'||el.closest('#craftPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
 const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
