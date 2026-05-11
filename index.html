@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 <title>ジョークラ</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:fixed;inset:0}
+*{box-sizing:border-box;margin:0;padding:0;touch-action:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:fixed;inset:0}
+canvas#c{display:block;touch-action:none}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block}
 #hud{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
 :root{--safeT:env(safe-area-inset-top,0px);--safeR:env(safe-area-inset-right,0px);--safeB:env(safe-area-inset-bottom,0px);--safeL:env(safe-area-inset-left,0px)}
@@ -1253,6 +1254,12 @@ function tick(now){
 }
 requestAnimationFrame(tick);
 document.addEventListener('touchmove',(e)=>{if(gs.running)e.preventDefault();},{passive:false});
+// iOS Safari: prevent pinch-zoom via gesture events
+document.addEventListener('gesturestart',(e)=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturechange',(e)=>e.preventDefault(),{passive:false});
+document.addEventListener('gestureend',(e)=>e.preventDefault(),{passive:false});
+// prevent multi-touch (pinch) and double-tap zoom during gameplay
+document.addEventListener('touchstart',(e)=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 })();
 </script>
 </body>
