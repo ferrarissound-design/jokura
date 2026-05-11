@@ -42,6 +42,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
 #xhair::after{width:100%;height:2px;top:50%;transform:translateY(-50%)}
 #waveAlert{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:20px;font-weight:900;color:#ff3c3c;text-shadow:0 0 18px #f00,2px 2px 0 #000;letter-spacing:2px;text-align:center;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap;z-index:20}
 #waveAlert.show{opacity:1}
+#waveTimer{position:absolute;top:calc(34px + var(--safeT));left:50%;transform:translateX(-50%);font-size:10px;font-weight:800;color:#ff9800;text-shadow:1px 1px 0 #000;letter-spacing:.5px;z-index:10;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
+#waveTimer.show{opacity:1}
+#waveTimer.boss{color:#ff4444;text-shadow:0 0 8px #f004,1px 1px 0 #000}
 #bonusPopup{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:16px;font-weight:900;color:#f9d342;text-shadow:0 0 10px #f9d34288,2px 2px 0 #000;opacity:0;transition:opacity .3s,top .5s;pointer-events:none;z-index:20}
 #bonusPopup.show{opacity:1;top:30%}
 #hotbar{position:absolute;bottom:calc(135px + var(--safeB));left:50%;transform:translateX(-50%);display:flex;gap:4px;pointer-events:auto;z-index:10}
@@ -124,6 +127,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:no
   <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
   <button id="saveFloatBtn">💾</button>
   <div id="waveAlert"></div>
+  <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
   <div id="chestInfo"></div>
   <div id="saveToast">💾 SAVED!</div>
@@ -842,7 +846,7 @@ const DAY_DUR=90;
 function startWave(){gs.wave++;const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();}gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}
 
 // ═══ HUD ═══
-const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay');
+const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer');
 let waTimer=0,bpTimer=0;
 const showAlert=t=>{$wa.textContent=t;$wa.classList.add('show');waTimer=2.5;};
 const showBonus=t=>{$bp.textContent=t;$bp.classList.add('show');bpTimer=1.5;};
@@ -858,6 +862,11 @@ function updateHUD(){
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();
+  const isBossNext=BOSS_DEFS.some(b=>b.wave===gs.wave+1);
+  if(gs.nextWave>0&&gs.nextWave<=10){
+    $wt.textContent=(isBossNext?'👑 BOSS WAVE ':'⚠️ WAVE ')+(gs.wave+1)+' まで '+Math.ceil(gs.nextWave)+'秒';
+    $wt.className='show'+(isBossNext?' boss':'');
+  }else{$wt.classList.remove('show');}
 }
 
 const miniCanvas=document.getElementById('miniCanvas');const miniCtx=miniCanvas.getContext('2d');
@@ -1030,7 +1039,7 @@ function commonReset(){
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
   for(const p of projectiles)scene.remove(p.mesh);projectiles.length=0;
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
-  clearWorld();yaw=0;pitch=0;attackCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();
+  clearWorld();yaw=0;pitch=0;attackCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');
 }
 function startGame(){
   overlay.classList.add('hide');initAudio();
