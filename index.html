@@ -207,7 +207,7 @@ if(isDesktop){document.getElementById('joyWrap').style.display='none';document.g
 // ═══ INVENTORY ═══
 const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0};
 const unlockedWeapons=[true,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone'];
 const SLOT_MAT=['grass','stone','sand','wood','brick'];
 
 const CRAFT_RECIPES=[
@@ -425,24 +425,31 @@ function initWorldNoise(seed){WORLD_SEED=seed;noise=makeNoise(seed);noiseB=makeN
 function fbm(x,z,oct){let v=0,amp=1,freq=1,mx=0;for(let i=0;i<oct;i++){v+=noise(x*freq,z*freq)*amp;mx+=amp;amp*=.5;freq*=2;}return v/mx;}
 function hash2i(x,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.imul(z,668265263))^seed;h=Math.imul(h^(h>>>13),1274126177);return(h^(h>>>16))>>>0;}
 function rand2(x,z,seed){return hash2i(x|0,z|0,seed)/4294967296;}
+function rand3(x,y,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.imul(z,668265263)+Math.imul(y,1013904223))^seed;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296;}
 
 // ═══ WORLD ═══
-const CHUNK=16,WORLD_R=16;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99];
-const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10;
+const CHUNK=16,CHUNK_Y=8,WORLD_R=16;
+const WORLD_CY_MIN=-4,WORLD_CY_MAX=2; // underground (-32) to mountain tops (+16)
+const DRAW_RY=isTouch?1:2;
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5];
+const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14;
 const boxGeo=new THREE.BoxGeometry(1,1,1);
 const blockMats=BLOCK_COLORS.map((c,i)=>{
   if(i===LAVA_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.8,emissive:0xff2200,emissiveIntensity:1.2});
   if(i===7)return new THREE.MeshStandardMaterial({color:c,roughness:.3,metalness:.4,emissive:0x330000,emissiveIntensity:.3});
   if(i===SNOW_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.3,metalness:.1,emissive:0x8899bb,emissiveIntensity:.08});
   if(i===WATER_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.1,metalness:.2,transparent:true,opacity:.78,emissive:0x003366,emissiveIntensity:.12});
+  if(i===COAL_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.95,metalness:.05,emissive:0x111111,emissiveIntensity:.05});
+  if(i===DEEP_STONE)return new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:.15,emissive:0x0a0d1a,emissiveIntensity:.1});
+  if(i===IRON_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.7,metalness:.35,emissive:0x3a1500,emissiveIntensity:.08});
   return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05});
 });
-let voxels={},blockMeshes=[],lavaBlocks=new Set();
-const vKey=(x,y,z)=>x+'|'+y+'|'+z;const cKey=(cx,cz)=>cx+','+cz;
+let voxels={},blockMeshes=new Set(),lavaBlocks=new Set();
+const vKey=(x,y,z)=>x+'|'+y+'|'+z;const cKey=(cx,cz)=>cx+','+cz;const ucKey=(cx,cy,cz)=>cx+','+cy+','+cz;
 let chunks={},activeChunks={};
+let underChunks={},activeUnderChunks={};
 
 const BIOMES={PLAINS:0,DESERT:1,FOREST:2,MOUNTAIN:3,VOLCANO:4,SNOW:5};
 function getBiome(wx,wz){
@@ -464,47 +471,90 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced){
   if(addToScene)scene.add(m);
   voxels[k]={mesh:m,ti,active:!!addToScene,playerPlaced:!!playerPlaced};
   if(addToScene){
-    blockMeshes.push(m);if(ti===LAVA_BLOCK)lavaBlocks.add(k);
-    const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK),ck=cKey(cx,cz);
-    if(chunks[ck]&&!chunks[ck].meshes.includes(m))chunks[ck].meshes.push(m);
+    blockMeshes.add(m);if(ti===LAVA_BLOCK)lavaBlocks.add(k);
+    const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
+    if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(!underChunks[ck])underChunks[ck]={meshes:new Set(),loaded:true};underChunks[ck].meshes.add(m);}
+    else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.add(m);}
   }
   return m;
 }
-function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);const idx=blockMeshes.indexOf(v.mesh);if(idx>=0)blockMeshes.splice(idx,1);lavaBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK),ck=cKey(cx,cz);if(chunks[ck]){const mi=chunks[ck].meshes.indexOf(v.mesh);if(mi>=0)chunks[ck].meshes.splice(mi,1);}delete voxels[k];}
+function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];}
 
 function generateChunk(cx,cz){
   const key=cKey(cx,cz);if(chunks[key])return;
-  const meshes=[],ox=cx*CHUNK,oz=cz*CHUNK;
+  const meshes=new Set(),ox=cx*CHUNK,oz=cz*CHUNK;
   for(let lx=0;lx<CHUNK;lx++)for(let lz=0;lz<CHUNK;lz++){
     const wx=ox+lx,wz=oz+lz,h=getHeight(wx,wz),biome=getBiome(wx,wz);
     const lakeN=noise(wx*.05+777,wz*.05+777);
     const isLake=(biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45);
     const gt=isLake?2:getGroundType(biome);
-    const m=addBlock(wx,h,wz,gt,false);if(m)meshes.push(m);
-    if(isLake){const mw=addBlock(wx,h+1,wz,WATER_BLOCK,false);if(mw)meshes.push(mw);}
+    const m=addBlock(wx,h,wz,gt,false);if(m)meshes.add(m);
+    if(isLake){const mw=addBlock(wx,h+1,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);}
     const sub=biome===BIOMES.VOLCANO?7:biome===BIOMES.SNOW?SNOW_BLOCK:1;
-    if(h>0){const m2=addBlock(wx,h-1,wz,sub,false);if(m2)meshes.push(m2);}
+    if(h>0){const m2=addBlock(wx,h-1,wz,sub,false);if(m2)meshes.add(m2);}
     if(biome===BIOMES.VOLCANO){
-      if(rand2(wx,wz,30)<0.06){const lm=addBlock(wx,h,wz,LAVA_BLOCK,false);if(lm)meshes.push(lm);if(rand2(wx,wz,31)<0.5){const lm2=addBlock(wx,h+1,wz,LAVA_BLOCK,false);if(lm2)meshes.push(lm2);}}
-      if(rand2(wx,wz,32)<0.05){const topH=2+Math.floor(rand2(wx,wz,33)*5);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,7,false);if(mr)meshes.push(mr);}}
-      if(rand2(wx,wz,34)<0.03){const mr=addBlock(wx,h+1,wz,7,false);if(mr)meshes.push(mr);const mr2=addBlock(wx,h+2,wz,7,false);if(mr2)meshes.push(mr2);}
+      if(rand2(wx,wz,30)<0.06){const lm=addBlock(wx,h,wz,LAVA_BLOCK,false);if(lm)meshes.add(lm);if(rand2(wx,wz,31)<0.5){const lm2=addBlock(wx,h+1,wz,LAVA_BLOCK,false);if(lm2)meshes.add(lm2);}}
+      if(rand2(wx,wz,32)<0.05){const topH=2+Math.floor(rand2(wx,wz,33)*5);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,7,false);if(mr)meshes.add(mr);}}
+      if(rand2(wx,wz,34)<0.03){const mr=addBlock(wx,h+1,wz,7,false);if(mr)meshes.add(mr);const mr2=addBlock(wx,h+2,wz,7,false);if(mr2)meshes.add(mr2);}
     }
     if(biome===BIOMES.SNOW){
-      if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,1,false);if(mt)meshes.push(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.push(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.push(top);}
-      if(rand2(wx,wz,41)<0.03){const topH=1+Math.floor(rand2(wx,wz,42)*3);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,SNOW_BLOCK,false);if(mr)meshes.push(mr);}}
+      if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,1,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.add(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.add(top);}
+      if(rand2(wx,wz,41)<0.03){const topH=1+Math.floor(rand2(wx,wz,42)*3);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,SNOW_BLOCK,false);if(mr)meshes.add(mr);}}
     }
-    if(biome===BIOMES.FOREST&&!isLake&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.push(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml)meshes.push(ml);}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml)meshes.push(ml);}}}
-    if(biome===BIOMES.PLAINS&&!isLake&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.push(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml)meshes.push(ml);[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2)meshes.push(ml2);});}
-    if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.push(mr);}}
-    if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms)meshes.push(ms);}}
+    if(biome===BIOMES.FOREST&&!isLake&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml)meshes.add(ml);}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml)meshes.add(ml);}}}
+    if(biome===BIOMES.PLAINS&&!isLake&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml)meshes.add(ml);[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2)meshes.add(ml2);});}
+    if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.add(mr);}}
+    if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms)meshes.add(ms);}}
   }
   chunks[key]={meshes,loaded:true};
 }
-function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;for(const m of chunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);}if(!blockMeshes.includes(m))blockMeshes.push(m);}activeChunks[key]=true;}
-function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;const set=new Set(chunks[key].meshes);for(const m of chunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);}}blockMeshes=blockMeshes.filter(m=>!set.has(m));delete activeChunks[key];}
-let lastPCX=null,lastPCZ=null;
-function updateChunks(force){const pcx=Math.floor(P.x/CHUNK),pcz=Math.floor(P.z/CHUNK);if(!force&&pcx===lastPCX&&pcz===lastPCZ)return;lastPCX=pcx;lastPCZ=pcz;const needed={};for(let dx=-DRAW_R;dx<=DRAW_R;dx++)for(let dz=-DRAW_R;dz<=DRAW_R;dz++){const cx=pcx+dx,cz=pcz+dz;if(cx<-WORLD_R||cx>=WORLD_R||cz<-WORLD_R||cz>=WORLD_R)continue;const key=cKey(cx,cz);needed[key]=true;if(!chunks[key])generateChunk(cx,cz);showChunk(cx,cz);}for(const key in activeChunks){if(!needed[key]){const[cx,cz]=key.split(',').map(Number);hideChunk(cx,cz);}}}
-function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)scene.remove(m);chunks={};activeChunks={};voxels={};blockMeshes=[];lavaBlocks.clear();lastPCX=null;lastPCZ=null;}
+function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;for(const m of chunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);}blockMeshes.add(m);}activeChunks[key]=true;}
+function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;for(const m of chunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);}blockMeshes.delete(m);}delete activeChunks[key];}
+function showUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!underChunks[key]||activeUnderChunks[key])return;for(const m of underChunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);}blockMeshes.add(m);}activeUnderChunks[key]=true;}
+function hideUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!activeUnderChunks[key]||!underChunks[key])return;for(const m of underChunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);}blockMeshes.delete(m);}delete activeUnderChunks[key];}
+let lastPCX=null,lastPCZ=null,lastPCY=null;
+function updateChunks(force){
+  const pcx=Math.floor(P.x/CHUNK),pcz=Math.floor(P.z/CHUNK),pcy=Math.floor(P.y/CHUNK_Y);
+  if(!force&&pcx===lastPCX&&pcz===lastPCZ&&pcy===lastPCY)return;
+  lastPCX=pcx;lastPCZ=pcz;lastPCY=pcy;
+  const needed={},neededU={};
+  for(let dx=-DRAW_R;dx<=DRAW_R;dx++)for(let dz=-DRAW_R;dz<=DRAW_R;dz++){
+    const cx=pcx+dx,cz=pcz+dz;
+    if(cx<-WORLD_R||cx>=WORLD_R||cz<-WORLD_R||cz>=WORLD_R)continue;
+    const sk=cKey(cx,cz);needed[sk]=true;if(!chunks[sk])generateChunk(cx,cz);showChunk(cx,cz);
+    const uk1=ucKey(cx,-1,cz);neededU[uk1]=true;if(!underChunks[uk1])generateUnderChunk(cx,-1,cz);showUnderChunk(cx,-1,cz);
+    if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;const uk=ucKey(cx,cy,cz);neededU[uk]=true;if(!underChunks[uk])generateUnderChunk(cx,cy,cz);showUnderChunk(cx,cy,cz);}}
+  }
+  for(const key in activeChunks){if(!needed[key]){const[cx,cz]=key.split(',').map(Number);hideChunk(cx,cz);}}
+  for(const key in activeUnderChunks){if(!neededU[key]){const[cx,cy,cz]=key.split(',').map(Number);hideUnderChunk(cx,cy,cz);}}
+}
+function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)scene.remove(m);for(const key in underChunks)for(const m of underChunks[key].meshes)scene.remove(m);chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};blockMeshes=new Set();lavaBlocks.clear();lastPCX=null;lastPCZ=null;lastPCY=null;}
+
+// ─── UNDERGROUND GENERATION ───
+function isUnderSolid(wx,wy,wz){
+  const n1=noiseB(wx*0.09+wy*0.13,wz*0.09);
+  const n2=noiseV(wx*0.09,wz*0.09+wy*0.13);
+  return(n1+n2)*0.5<=0.12;
+}
+function generateUnderChunk(cx,cy,cz){
+  const key=ucKey(cx,cy,cz);if(underChunks[key])return;
+  const meshes=new Set(),ox=cx*CHUNK,oy=cy*CHUNK_Y,oz=cz*CHUNK;
+  const dirs=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  for(let lx=0;lx<CHUNK;lx++)for(let lz=0;lz<CHUNK;lz++)for(let ly=0;ly<CHUNK_Y;ly++){
+    const wx=ox+lx,wy=oy+ly,wz=oz+lz;
+    if(!isUnderSolid(wx,wy,wz))continue; // cave air
+    if(!dirs.some(([dx,dy,dz])=>!isUnderSolid(wx+dx,wy+dy,wz+dz)))continue; // fully interior
+    const depth=-wy;
+    let ti;
+    if(depth<=8){ti=CAVE_DIRT;}
+    else if(depth<=16){ti=1;if(rand3(wx,wy,wz,52)<0.04)ti=COAL_ORE;}
+    else if(depth<=24){ti=DEEP_STONE;if(rand3(wx,wy,wz,53)<0.025)ti=IRON_ORE;}
+    else{ti=DEEP_STONE;if(rand3(wx,wy,wz,54)<0.015)ti=IRON_ORE;}
+    if(wy===WORLD_CY_MIN*CHUNK_Y)ti=LAVA_BLOCK; // lava floor at y=-32
+    const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
+  }
+  underChunks[key]={meshes,loaded:true};
+}
 
 // ═══ PHYSICS ═══
 function overlaps(px,py,pz,hw,hh){
@@ -557,7 +607,7 @@ let yaw=0,pitch=0;
 const SPEED=6,SPRINT_SPEED=10,GRAV=18,JV=7.5,EYE=1.55;
 let coyoteTime=0,jumpBuffer=0;
 const COYOTE=0.15,JBUF=0.12;
-function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}const wMin=-WORLD_R*CHUNK,wMax=WORLD_R*CHUNK;P.x=Math.max(wMin+1,Math.min(wMax-1,P.x));P.z=Math.max(wMin+1,Math.min(wMax-1,P.z));if(P.y<-30){P.y=20;P.velY=0;dmgPlayer(15);}}
+function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}const wMin=-WORLD_R*CHUNK,wMax=WORLD_R*CHUNK;P.x=Math.max(wMin+1,Math.min(wMax-1,P.x));P.z=Math.max(wMin+1,Math.min(wMax-1,P.z));if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
 function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}else{jumpBuffer=JBUF;}}
 
 // ═══ ENEMY BUILDERS ═══
@@ -920,7 +970,7 @@ function updateSky(t,inVolcano,inSnow){const b=t>.5?(t-.5)*2:(1-t*2);if(inVolcan
 
 // ═══ RAYCAST ═══
 const RC=new THREE.Raycaster();const _rd=new THREE.Vector3();
-function castVoxel(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=7;const h=RC.intersectObjects(blockMeshes,false);return h.length?h[0]:null;}
+function castVoxel(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=7;const h=RC.intersectObjects([...blockMeshes],false);return h.length?h[0]:null;}
 function getEnemyMeshes(){const ms=[];for(const e of enemies)ms.push(e.body,e.head);if(boss)ms.push(boss.body,boss.head);return ms;}
 function castEnemies(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=10;const h=RC.intersectObjects([...getEnemyMeshes(),...blockMeshes],false);if(!h.length)return null;if(h[0].object.userData.isBlock)return null;return h[0];}
 function castEnemiesFar(range){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=range;const h=RC.intersectObjects([...getEnemyMeshes(),...blockMeshes],false);if(!h.length)return null;if(h[0].object.userData.isBlock)return null;return h[0];}
