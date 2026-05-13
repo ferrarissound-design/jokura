@@ -621,12 +621,30 @@ function buildGolem(mat){const root=new THREE.Object3D();const body=makeBox(1.4,
 function buildFireDemon(mat){const root=new THREE.Object3D();const body=makeBox(.8,1.5,.65,mat.clone());const head=makeBox(.65,.65,.65,mat.clone());head.position.y=1.1;const eyeM=new THREE.MeshBasicMaterial({color:0xffff00});const el=makeBox(.16,.14,.07,eyeM);el.position.set(-.16,.06,.34);head.add(el);const er=makeBox(.16,.14,.07,eyeM.clone());er.position.set(.16,.06,.34);head.add(er);const hornM=new THREE.MeshStandardMaterial({color:0x220000,emissive:0x440000,emissiveIntensity:.5});const hornL=makeBox(.1,.45,.1,hornM);hornL.position.set(-.2,.48,.0);hornL.rotation.z=-.3;head.add(hornL);const hornR=makeBox(.1,.45,.1,hornM.clone());hornR.position.set(.2,.48,.0);hornR.rotation.z=.3;head.add(hornR);const wingM=new THREE.MeshStandardMaterial({color:0xcc2200,emissive:0x661100,emissiveIntensity:.4,transparent:true,opacity:.8});const wingL=makeBox(.12,1.1,.6,wingM);wingL.position.set(-.72,.1,-.1);wingL.rotation.z=.3;const wingR=makeBox(.12,1.1,.6,wingM.clone());wingR.position.set(.72,.1,-.1);wingR.rotation.z=-.3;const armM=mat.clone();const armL=makeBox(.25,.9,.25,armM);armL.position.set(-.55,.0,0);const armR=makeBox(.25,.9,.25,armM.clone());armR.position.set(.55,.0,0);const tail=makeBox(.18,.7,.18,mat.clone());tail.position.set(0,-.5,-.4);tail.rotation.x=.6;const hp=makeHpBar(.9);hp.bg.position.y=1.6;hp.fg.position.y=1.6;hp.fg.material.color.setHex(0xff6600);const lb=makeLabelSprite('FireDemon','#ff8800');lb.position.y=1.8;root.add(body,head,wingL,wingR,armL,armR,tail,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
 function buildIceGolem(mat){const root=new THREE.Object3D();const body=makeBox(1.1,1.5,.9,mat.clone());const head=makeBox(.7,.6,.7,mat.clone());head.position.y=1.1;const eyeM=new THREE.MeshBasicMaterial({color:0x00ddff});const el=makeBox(.15,.12,.07,eyeM);el.position.set(-.18,.05,.36);head.add(el);const er=makeBox(.15,.12,.07,eyeM.clone());er.position.set(.18,.05,.36);head.add(er);const spikeM=new THREE.MeshStandardMaterial({color:0xaaddff,emissive:0x224466,emissiveIntensity:.4,transparent:true,opacity:.85});const spike1=makeBox(.15,.5,.15,spikeM);spike1.position.set(0,.45,.0);head.add(spike1);const spike2=makeBox(.12,.35,.12,spikeM.clone());spike2.position.set(-.22,.35,.0);spike2.rotation.z=.3;head.add(spike2);const spike3=makeBox(.12,.35,.12,spikeM.clone());spike3.position.set(.22,.35,.0);spike3.rotation.z=-.3;head.add(spike3);const armM=mat.clone();const armL=makeBox(.35,1.0,.35,armM);armL.position.set(-.75,-.1,0);const armR=makeBox(.35,1.0,.35,armM.clone());armR.position.set(.75,-.1,0);const hp=makeHpBar(1.1);hp.bg.position.y=1.55;hp.fg.position.y=1.55;hp.fg.material.color.setHex(0x44ddff);const lb=makeLabelSprite('IceGolem','#aaddff');lb.position.y=1.75;root.add(body,head,armL,armR,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
 
+function buildBat(mat){
+  const root=new THREE.Object3D();
+  const body=makeBox(.35,.2,.3,mat.clone());
+  const earL=makeBox(.07,.15,.06,mat.clone());earL.position.set(-.1,.17,-.05);body.add(earL);
+  const earR=makeBox(.07,.15,.06,mat.clone());earR.position.set(.1,.17,-.05);body.add(earR);
+  const eyeM=new THREE.MeshBasicMaterial({color:0xff2222});
+  const el=makeBox(.07,.07,.05,eyeM);el.position.set(-.08,.03,.16);body.add(el);
+  const er=makeBox(.07,.07,.05,eyeM.clone());er.position.set(.08,.03,.16);body.add(er);
+  const lWingG=new THREE.Object3D();lWingG.position.set(-.175,0,0);
+  const lWing=makeBox(.42,.06,.28,mat.clone());lWing.position.set(-.21,0,0);lWingG.add(lWing);
+  const rWingG=new THREE.Object3D();rWingG.position.set(.175,0,0);
+  const rWing=makeBox(.42,.06,.28,mat.clone());rWing.position.set(.21,0,0);rWingG.add(rWing);
+  const hp=makeHpBar(.45);hp.bg.position.y=.42;hp.fg.position.y=.42;hp.fg.material.color.setHex(0xff4444);
+  const lb=makeLabelSprite('Bat','#cc88ff');lb.position.y=.62;
+  root.add(body,lWingG,rWingG,hp.bg,hp.fg,lb);
+  return{root,body,head:body,hpBar:hp.fg,lWing:lWingG,rWing:rWingG};
+}
 const ENEMY_TYPES=[
   {name:'Zombie',  color:0x447733,emissive:0x112200,hp:3,dmg:10,score:50, builder:buildZombie,              breakPow:1,  breakSoft:true, breakChance:.3, breakCd0:6},
   {name:'Skeleton',color:0xddddcc,emissive:0x888877,hp:2,dmg:8, score:40, builder:buildSkeleton,emissiveIntensity:.25, breakPow:0},
   {name:'Golem',   color:0x556677,emissive:0x111822,hp:8,dmg:20,score:100,builder:buildGolem,               breakPow:3,  breakCd0:3},
   {name:'FireDemon',color:0xcc3300,emissive:0x661100,hp:5,dmg:15,score:80,builder:buildFireDemon,lava:true,  breakPow:2.5,firePow:true,  breakCd0:3.5},
   {name:'IceGolem',color:0x88bbdd,emissive:0x224466,hp:6,dmg:12,score:70,builder:buildIceGolem,ice:true,    breakPow:2,  breakCd0:4},
+  {name:'Bat',     color:0x2a1a3a,emissive:0x220033,emissiveIntensity:.2, hp:2,dmg:5,score:30, builder:buildBat,bat:true,breakPow:0},
 ];
 let enemies=[];
 function spawnEnemy(){
@@ -661,7 +679,7 @@ function spawnUnderEnemy(){
       let et;
       if(depth>=24)et=ENEMY_TYPES[2];
       else if(depth>=12)et=ENEMY_TYPES[Math.random()<.5?0:2];
-      else et=ENEMY_TYPES[Math.random()<.6?0:1];
+      else et=Math.random()<.5?ENEMY_TYPES[5]:ENEMY_TYPES[Math.random()<.6?0:1];
       const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
       const built=et.builder(mat);
       built.root.position.set(sx+.5,sy+.85,sz+.5);scene.add(built.root);
@@ -1311,6 +1329,19 @@ function tick(now){
     if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
     if(dist>50){scene.remove(e.root);enemies.splice(i,1);continue;}
+    if(e.type.bat){
+      const dy3=P.y+0.8-ep.y,dist3=Math.hypot(dx,dy3,dz);
+      e.root.rotation.y=Math.atan2(dx,dz);
+      if(dist3>0.6){const spd=(3.5+gs.wave*.15)*dt;ep.x+=dx/dist3*spd;ep.y+=dy3/dist3*spd;ep.z+=dz/dist3*spd;}
+      const bk=voxels[vKey(Math.floor(ep.x),Math.floor(ep.y),Math.floor(ep.z))];if(bk&&bk.active)ep.y+=0.4;
+      e.wingT=(e.wingT||0)+dt*12;
+      if(e.lWing)e.lWing.rotation.z=Math.sin(e.wingT)*.7;
+      if(e.rWing)e.rWing.rotation.z=-Math.sin(e.wingT)*.7;
+      e.atkCd=Math.max(0,e.atkCd-dt);
+      if(dist3<1.1&&e.atkCd<=0){dmgPlayer(e.type.dmg);e.atkCd=0.7;}
+      e.hpBar.lookAt(camera.position);
+      continue;
+    }
     e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,6.5);
     if(dist>1)moveEnemy(e,(dx/dist)*spd,(dz/dist)*spd,dt);
     e.stuckT+=dt;if(e.stuckT>1.2){const mv=Math.abs(ep.x-e.lastX)+Math.abs(ep.z-e.lastZ);if(mv<.3&&e.onGround&&dist<14){e.velY=6.5;if(e.breakCd<=0)tryEnemyBreakBlock(e);}e.lastX=ep.x;e.lastZ=ep.z;e.stuckT=0;}
