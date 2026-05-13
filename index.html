@@ -684,10 +684,24 @@ function spawnUnderEnemy(){
       const built=et.builder(mat);
       built.root.position.set(sx+.5,sy+.85,sz+.5);scene.add(built.root);
       const mhp=et.hp+Math.floor(depth*0.08)+Math.floor(gs.wave*.3);
-      enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx+.5,lastZ:sz+.5,flashMeshes:[built.body,built.head],dead:false,breakCd:0});
+      enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx+.5,lastZ:sz+.5,flashMeshes:[built.body,built.head],dead:false,breakCd:0,lWing:built.lWing,rWing:built.rWing});
       return;
     }
   }
+}
+const SKY_BAT_MAX=isTouch?3:5,SKY_BAT_CD=isTouch?15:12;
+let skyBatSpawnT=0;
+function spawnSkyBat(){
+  const angle=Math.random()*Math.PI*2,dist=10+Math.random()*12;
+  const sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
+  const h=getHeight(Math.floor(sx),Math.floor(sz));
+  const sy=h+8+Math.random()*8;
+  const et=ENEMY_TYPES[5];
+  const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
+  const built=et.builder(mat);
+  built.root.position.set(sx,sy,sz);scene.add(built.root);
+  const mhp=et.hp+Math.floor(gs.wave*.3);
+  enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx,lastZ:sz,flashMeshes:[built.body,built.head],dead:false,breakCd:0,lWing:built.lWing,rWing:built.rWing});
 }
 function moveEnemy(e,vx,vz,dt){const p=e.root.position,fy=p.y-.85;e.velY-=GRAV*dt;const nx=p.x+vx*dt;if(!overlaps(nx,fy,p.z,.5,1.7))p.x=nx;const nz=p.z+vz*dt;if(!overlaps(p.x,fy,nz,.5,1.7))p.z=nz;const ny=fy+e.velY*dt;if(!overlaps(p.x,ny,p.z,.5,1.7)){p.y=ny+.85;e.onGround=false;}else{if(e.velY<0)e.onGround=true;e.velY=0;}if(p.y<-38)e.hp=0;}
 
@@ -1307,6 +1321,7 @@ function tick(now){
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
   if(P.y<0){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
+  if(!isDay&&P.y>=0){const sc=enemies.filter(e=>e.type.bat&&e.root.position.y>=0).length;skyBatSpawnT=Math.max(0,skyBatSpawnT-dt);if(skyBatSpawnT<=0&&sc<SKY_BAT_MAX){spawnSkyBat();skyBatSpawnT=SKY_BAT_CD;}}
   if(waTimer>0){waTimer-=dt;if(waTimer<=0)$wa.classList.remove('show');}
   if(bpTimer>0){bpTimer-=dt;if(bpTimer<=0)$bp.classList.remove('show');}
   P.invT=Math.max(0,P.invT-dt);if(attackCD>0)attackCD=Math.max(0,attackCD-dt);
