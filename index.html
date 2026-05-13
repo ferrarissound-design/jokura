@@ -179,6 +179,7 @@ canvas#c{display:block;touch-action:none}
   <div id="ovSub">VOXEL SURVIVAL</div>
   <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>🐷豚を倒して🥩ミートをゲット！<br>🪵素材を集めて🛠クラフトしよう！<br>📦チェスト・🛏ベッドで快適に！</div>
   <button id="ovBtn">▶ NEW GAME</button>
+  <button id="contDeathBtn" style="display:none;padding:12px 36px;border-radius:12px;background:linear-gradient(135deg,#66bb6a,#2e7d32);border:none;color:#fff;font-size:min(15px,4.2vw);font-weight:900;cursor:pointer;letter-spacing:1px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;line-height:1.5">▶ コンティニュー<br><span style="font-size:.75em;font-weight:600;opacity:.85">HP全回復 / スコア半減</span></button>
   <button id="contBtn" class="disabled">▶ 続きから</button>
   <div id="saveInfo">セーブデータ確認中...</div>
 </div>
@@ -1224,7 +1225,13 @@ placeBtn.addEventListener('touchend',    (e)=>{e.preventDefault();e.stopPropagat
 
 // ═══ OVERLAY ═══
 const overlay=document.getElementById('overlay'),ovTitle=document.getElementById('ovTitle'),ovInfo=document.getElementById('ovInfo'),ovBtn=document.getElementById('ovBtn'),ovSub=document.getElementById('ovSub');
-function gameOver(){gs.running=false;deleteSave();ovTitle.textContent='GAME OVER';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='▶ RETRY';overlay.classList.remove('hide');updateOverlaySaveInfo();}
+const $contDeathBtn=document.getElementById('contDeathBtn');
+let _contDeathLastT=0;
+function _onContDeathTap(){const now=Date.now();if(now-_contDeathLastT<100)return;_contDeathLastT=now;continueAfterDeath();}
+$contDeathBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContDeathTap();},{passive:false});
+$contDeathBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContDeathTap();});
+function gameOver(){gs.running=false;ovTitle.textContent='GAME OVER';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='▶ RETRY (最初から)';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');overlay.classList.remove('hide');updateOverlaySaveInfo();}
+function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
   for(const e of enemies)scene.remove(e.root);enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
@@ -1237,6 +1244,7 @@ function commonReset(){
   gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';$pauseBtn.style.display='none';
 }
 function startGame(){
+  deleteSave();$contDeathBtn.style.display='none';
   overlay.classList.add('hide');initAudio();
   initWorldNoise(Math.floor(Math.random()*999999));
   commonReset();resetInv();resetWorldEdits();
@@ -1250,6 +1258,7 @@ function startGame(){
 async function continueGame(){
 
   const d=await loadSaveData();if(!d)return;
+  $contDeathBtn.style.display='none';
   overlay.classList.add('hide');initAudio();commonReset();
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
   P.hp=d.hp||100;P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
