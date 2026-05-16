@@ -1237,19 +1237,21 @@ $contDeathBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContDeat
 $contDeathBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContDeathTap();});
 let undergroundSnapshot=null,prevPlayerUnderground=false;
 function undergroundDeath(){
+  P.hp=0;P.invT=99;gs.running=false;
   // roll back inventory to pre-underground state
   if(undergroundSnapshot){for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}undergroundSnapshot=null;}
   prevPlayerUnderground=false;
-  // clear score
   gs.score=0;
-  // clear underground enemies
   for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);enemies.splice(i,1);}}
-  // teleport to surface
-  const sh=getHeight(Math.floor(P.x),Math.floor(P.z));
-  P.y=sh+1.5;P.velY=0;P.onGround=false;
-  P.hp=30;P.invT=4;
-  updateInvHUD();saveGame();
-  showAlert('☠ 地下で倒れた… 戦利品を失い地上へ戻された');
+  $df.classList.add('on');
+  setTimeout(()=>{
+    $df.classList.remove('on');
+    const sh=getHeight(Math.floor(P.x),Math.floor(P.z));
+    P.y=sh+1.5;P.velY=0;P.onGround=false;
+    P.hp=30;P.invT=4;gs.running=true;
+    updateInvHUD();saveGame();
+    showAlert('☠ 地下で倒れた… 戦利品を失い地上へ戻された');
+  },900);
 }
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
