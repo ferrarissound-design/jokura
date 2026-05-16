@@ -1235,7 +1235,26 @@ let _contDeathLastT=0;
 function _onContDeathTap(){const now=Date.now();if(now-_contDeathLastT<100)return;_contDeathLastT=now;continueAfterDeath();}
 $contDeathBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContDeathTap();},{passive:false});
 $contDeathBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContDeathTap();});
-function gameOver(){gs.running=false;ovTitle.textContent='GAME OVER';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='▶ RETRY (最初から)';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');overlay.classList.remove('hide');updateOverlaySaveInfo();}
+let undergroundSnapshot=null,prevPlayerUnderground=false;
+function undergroundDeath(){
+  // roll back inventory to pre-underground state
+  if(undergroundSnapshot){for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}undergroundSnapshot=null;}
+  prevPlayerUnderground=false;
+  // clear score
+  gs.score=0;
+  // clear underground enemies
+  for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);enemies.splice(i,1);}}
+  // teleport to surface
+  const sh=getHeight(Math.floor(P.x),Math.floor(P.z));
+  P.y=sh+1.5;P.velY=0;P.onGround=false;
+  P.hp=30;P.invT=4;
+  updateInvHUD();saveGame();
+  showAlert('☠ 地下で倒れた… 戦利品を失い地上へ戻された');
+}
+function gameOver(){
+  if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
+  gs.running=false;ovTitle.textContent='GAME OVER';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='▶ RETRY (最初から)';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');overlay.classList.remove('hide');updateOverlaySaveInfo();
+}
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
   for(const e of enemies)scene.remove(e.root);enemies.length=0;
@@ -1245,7 +1264,7 @@ function commonReset(){
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
   for(const p of projectiles)scene.remove(p.mesh);projectiles.length=0;
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
-  clearWorld();yaw=0;pitch=0;attackCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');
+  clearWorld();yaw=0;pitch=0;attackCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');undergroundSnapshot=null;prevPlayerUnderground=false;
   gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';$pauseBtn.style.display='none';
 }
 function startGame(){
@@ -1335,7 +1354,11 @@ function tick(now){
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
-  if(P.y<0){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
+  const _isUnder=P.y<0;
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv}};}
+  if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;}
+  prevPlayerUnderground=_isUnder;
+  if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
 
   if(waTimer>0){waTimer-=dt;if(waTimer<=0)$wa.classList.remove('show');}
   if(bpTimer>0){bpTimer-=dt;if(bpTimer<=0)$bp.classList.remove('show');}
