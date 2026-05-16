@@ -1386,13 +1386,14 @@ function tick(now){
   renderer.render(scene,camera);
 }
 requestAnimationFrame(tick);
-document.addEventListener('touchmove',(e)=>{if(gs.running)e.preventDefault();},{passive:false});
-// iOS Safari: prevent pinch-zoom via gesture events
+document.addEventListener('touchmove',(e)=>{e.preventDefault();},{passive:false});
+// iOS Safari: prevent all zoom (pinch, double-tap, gesture)
 document.addEventListener('gesturestart',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('gesturechange',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('gestureend',(e)=>e.preventDefault(),{passive:false});
-// prevent multi-touch (pinch) and double-tap zoom during gameplay
 document.addEventListener('touchstart',(e)=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
+document.addEventListener('dblclick',(e)=>e.preventDefault(),{passive:false});
+document.addEventListener('wheel',(e)=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
 })();
 </script>
 </body>
