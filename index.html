@@ -128,6 +128,7 @@ canvas#c{display:block;touch-action:none}
     <div class="invRow" id="invGrass">🌿 GRASS: 0</div>
     <div class="invRow" id="invBrick">🧱 BRICK: 0</div>
     <div class="invRow" id="invArrow">🏹 ARROW: 0</div>
+    <div class="invRow" id="invDiamond" style="color:#00e5ff;text-shadow:0 0 6px #00bfff88">💎 DIAMOND: 0</div>
     <div class="invRow" id="invChest">📦 CHEST: 0</div>
     <div class="invRow" id="invBed">🛏 BED: 0</div>
   </div>
@@ -206,9 +207,10 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0};
+let hasDiamondSword=false;
 const unlockedWeapons=[true,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone'];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond'];
 const SLOT_MAT=['grass','stone','sand','wood','brick'];
 
 const CRAFT_RECIPES=[
@@ -221,6 +223,7 @@ const CRAFT_RECIPES=[
   {name:'🧱 Brick×3',wi:-3, needs:{stone:5},         desc:'🪨×5'},
   {name:'💊 ポーション',wi:-4, needs:{grass:3},        desc:'🌿×3'},
   {name:'🏹 矢束×10',  wi:-5, needs:{wood:2},          desc:'🪵×2', req:3},
+  {name:'💎 Diamond Sword',wi:-6,needs:{diamond:3,wood:1},desc:'💎×3+🪵×1'},
 ];
 
 const $invWood=document.getElementById('invWood');
@@ -229,6 +232,7 @@ const $invSand=document.getElementById('invSand');
 const $invGrass=document.getElementById('invGrass');
 const $invBrick=document.getElementById('invBrick');
 const $invArrow=document.getElementById('invArrow');
+const $invDiamond=document.getElementById('invDiamond');
 const $craftPanel=document.getElementById('craftPanel');
 
 function updateInvHUD(){
@@ -238,10 +242,12 @@ function updateInvHUD(){
   $invGrass.textContent='🌿 GRASS: '+inv.grass;
   $invBrick.textContent='🧱 BRICK: '+inv.brick;
   $invArrow.textContent='🏹 ARROW: '+inv.arrow;
+  $invDiamond.textContent='💎 DIAMOND: '+inv.diamond;
 }
 
 function addMaterial(ti){
   const mat=BLOCK_MAT_MAP[ti];if(!mat)return;
+  if(mat==='diamond'&&inv.diamond===0)showAlert('💎 DIAMOND FOUND!');
   inv[mat]++;updateInvHUD();
 }
 
@@ -250,9 +256,16 @@ function canCraft(recipe){
   return true;
 }
 
+function applyDiamondSword(){
+  hasDiamondSword=true;
+  WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=12;WEAPONS[1].cd=0.32;
+  unlockedWeapons[1]=true;
+  if(weaponIdx===1){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='💎 Diamond Sword';}
+}
 function doCraft(idx){
   const r=CRAFT_RECIPES[idx];if(!r)return;
   if(r.wi>=0&&unlockedWeapons[r.wi])return;
+  if(r.wi===-6&&hasDiamondSword)return;
   if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に弓を入手しよう 🏹');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
@@ -261,8 +274,9 @@ function doCraft(idx){
   else if(r.wi===-3){inv.brick+=3;showBonus('🧱 レンガ×3 CRAFTED!');}
   else if(r.wi===-4){P.hp=Math.min(P.maxHp,P.hp+30);showBonus('💊 HP+30 HEALED!');}
   else if(r.wi===-5){inv.arrow+=10;showBonus('🏹 矢×10 CRAFTED!');}
+  else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else{unlockedWeapons[r.wi]=true;showBonus('🛠 '+r.name+' CRAFTED!');}
-  updateInvHUD();playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);
+  updateInvHUD();if(r.wi!==-6){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
   closeCraftPanel();
 }
 
@@ -272,6 +286,7 @@ function buildCraftPanel(){
     const el=document.createElement('div');
     el.className='citem';
     if(r.wi>=0&&unlockedWeapons[r.wi]){el.classList.add('done');el.textContent='✅ '+r.name;}
+    else if(r.wi===-6&&hasDiamondSword){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if((r.req!=null&&!unlockedWeapons[r.req])||!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
@@ -293,7 +308,9 @@ $craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagat
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;
+  hasDiamondSword=false;
+  WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=(i===0);
   updateInvHUD();
 }
@@ -325,7 +342,7 @@ async function saveGame(){
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
-    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,
+    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,
     worldSeed:WORLD_SEED,
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
@@ -432,10 +449,10 @@ function rand3(x,y,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.im
 const CHUNK=16,CHUNK_Y=8,WORLD_R=16;
 const WORLD_CY_MIN=-4,WORLD_CY_MAX=2; // underground (-32) to mountain tops (+16)
 const DRAW_RY=isTouch?1:2;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5];
-const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14;
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6];
+const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15;
 const boxGeo=new THREE.BoxGeometry(1,1,1);
 const blockMats=BLOCK_COLORS.map((c,i)=>{
   if(i===LAVA_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.8,emissive:0xff2200,emissiveIntensity:1.2});
@@ -445,6 +462,7 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
   if(i===COAL_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.95,metalness:.05,emissive:0x111111,emissiveIntensity:.05});
   if(i===DEEP_STONE)return new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:.15,emissive:0x0a0d1a,emissiveIntensity:.1});
   if(i===IRON_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.7,metalness:.35,emissive:0x3a1500,emissiveIntensity:.08});
+  if(i===DIAMOND_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.15,metalness:.7,emissive:0x00aaff,emissiveIntensity:.45,transparent:true,opacity:.95});
   return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05});
 });
 let voxels={},blockMeshes=new Set(),lavaBlocks=new Set();
@@ -549,8 +567,8 @@ function generateUnderChunk(cx,cy,cz){
     let ti;
     if(depth<=8){ti=CAVE_DIRT;}
     else if(depth<=16){ti=1;if(rand3(wx,wy,wz,52)<0.04)ti=COAL_ORE;}
-    else if(depth<=24){ti=DEEP_STONE;if(rand3(wx,wy,wz,53)<0.025)ti=IRON_ORE;}
-    else{ti=DEEP_STONE;if(rand3(wx,wy,wz,54)<0.015)ti=IRON_ORE;}
+    else if(depth<=24){ti=DEEP_STONE;if(rand3(wx,wy,wz,53)<0.025)ti=IRON_ORE;if(rand3(wx,wy,wz,57)<0.005)ti=DIAMOND_ORE;}
+    else{ti=DEEP_STONE;if(rand3(wx,wy,wz,54)<0.015)ti=IRON_ORE;if(rand3(wx,wy,wz,58)<0.007)ti=DIAMOND_ORE;}
     if(wy===WORLD_CY_MIN*CHUNK_Y)ti=LAVA_BLOCK; // lava floor at y=-32
     const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
   }
@@ -1270,6 +1288,7 @@ async function continueGame(){
   if(d.unlockedWeapons)d.unlockedWeapons.forEach((v,i)=>{if(i<unlockedWeapons.length)unlockedWeapons[i]=v;});
   else unlockedWeapons[0]=true;
   meat=d.meat||0;updateMeatHUD();
+  if(d.hasDiamondSword)applyDiamondSword();
   if(d.worldSeed)initWorldNoise(d.worldSeed);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();Object.assign(worldEdits.placed,d.worldEdits.placed||{});Object.assign(worldEdits.removed,d.worldEdits.removed||{});}
