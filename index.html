@@ -1308,7 +1308,7 @@ async function continueGame(){
 // アイテムピックアップ（武器ドロップで解放）
 function pickupItem(info){
   if(info.type==='hp'){P.hp=Math.min(P.maxHp,P.hp+info.value);showBonus(info.name);playTone(700,.15,.1,'sine');}
-  else if(info.type==='weapon'){weaponIdx=info.wi;unlockWeaponByDrop(info.wi);showBonus(info.name+' GET!');playTone(900,.15,.1);}
+  else if(info.type==='weapon'){unlockWeaponByDrop(info.wi);showBonus(info.name+' GET!');playTone(900,.15,.1);}
   else if(info.type==='score'){gs.score+=info.value;showBonus(info.name);playTone(1000,.1,.08);}
 }
 let _ovBtnLastT=0;
