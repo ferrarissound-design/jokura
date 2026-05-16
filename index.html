@@ -563,9 +563,23 @@ function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)
 
 // ─── UNDERGROUND GENERATION ───
 function isUnderSolid(wx,wy,wz){
+  const depth=-wy;
   const n1=noiseB(wx*0.09+wy*0.13,wz*0.09);
   const n2=noiseV(wx*0.09,wz*0.09+wy*0.13);
-  return(n1+n2)*0.5<=0.12;
+  const base=(n1+n2)*0.5;
+  if(depth>22){
+    // Deep: large cathedral voids carved by low-freq noise
+    const bigCave=noise(wx*0.025+777,wz*0.025+wy*0.015);
+    if(bigCave<-0.25)return false; // carve open void
+    return base<=0.11;
+  }
+  if(depth>10){
+    // Mid: finer branching passages via mixed frequencies
+    const nFine=noiseV(wx*0.18+wy*0.24+444,wz*0.18);
+    return(base*0.65+nFine*0.35)<=0.12;
+  }
+  // Shallow: standard caves
+  return base<=0.12;
 }
 function generateUnderChunk(cx,cy,cz){
   const key=ucKey(cx,cy,cz);if(underChunks[key])return;
@@ -577,11 +591,30 @@ function generateUnderChunk(cx,cy,cz){
     if(!dirs.some(([dx,dy,dz])=>!isUnderSolid(wx+dx,wy+dy,wz+dz)))continue; // fully interior
     const depth=-wy;
     let ti;
-    if(depth<=8){ti=CAVE_DIRT;}
-    else if(depth<=16){ti=1;if(rand3(wx,wy,wz,52)<0.04)ti=COAL_ORE;}
-    else if(depth<=24){ti=DEEP_STONE;if(rand3(wx,wy,wz,53)<0.025)ti=IRON_ORE;if(rand3(wx,wy,wz,57)<0.005)ti=DIAMOND_ORE;}
-    else{ti=DEEP_STONE;if(rand3(wx,wy,wz,54)<0.015)ti=IRON_ORE;if(rand3(wx,wy,wz,58)<0.007)ti=DIAMOND_ORE;}
-    if(wy===WORLD_CY_MIN*CHUNK_Y)ti=LAVA_BLOCK; // lava floor at y=-32
+    if(depth<=10){
+      ti=rand3(wx,wy,wz,80)<0.22?1:CAVE_DIRT;
+      if(rand3(wx,wy,wz,81)<0.02&&depth>5)ti=COAL_ORE;
+    }else if(depth<=16){
+      ti=1;
+      if(rand3(wx,wy,wz,52)<0.05)ti=COAL_ORE;
+      if(depth>13&&rand3(wx,wy,wz,55)<0.012)ti=IRON_ORE;
+    }else if(depth<=22){
+      ti=DEEP_STONE;
+      if(rand3(wx,wy,wz,53)<0.03)ti=IRON_ORE;
+      if(rand3(wx,wy,wz,57)<0.008)ti=DIAMOND_ORE;
+    }else if(depth<=28){
+      ti=DEEP_STONE;
+      if(rand3(wx,wy,wz,54)<0.018)ti=IRON_ORE;
+      if(rand3(wx,wy,wz,58)<0.015)ti=DIAMOND_ORE;
+    }else{
+      ti=DEEP_STONE;
+      if(rand3(wx,wy,wz,62)<0.025)ti=DIAMOND_ORE;
+    }
+    if(wy===WORLD_CY_MIN*CHUNK_Y){
+      const hx=Math.floor(wx/3)*3,hz=Math.floor(wz/3)*3;
+      if(rand3(hx,-32,hz,8888)<0.38)continue;
+      ti=LAVA_BLOCK;
+    }
     const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
   }
   underChunks[key]={meshes,loaded:true};
@@ -1172,6 +1205,18 @@ function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fi
   const ddx=Math.sin(yaw)*7,ddy=-Math.cos(yaw)*7;miniCtx.strokeStyle='#44ff44';miniCtx.lineWidth=1.5;miniCtx.beginPath();miniCtx.moveTo(cx,cy);miniCtx.lineTo(cx+ddx,cy+ddy);miniCtx.stroke();
 }
 
+function updateUnderAtmosphere(py){
+  const depth=-py;
+  let fr,fg,fb,hi;
+  if(depth<10){const t=depth/10;fr=0.04+t*0.01;fg=0.05+t*0.01;fb=0.10+t*0.02;hi=Math.max(0.12,0.35-t*0.15);}
+  else if(depth<22){const t=(depth-10)/12;fr=0.05-t*0.03;fg=0.06-t*0.03;fb=0.12+t*0.01;hi=Math.max(0.06,0.20-t*0.10);}
+  else{const t=Math.min(1,(depth-22)/10);fr=0.02;fg=0.03+t*0.03;fb=0.08+t*0.05;hi=Math.max(0.03,0.10-t*0.05);}
+  scene.fog.color.setRGB(fr,fg,fb);renderer.setClearColor(scene.fog.color);
+  hemLight.color.setRGB(fr*0.5,fg*0.6,fb*1.5);hemLight.intensity=hi;
+  sun.intensity=Math.max(0.02,hi*0.35);
+  scene.fog.near=depth>22?13:depth>10?16:19;
+  scene.fog.far=depth>22?42:depth>10?52:58;
+}
 function updateSky(t,inVolcano,inSnow){const b=t>.5?(t-.5)*2:(1-t*2);if(inVolcano){skyMesh.material.color.setRGB(.18+b*.05,.04,.02);scene.fog.color.setRGB(.22,.05,.02);renderer.setClearColor(scene.fog.color);sun.color.setHex(0xff6600);sun.intensity=Math.max(.3,.8-.4*b);hemLight.color.setHex(0xff3300);hemLight.intensity=.5;}else if(inSnow){skyMesh.material.color.setRGB(Math.max(.15,.55-.3*b),Math.max(.18,.65-.35*b),Math.max(.22,.8-.4*b));scene.fog.color.setRGB(Math.max(.2,.6-.3*b),Math.max(.22,.68-.35*b),Math.max(.25,.82-.4*b));renderer.setClearColor(scene.fog.color);sun.color.setHex(0xaaccff);sun.intensity=Math.max(.2,.7-.4*b);hemLight.color.setHex(0xaaddff);hemLight.intensity=Math.max(.2,.7-.4*b);}else{skyMesh.material.color.setRGB(Math.max(.02,.23-.22*b),Math.max(.03,.48-.45*b),Math.max(.05,.84-.82*b));scene.fog.color.setRGB(Math.max(.04,.31-.24*b),Math.max(.04,.56-.50*b),Math.max(.06,.78-.72*b));renderer.setClearColor(scene.fog.color);sun.color.setHex(0xffffff);sun.intensity=Math.max(.05,1-.95*b);hemLight.color.setHex(0xbfdcff);hemLight.intensity=Math.max(.1,.9-.78*b);}$di.textContent=b>.5?'🌙':'☀️';}
 
 // ═══ RAYCAST ═══
@@ -1507,6 +1552,8 @@ function tick(now){
   const curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
   const inVolcano=curBiome===BIOMES.VOLCANO,inSnow=curBiome===BIOMES.SNOW;
   updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome);
+  if(P.y<0){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
+  else{scene.fog.near=20;scene.fog.far=60;skyMesh.visible=true;}
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
