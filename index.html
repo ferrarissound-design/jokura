@@ -1237,19 +1237,26 @@ $contDeathBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContDeat
 $contDeathBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContDeathTap();});
 let undergroundSnapshot=null,prevPlayerUnderground=false;
 function undergroundDeath(){
-  // roll back inventory to pre-underground state
-  if(undergroundSnapshot){for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}undergroundSnapshot=null;}
+  P.hp=0;P.invT=99;gs.running=false;updateHUD();
+  if(undergroundSnapshot){
+    for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}
+    unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
+    if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;unlockedWeapons[1]=false;}}
+    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;updateChestHUD();updateBedHUD();
+    undergroundSnapshot=null;
+  }
   prevPlayerUnderground=false;
-  // clear score
   gs.score=0;
-  // clear underground enemies
   for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);enemies.splice(i,1);}}
-  // teleport to surface
-  const sh=getHeight(Math.floor(P.x),Math.floor(P.z));
-  P.y=sh+1.5;P.velY=0;P.onGround=false;
-  P.hp=30;P.invT=4;
-  updateInvHUD();saveGame();
-  showAlert('☠ 地下で倒れた… 戦利品を失い地上へ戻された');
+  $df.classList.add('on');
+  setTimeout(()=>{
+    $df.classList.remove('on');
+    const sh=getHeight(Math.floor(P.x),Math.floor(P.z));
+    P.y=sh+1.5;P.velY=0;P.onGround=false;
+    P.hp=30;P.invT=4;gs.running=true;
+    updateInvHUD();saveGame();
+    showAlert('☠ 地下で倒れた… 戦利品を失い地上へ戻された');
+  },900);
 }
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
@@ -1355,7 +1362,7 @@ function tick(now){
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
   const _isUnder=P.y<0;
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv}};}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,chestCount,bedCount};}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;}
   prevPlayerUnderground=_isUnder;
   if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
