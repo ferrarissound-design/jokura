@@ -1394,7 +1394,7 @@ function undergroundDeath(){
   prevPlayerUnderground=false;
   gs.score=0;
   for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);enemies.splice(i,1);}}
-  if(dragon){scene.remove(dragon.root);dragon=null;}dragonWarnPending=false;
+  if(dragon){dragon.hp=dragon.maxHp;dragon.hpBar.scale.x=1;dragon.state='prowl';dragon.stateT=3;}
   $df.classList.add('on');
   setTimeout(()=>{
     $df.classList.remove('on');
