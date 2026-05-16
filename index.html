@@ -960,6 +960,7 @@ function updateMobs(dt){
     else{mob.wanderT-=dt;if(mob.wanderT<=0){mob.wanderAngle+=(Math.random()-.5)*Math.PI;mob.wanderT=1.5+Math.random()*2;}moveX=Math.sin(mob.wanderAngle)*WANDER_SPD;moveZ=Math.cos(mob.wanderAngle)*WANDER_SPD;mob.root.rotation.y=mob.wanderAngle;}
     const nx2=mp.x+moveX*dt;if(!overlaps(nx2,fy,mp.z,.38,.95))mp.x=nx2;
     const nz2=mp.z+moveZ*dt;if(!overlaps(mp.x,fy,nz2,.38,.95))mp.z=nz2;
+    const _wMin=-WORLD_R*CHUNK+2,_wMax=WORLD_R*CHUNK-2;mp.x=Math.max(_wMin,Math.min(_wMax,mp.x));mp.z=Math.max(_wMin,Math.min(_wMax,mp.z));
     const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;if(moving&&mob.legs){for(let li=0;li<4;li++){mob.legs[li].rotation.x=(li%2===0?1:-1)*swing;}}
   }
 }
