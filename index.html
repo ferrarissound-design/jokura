@@ -669,6 +669,47 @@ function buildBat(mat){
   root.add(body,lWingG,rWingG,hp.bg,hp.fg,lb);
   return{root,body,head:body,hpBar:hp.fg,lWing:lWingG,rWing:rWingG};
 }
+function buildDiamondDragon(){
+  const root=new THREE.Object3D();
+  const bMat=makeMat(0x1b2838,0x001020,.3,.25);
+  const cMat=makeMat(0x00b4d8,0x00e5ff,.7,.1);
+  const coreMat=new THREE.MeshStandardMaterial({color:0x88ffff,emissive:0x00ffff,emissiveIntensity:1.8,roughness:.05});
+  const eyeM=new THREE.MeshBasicMaterial({color:0xaaf0ff});
+  // Body
+  const body=makeBox(.9,1.0,.7,bMat.clone());
+  // Neck
+  const neck=makeBox(.38,.42,.38,bMat.clone());neck.position.set(0,.62,.18);
+  // Head
+  const head=makeBox(.55,.5,.58,bMat.clone());head.position.set(0,.88,.32);
+  // Snout
+  const snout=makeBox(.32,.2,.38,bMat.clone());snout.position.set(0,-.1,.32);head.add(snout);
+  // Eyes (blue-white glow)
+  const eyeL=makeBox(.12,.12,.07,eyeM);eyeL.position.set(-.17,.06,.3);head.add(eyeL);
+  const eyeR=makeBox(.12,.12,.07,eyeM.clone());eyeR.position.set(.17,.06,.3);head.add(eyeR);
+  // Crown crystal spikes
+  for(let i=0;i<3;i++){const hh=makeBox(.1,.28+i*.04,.1,cMat.clone());hh.position.set((i-1)*.2,.3+i*.03,-.04);head.add(hh);}
+  const spikeL=makeBox(.08,.18,.08,cMat.clone());spikeL.position.set(-.3,.12,.0);spikeL.rotation.z=.5;head.add(spikeL);
+  const spikeR=makeBox(.08,.18,.08,cMat.clone());spikeR.position.set(.3,.12,.0);spikeR.rotation.z=-.5;head.add(spikeR);
+  // Crystal wings (flat angular panels)
+  const wingLG=new THREE.Object3D();wingLG.position.set(-.45,.15,-.05);
+  const wingLa=makeBox(.7,.07,.85,cMat.clone());wingLa.position.set(-.35,.0,.0);wingLa.rotation.z=.28;wingLG.add(wingLa);
+  const wingLb=makeBox(.38,.05,.48,cMat.clone());wingLb.position.set(-.32,.05,.22);wingLa.add(wingLb);
+  const wingRG=new THREE.Object3D();wingRG.position.set(.45,.15,-.05);
+  const wingRa=makeBox(.7,.07,.85,cMat.clone());wingRa.position.set(.35,.0,.0);wingRa.rotation.z=-.28;wingRG.add(wingRa);
+  const wingRb=makeBox(.38,.05,.48,cMat.clone());wingRb.position.set(.32,.05,.22);wingRa.add(wingRb);
+  // Crystal scales on body
+  for(let i=0;i<4;i++){const sc=makeBox(.12,.09,.1,cMat.clone());sc.position.set(i%2===0?-.28:.28,.3-i*.15,.37);body.add(sc);}
+  // Tail
+  const tail=makeBox(.3,.3,.85,bMat.clone());tail.position.set(0,-.1,-.72);tail.rotation.x=.2;
+  const tailTip=makeBox(.15,.15,.3,cMat.clone());tailTip.position.set(0,0,-.58);tail.add(tailTip);
+  // Chest core (pulsing diamond crystal)
+  const core=makeBox(.3,.3,.12,coreMat);core.position.set(0,.12,.37);
+  // HP bar (cyan)
+  const hp=makeHpBar(1.3);hp.bg.position.y=1.75;hp.fg.position.y=1.75;hp.fg.material.color.setHex(0x00e5ff);
+  const lb=makeLabelSprite('💎Dragon','#00e5ff');lb.position.y=1.98;
+  root.add(body,neck,head,wingLG,wingRG,tail,core,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg,core,wingL:wingLG,wingR:wingRG};
+}
 const ENEMY_TYPES=[
   {name:'Zombie',  color:0x447733,emissive:0x112200,hp:3,dmg:10,score:50, builder:buildZombie,              breakPow:1,  breakSoft:true, breakChance:.3, breakCd0:6},
   {name:'Skeleton',color:0xddddcc,emissive:0x888877,hp:2,dmg:8, score:40, builder:buildSkeleton,emissiveIntensity:.25, breakPow:0},
@@ -695,6 +736,7 @@ function spawnEnemy(){
   enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx,lastZ:sz,flashMeshes:[built.body,built.head],dead:false,breakCd:0});
 }
 const UNDER_SPAWN_CD=isTouch?10:8,UNDER_MAX=5;
+let dragon=null,dragonSpawnT=90,dragonWarnPending=false;
 let underSpawnT=0;
 function spawnUnderEnemy(){
   for(let attempt=0;attempt<15;attempt++){
@@ -719,6 +761,47 @@ function spawnUnderEnemy(){
       return;
     }
   }
+}
+function spawnDiamondDragon(){
+  if(dragon||P.y>=-1)return;
+  dragonWarnPending=false;
+  const angle=Math.random()*Math.PI*2,dist=12+Math.random()*6;
+  const sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
+  const built=buildDiamondDragon();
+  built.root.position.set(sx,P.y+1.0,sz);
+  scene.add(built.root);
+  const mhp=80+gs.wave*3;
+  dragon={root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,core:built.core,wingL:built.wingL,wingR:built.wingR,hp:mhp,maxHp:mhp,state:'prowl',stateT:3,coreT:0,atkCd:0,chargeDir:{x:1,z:0},flashT:0};
+  dragonSpawnT=180;
+  showAlert('💎 ダイヤモンドドラゴン現る！💎装備が必要！');
+  sfxBossAppear();
+}
+function hitDragon(dmg,isDiamond){
+  if(!dragon)return;
+  if(!isDiamond){
+    showBonus('NO EFFECT! 💎装備が必要');
+    playTone(80,.15,.12,'square');
+    dragon.body.material.emissive.setHex(0x441100);dragon.body.material.emissiveIntensity=1.5;
+    setTimeout(()=>{if(dragon){dragon.body.material.emissive.setHex(0x001020);dragon.body.material.emissiveIntensity=.3;}},120);
+    return;
+  }
+  dragon.hp-=dmg;dragon.flashT=.15;
+  dragon.body.material.emissive.setHex(0xffffff);dragon.body.material.emissiveIntensity=2;
+  dragon.head.material.emissive.setHex(0xffffff);dragon.head.material.emissiveIntensity=2;
+  dragon.hpBar.scale.x=Math.max(.01,dragon.hp/dragon.maxHp);
+  sfxBossDmg();
+  if(dragon.hp<=0)killDragon();
+}
+function killDragon(){
+  if(!dragon)return;
+  const dp=dragon.root.position;
+  for(let i=0;i<6;i++)setTimeout(()=>spawnParticles(dp.x+(Math.random()-.5)*3,dp.y+(Math.random()-.5)*1.5,dp.z+(Math.random()-.5)*3,0x00e5ff,5),i*90);
+  inv.diamond+=4;updateInvHUD();
+  gs.score+=2000;gs.kills++;
+  scene.remove(dragon.root);dragon=null;
+  dragonSpawnT=180;
+  showAlert('💎 DRAGON SLAYER! ダイヤ×4獲得！');
+  playTone(1800,.3,.4,'sine');setTimeout(()=>playTone(2200,.2,.3,'sine'),180);setTimeout(()=>playTone(2600,.15,.4,'sine'),360);
 }
 function moveEnemy(e,vx,vz,dt){const p=e.root.position,fy=p.y-.85;e.velY-=GRAV*dt;const nx=p.x+vx*dt;if(!overlaps(nx,fy,p.z,.5,1.7))p.x=nx;const nz=p.z+vz*dt;if(!overlaps(p.x,fy,nz,.5,1.7))p.z=nz;const ny=fy+e.velY*dt;if(!overlaps(p.x,ny,p.z,.5,1.7)){p.y=ny+.85;e.onGround=false;}else{if(e.velY<0)e.onGround=true;e.velY=0;}if(p.y<-38)e.hp=0;}
 
@@ -771,6 +854,53 @@ function killBoss(){
   scene.remove(bossRoot);boss=null;$bossWrap.classList.remove('show');
 }
 function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);if(boss.flashT>0){boss.flashT-=dt;if(boss.flashT<=0){boss.body.material.emissive.setHex(boss.def.emissive);boss.body.material.emissiveIntensity=.35+boss.phase*.2;boss.head.material.emissive.setHex(boss.def.emissive);boss.head.material.emissiveIntensity=.35+boss.phase*.2;}}const fy=bp.y-(.85*sc);boss.velY-=GRAV*dt;const spd=2+boss.phase*.8+(gs.wave*.15);if(boss.charging){const cd=boss.chargeDir;const nx=bp.x+cd.x*12*dt;const nz=bp.z+cd.z*12*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}boss.chargeT-=dt;if(boss.chargeT<=0)boss.charging=false;}else if(dist>2){const nx=bp.x+(dx/dist)*spd*dt;const nz=bp.z+(dz/dist)*spd*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;}const ny=fy+boss.velY*dt;if(!overlaps(bp.x,ny,bp.z,sc*.4,1.7*sc)){bp.y=ny+.85*sc;boss.onGround=false;}else{if(boss.velY<0)boss.onGround=true;boss.velY=0;}if(bp.y<-1){const rh=getHeight(Math.floor(bp.x),Math.floor(bp.z));bp.y=rh+1.85*sc;boss.velY=0;boss.onGround=true;}bp.x=Math.max(-WORLD_R*CHUNK+2,Math.min(WORLD_R*CHUNK-2,bp.x));bp.z=Math.max(-WORLD_R*CHUNK+2,Math.min(WORLD_R*CHUNK-2,bp.z));boss.root.rotation.y=Math.atan2(dx,dz);boss.stuckT+=dt;if(boss.stuckT>1.5){const mv=Math.abs(bp.x-boss.lastX)+Math.abs(bp.z-boss.lastZ);if(mv<.3&&boss.onGround){boss.velY=7;if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(1,2.5-boss.phase*.3);}}boss.lastX=bp.x;boss.lastZ=bp.z;boss.stuckT=0;}boss.atkCd=Math.max(0,boss.atkCd-dt);boss.breakCd=Math.max(0,boss.breakCd-dt);if(dist<2.5*sc&&boss.atkCd<=0&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg+boss.phase*5);boss.atkCd=1.5-boss.phase*.2;}if(!boss.charging){boss.atkPhase=(boss.atkPhase||0)-dt;if(boss.atkPhase<=0){const pats=boss.def.patterns,pat=pats[Math.floor(Math.random()*pats.length)];boss.atkPhase=Math.max(1.2,3-boss.phase*.5);if(pat==='multishot'){[-0.4,0,0.4].forEach(a=>{const ca=Math.atan2(dx,dz)+a;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ca)*20,bp.y+sc,bp.z+Math.cos(ca)*20,boss.def.dmg*.6);});sfxBow();}else if(pat==='omnishot'){for(let a=0;a<8;a++){const ang=(a/8)*Math.PI*2;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ang)*20,bp.y+sc,bp.z+Math.cos(ang)*20,boss.def.dmg*.5);}sfxBow();sfxMagic();}else if(pat==='charge'){if(dist>4){sfxCharge();boss.charging=true;boss.chargeDir={x:dx/dist,z:dz/dist};boss.chargeT=0.6;boss.velY=4;}}else if(pat==='stomp'){if(boss.onGround){boss.velY=8;sfxHammer();}if(dist<6&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*.8);spawnParticles(bp.x,bp.y,bp.z,boss.def.deathColor,5);}}else if(pat==='aoeBlast'){spawnParticles(bp.x,bp.y+.5,bp.z,boss.def.deathColor,8);if(dist<7&&hasLOS(bp.x,bp.y+sc,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*1.2);sfxMagic();}for(const e of enemies){const ed=Math.hypot(e.root.position.x-bp.x,e.root.position.z-bp.z);if(ed<8)e.hp=Math.min(e.hp+2,e.maxHp);}}}}boss.hpBar.lookAt(camera.position);updateBossHUD();}
+function updateDragon(dt){
+  if(!dragon)return;
+  const dp=dragon.root.position;
+  const px=P.x,py=P.y+1.5,pz=P.z;
+  const dx=px-dp.x,dz=pz-dp.z,dist=Math.hypot(dx,dz);
+  // Flash recovery
+  if(dragon.flashT>0){dragon.flashT-=dt;if(dragon.flashT<=0){dragon.body.material.emissive.setHex(0x001020);dragon.body.material.emissiveIntensity=.3;dragon.head.material.emissive.setHex(0x001020);dragon.head.material.emissiveIntensity=.3;}}
+  // Core pulse + wing flap
+  dragon.coreT+=dt;
+  dragon.core.material.emissiveIntensity=dragon.state==='telegraph'?5.0:(1.8+Math.sin(dragon.coreT*4)*.6);
+  dragon.wingL.rotation.z=Math.sin(dragon.coreT*5)*.28;
+  dragon.wingR.rotation.z=-Math.sin(dragon.coreT*5)*.28;
+  // Face player
+  if(dist>0.5)dragon.root.rotation.y=Math.atan2(dx,dz);
+  // Contact damage
+  dragon.atkCd=Math.max(0,dragon.atkCd-dt);
+  if(dragon.atkCd<=0&&Math.hypot(dx,py-dp.y,dz)<2.3){dmgPlayer(25);dragon.atkCd=1.4;}
+  // Hover toward player Y (always), clamp underground
+  const targetY=Math.min(py,-0.6);
+  dp.y+=(targetY-dp.y)*2.5*dt;
+  if(dp.y>-0.4)dp.y=-0.4;
+  // State machine
+  dragon.stateT-=dt;
+  if(dragon.state==='prowl'){
+    if(dist>2.5){
+      const nx=dp.x+(dx/dist)*4*dt;if(!overlaps(nx,dp.y-.3,dp.z,.4,.7))dp.x=nx;
+      const nz=dp.z+(dz/dist)*4*dt;if(!overlaps(dp.x,dp.y-.3,nz,.4,.7))dp.z=nz;
+    }
+    if(dragon.stateT<=0){
+      dragon.stateT=2.5+Math.random()*2;
+      if(dist<14){dragon.state='telegraph';dragon.stateT=0.75;dragon.chargeDir={x:dx/(dist||1),z:dz/(dist||1)};playTone(120,.2,.15,'sawtooth');}
+    }
+  }else if(dragon.state==='telegraph'){
+    if(dragon.stateT<=0){dragon.state='charge';dragon.stateT=0.45;sfxCharge();}
+  }else if(dragon.state==='charge'){
+    let wallHit=false;
+    const nx=dp.x+dragon.chargeDir.x*18*dt;if(!overlaps(nx,dp.y-.3,dp.z,.4,.7))dp.x=nx;else wallHit=true;
+    const nz=dp.z+dragon.chargeDir.z*18*dt;if(!overlaps(dp.x,dp.y-.3,nz,.4,.7))dp.z=nz;else wallHit=true;
+    if(dragon.stateT<=0||wallHit){dragon.state='recoil';dragon.stateT=1.8;}
+  }else if(dragon.state==='recoil'){
+    const nx=dp.x-dragon.chargeDir.x*2*dt;if(!overlaps(nx,dp.y-.3,dp.z,.4,.7))dp.x=nx;
+    const nz=dp.z-dragon.chargeDir.z*2*dt;if(!overlaps(dp.x,dp.y-.3,nz,.4,.7))dp.z=nz;
+    if(dragon.stateT<=0){dragon.state='prowl';dragon.stateT=2.5+Math.random()*2;}
+  }
+  const wMin=-WORLD_R*CHUNK+2,wMax=WORLD_R*CHUNK-2;
+  dp.x=Math.max(wMin,Math.min(wMax,dp.x));dp.z=Math.max(wMin,Math.min(wMax,dp.z));
+}
 
 // ═══ ITEMS ═══
 let items=[];
@@ -1112,6 +1242,7 @@ function breakBlock(bh){
   if(v){
     spawnParticles(bh.object.position.x,bh.object.position.y,bh.object.position.z,BLOCK_COLORS[v.ti],4);
     addMaterial(v.ti);
+    if(v.ti===DIAMOND_ORE&&dragon===null&&!dragonWarnPending&&P.y<-12&&Math.random()<0.2){dragonWarnPending=true;showAlert('⚠ ダイヤを掘った…何かが目覚めた…');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}
     if(!d.playerPlaced){gs.score+=2;worldEdits.removed[k]=true;}
     else{delete worldEdits.placed[k];}
   }
@@ -1173,12 +1304,14 @@ function doAttack(e){
   if(w.type==='aoe'){
     spawnParticles(P.x,P.y+1.5,P.z,0xff44ff,4);let anyHit=false;
     if(boss){const bp=boss.root.position,dx=bp.x-P.x,dy=bp.y-P.y,dz=bp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitBoss(w.dmg);anyHit=true;}}
+    if(dragon){const dp=dragon.root.position,dx=dp.x-P.x,dy=dp.y-P.y,dz=dp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitDragon(w.dmg,false);anyHit=true;}}
     for(const en of[...enemies]){const ep=en.root.position,dx=ep.x-P.x,dy=ep.y-P.y,dz=ep.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitEnemy(en,w.dmg);anyHit=true;}}
     attackMobs(w);
     if(!anyHit){const bh=castVoxel();if(bh){breakBlock(bh);}}
     return;
   }
   const eh=castEnemies();if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
+  if(dragon){const dp=dragon.root.position;if((dp.x-P.x)**2+(dp.y-(P.y+1.5))**2+(dp.z-P.z)**2<w.range*w.range){hitDragon(w.dmg,weaponIdx===1&&hasDiamondSword);return;}}
   attackMobs(w);
   const bh=castVoxel();if(bh){breakBlock(bh);sfxBreak();}
 }
@@ -1261,6 +1394,7 @@ function undergroundDeath(){
   prevPlayerUnderground=false;
   gs.score=0;
   for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);enemies.splice(i,1);}}
+  if(dragon){scene.remove(dragon.root);dragon=null;}dragonWarnPending=false;
   $df.classList.add('on');
   setTimeout(()=>{
     $df.classList.remove('on');
@@ -1281,6 +1415,7 @@ function commonReset(){
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   resetChests();resetBeds();
   if(boss){scene.remove(boss.root);boss=null;$bossWrap.classList.remove('show');}
+  if(dragon){scene.remove(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
   for(const p of projectiles)scene.remove(p.mesh);projectiles.length=0;
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
@@ -1380,6 +1515,7 @@ function tick(now){
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;}
   prevPlayerUnderground=_isUnder;
   if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
+  if(_isUnder&&P.y<-12&&dragon===null&&!dragonWarnPending){dragonSpawnT-=dt;if(dragonSpawnT<=0){dragonSpawnT=60+Math.random()*30;if(Math.random()<0.04){dragonWarnPending=true;showAlert('⚠ 地下の底から咆哮が響く…💎');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}}}
 
   if(waTimer>0){waTimer-=dt;if(waTimer<=0)$wa.classList.remove('show');}
   if(bpTimer>0){bpTimer-=dt;if(bpTimer<=0)$bp.classList.remove('show');}
@@ -1395,7 +1531,7 @@ function tick(now){
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE,P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   chunkT+=dt;if(chunkT>.5){updateChunks(false);applyWorldEdits();chunkT=0;}
-  updateBoss(dt);updateMobs(dt);
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnPigs(Math.min(lack,4));}
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
@@ -1427,7 +1563,7 @@ function tick(now){
     else{const nb=gs.time>.5?(gs.time-.5)*2:0;e.body.material.emissiveIntensity=.08+nb*.3;e.head.material.emissiveIntensity=.08+nb*.3;}
     e.hpBar.lookAt(camera.position);
   }
-  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
+  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
   for(let i=items.length-1;i>=0;i--){const it=items[i];it.time+=dt;it.mesh.position.y=it.y+Math.sin(it.time*3)*.2;it.mesh.rotation.y+=dt*2;const dx=P.x-it.x,dz=P.z-it.z,dy=P.y-it.y;if(dx*dx+dy*dy+dz*dz<3){pickupItem(it.info);scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);continue;}if(it.time>25){scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);}}
   updateParticles(dt);
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}
