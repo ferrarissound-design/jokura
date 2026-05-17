@@ -208,8 +208,8 @@ if(isDesktop){document.getElementById('joyWrap').style.display='none';document.g
 
 // ═══ INVENTORY ═══
 const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0};
-let hasDiamondSword=false,hasDiamondBow=false;
-const unlockedWeapons=[true,false,false,false,false];
+let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false;
+const unlockedWeapons=[true,false,false,false,false,false];
 const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond'];
 const SLOT_MAT=['grass','stone','sand','wood','brick'];
 
@@ -225,6 +225,7 @@ const CRAFT_RECIPES=[
   {name:'🏹 矢束×10',  wi:-5, needs:{wood:2},          desc:'🪵×2', req:3},
   {name:'💎 Diamond Sword',wi:-6,needs:{diamond:3,wood:1},desc:'💎×3+🪵×1'},
   {name:'💎 Diamond Bow',  wi:-7,needs:{diamond:3,wood:2},desc:'💎×3+🪵×2',req:3},
+  {name:'🔮 Diamond Staff',wi:-8,needs:{diamond:5,wood:2},desc:'💎×5+🪵×2'},
 ];
 
 const $invWood=document.getElementById('invWood');
@@ -269,11 +270,17 @@ function applyDiamondBow(){
   unlockedWeapons[3]=true;
   if(weaponIdx===3){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='💎 Diamond Bow';}
 }
+function applyDiamondStaff(){
+  hasDiamondStaff=true;
+  unlockedWeapons[5]=true;
+  if(weaponIdx===5){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='🔮 Diamond Staff';}
+}
 function doCraft(idx){
   const r=CRAFT_RECIPES[idx];if(!r)return;
   if(r.wi>=0&&unlockedWeapons[r.wi])return;
   if(r.wi===-6&&hasDiamondSword)return;
   if(r.wi===-7&&hasDiamondBow)return;
+  if(r.wi===-8&&hasDiamondStaff)return;
   if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に弓を入手しよう 🏹');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
@@ -284,8 +291,9 @@ function doCraft(idx){
   else if(r.wi===-5){inv.arrow+=10;showBonus('🏹 矢×10 CRAFTED!');}
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
+  else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
   else{unlockedWeapons[r.wi]=true;showBonus('🛠 '+r.name+' CRAFTED!');}
-  updateInvHUD();if(r.wi!==-6&&r.wi!==-7){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
+  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
   closeCraftPanel();
 }
 
@@ -297,6 +305,7 @@ function buildCraftPanel(){
     if(r.wi>=0&&unlockedWeapons[r.wi]){el.classList.add('done');el.textContent='✅ '+r.name;}
     else if(r.wi===-6&&hasDiamondSword){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-7&&hasDiamondBow){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
+    else if(r.wi===-8&&hasDiamondStaff){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if((r.req!=null&&!unlockedWeapons[r.req])||!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
@@ -323,6 +332,7 @@ function resetInv(){
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
   WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;
+  hasDiamondStaff=false;
   for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=(i===0);
   updateInvHUD();
 }
@@ -354,7 +364,7 @@ async function saveGame(){
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
-    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,
+    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,
     worldSeed:WORLD_SEED,
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
@@ -397,6 +407,7 @@ const sfxBossAppear=()=>{for(let i=0;i<4;i++)setTimeout(()=>playTone(80+i*30,.5,
 const sfxBossDmg=()=>{playTone(60,.2,.3,'sawtooth');setTimeout(()=>playTone(90,.15,.2,'square'),80);};
 const sfxBossDie=()=>{for(let i=0;i<6;i++)setTimeout(()=>{playTone(400-i*40,.3,.3,'sawtooth');playTone(200-i*20,.3,.2,'square');},i*120);};
 const sfxCharge=()=>{playTone(150,.5,.2,'sawtooth');setTimeout(()=>playTone(300,.3,.15,'sawtooth'),200);};
+const sfxDiamondStaff=()=>{playTone(2400,.1,.12,'sine');setTimeout(()=>playTone(3200,.07,.08,'sine'),70);setTimeout(()=>playTone(1800,.06,.06,'sine'),140);};
 const sfxOink=()=>{playTone(350,.12,.08,'sine');setTimeout(()=>playTone(280,.1,.06,'sine'),80);};
 
 // ═══ BGM ═══
@@ -651,6 +662,7 @@ const WEAPONS=[
   {name:'🔨 Hammer',dmg:6,range:3,  cd:.8, type:'melee',  sfx:sfxHammer},
   {name:'🏹 Bow',   dmg:4,range:25, cd:.7, type:'ranged', sfx:sfxBow},
   {name:'🪄 Magic', dmg:5,range:8,  cd:1.4,type:'aoe',    sfx:sfxMagic},
+  {name:'🔮 Diamond Staff',dmg:15,range:35,cd:1.5,type:'staff',sfx:sfxDiamondStaff},
 ];
 let weaponIdx=0,attackCD=0;
 const $wl=document.getElementById('weaponLabel');
@@ -662,6 +674,8 @@ const MOB_RESPAWN_INTERVAL=60;
 let mobRespawnT=MOB_RESPAWN_INTERVAL;
 let projectiles=[];
 const arrowGeo=new THREE.BoxGeometry(.12,.12,.5);const arrowMat=new THREE.MeshBasicMaterial({color:0xddaa44});const diamondArrowMat=new THREE.MeshBasicMaterial({color:0x00e5ff});
+const staffOrbGeo=new THREE.OctahedronGeometry(.22,0);const staffOrbMat=new THREE.MeshBasicMaterial({color:0x88ffff});
+function fireStaff(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const m=new THREE.Mesh(staffOrbGeo,staffOrbMat.clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);scene.add(m);projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*70,dy:dir.y*70,dz:dir.z*70,life:2.5,dmg:WEAPONS[5].dmg,staff:true});}
 function fireArrow(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const isDiamond=hasDiamondBow;const m=new THREE.Mesh(arrowGeo,(isDiamond?diamondArrowMat:arrowMat).clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);m.lookAt(sx+dir.x,sy+dir.y,sz+dir.z);scene.add(m);const spd=isDiamond?55:35;const life=isDiamond?2.4:1.8;projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*spd,dy:dir.y*spd,dz:dir.z*spd,life,dmg:WEAPONS[3].dmg,diamond:isDiamond});}
 function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-bz,l=Math.hypot(dx,dy,dz)||1;const m=new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.7),new THREE.MeshBasicMaterial({color:0xff3300}));m.position.set(bx,by,bz);scene.add(m);projectiles.push({mesh:m,x:bx,y:by,z:bz,dx:(dx/l)*22,dy:(dy/l)*22,dz:(dz/l)*22,life:2.5,dmg:dmgVal,isBossArrow:true});}
 
@@ -1341,6 +1355,7 @@ function doAttack(e){
   const w=WEAPONS[weaponIdx];
   if(w.type==='ranged'&&inv.arrow<=0){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
   attackCD=w.cd;w.sfx();
+  if(w.type==='staff'){fireStaff();return;}
   if(w.type==='ranged'){
     inv.arrow--;updateInvHUD();
     const eh=castEnemiesFar(w.range);if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
@@ -1433,6 +1448,7 @@ function undergroundDeath(){
     unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
     if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;unlockedWeapons[1]=false;}}
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;unlockedWeapons[3]=false;}}
+    if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;unlockedWeapons[5]=false;}}
     chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;updateChestHUD();updateBedHUD();
     undergroundSnapshot=null;
   }
@@ -1495,6 +1511,7 @@ async function continueGame(){
   meat=d.meat||0;updateMeatHUD();
   if(d.hasDiamondSword)applyDiamondSword();
   if(d.hasDiamondBow)applyDiamondBow();
+  if(d.hasDiamondStaff)applyDiamondStaff();
   if(d.worldSeed)initWorldNoise(d.worldSeed);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();Object.assign(worldEdits.placed,d.worldEdits.placed||{});Object.assign(worldEdits.removed,d.worldEdits.removed||{});}
@@ -1558,7 +1575,7 @@ function tick(now){
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
   const _isUnder=P.y<0;
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,chestCount,bedCount};}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,chestCount,bedCount};}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;}
   prevPlayerUnderground=_isUnder;
   if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
@@ -1610,7 +1627,7 @@ function tick(now){
     else{const nb=gs.time>.5?(gs.time-.5)*2:0;e.body.material.emissiveIntensity=.08+nb*.3;e.head.material.emissiveIntensity=.08+nb*.3;}
     e.hpBar.lookAt(camera.position);
   }
-  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
+  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true||p.staff===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit&&p.staff)spawnParticles(p.x,p.y,p.z,0x88ffff,5);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
   for(let i=items.length-1;i>=0;i--){const it=items[i];it.time+=dt;it.mesh.position.y=it.y+Math.sin(it.time*3)*.2;it.mesh.rotation.y+=dt*2;const dx=P.x-it.x,dz=P.z-it.z,dy=P.y-it.y;if(dx*dx+dy*dy+dz*dz<3){pickupItem(it.info);scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);continue;}if(it.time>25){scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);}}
   updateParticles(dt);
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}
