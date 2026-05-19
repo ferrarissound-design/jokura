@@ -129,8 +129,10 @@ canvas#c{display:block;touch-action:none}
     <div class="invRow" id="invBrick">🧱 BRICK: 0</div>
     <div class="invRow" id="invArrow">🏹 ARROW: 0</div>
     <div class="invRow" id="invDiamond" style="color:#00e5ff;text-shadow:0 0 6px #00bfff88">💎 DIAMOND: 0</div>
+    <div class="invRow" id="invDragonCore" style="color:#88ffff;text-shadow:0 0 6px #00e5ff88">💠 DRAGON CORE: 0</div>
     <div class="invRow" id="invChest">📦 CHEST: 0</div>
     <div class="invRow" id="invBed">🛏 BED: 0</div>
+    <div class="invRow" id="invTrophy" style="color:#aaf0ff">🏆 DRAGON STATUE: 0</div>
   </div>
   <button id="craftBtn">🛠 CRAFT</button>
   <div id="craftPanel"></div>
@@ -207,7 +209,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0};
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false;
 const unlockedWeapons=[true,false,false,false,false,false];
 const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond'];
@@ -226,6 +228,7 @@ const CRAFT_RECIPES=[
   {name:'💎 Diamond Sword',wi:-6,needs:{diamond:3,wood:1},desc:'💎×3+🪵×1'},
   {name:'💎 Diamond Bow',  wi:-7,needs:{diamond:3,wood:2},desc:'💎×3+🪵×2',req:3},
   {name:'🔮 Diamond Staff',wi:-8,needs:{diamond:5,wood:2},desc:'💎×5+🪵×2'},
+  {name:'🏆 ダイヤドラゴン像',wi:-9,needs:{dragonCore:1,diamond:3},desc:'💠×1+💎×3'},
 ];
 
 const $invWood=document.getElementById('invWood');
@@ -235,6 +238,7 @@ const $invGrass=document.getElementById('invGrass');
 const $invBrick=document.getElementById('invBrick');
 const $invArrow=document.getElementById('invArrow');
 const $invDiamond=document.getElementById('invDiamond');
+const $invDragonCore=document.getElementById('invDragonCore');
 const $craftPanel=document.getElementById('craftPanel');
 
 function updateInvHUD(){
@@ -245,6 +249,7 @@ function updateInvHUD(){
   $invBrick.textContent='🧱 BRICK: '+inv.brick;
   $invArrow.textContent='🏹 ARROW: '+inv.arrow;
   $invDiamond.textContent='💎 DIAMOND: '+inv.diamond;
+  $invDragonCore.textContent='💠 DRAGON CORE: '+inv.dragonCore;
 }
 
 function addMaterial(ti){
@@ -292,8 +297,9 @@ function doCraft(idx){
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
+  else if(r.wi===-9){trophyCount++;updateTrophyHUD();showAlert('🏆 ダイヤドラゴン像 CRAFTED! 拠点に飾ろう！');playTone(2000,.2,.15,'sine');setTimeout(()=>playTone(2600,.15,.12,'sine'),130);setTimeout(()=>playTone(3200,.1,.1,'sine'),260);}
   else{unlockedWeapons[r.wi]=true;showBonus('🛠 '+r.name+' CRAFTED!');}
-  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
+  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8&&r.wi!==-9){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
   closeCraftPanel();
 }
 
@@ -327,7 +333,7 @@ $craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagat
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;
   hasDiamondSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
@@ -369,6 +375,7 @@ async function saveGame(){
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
+    trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),
     savedAt:Date.now()
   };
   try{const r=await window.storage.set(SAVE_KEY,JSON.stringify(data));showSaveToast(r?'💾 SAVED!':'⚠ 保存失敗');updateOverlaySaveInfo();}
@@ -642,6 +649,7 @@ function overlaps(px,py,pz,hw,hh){
   const CHW=0.45,CHH=0.7;
   for(const c of chests){const cx=c.x+.5,cy=c.y,cz=c.z+.5;if(px-hw<cx+CHW&&px+hw>cx-CHW&&py<cy+CHH&&py+hh>cy&&pz-hw<cz+CHW&&pz+hw>cz-CHW)return true;}
   for(const b of beds){const bx=b.x+.5,by=b.y,bz=b.z+.9;if(px-hw<bx+.5&&px+hw>bx-.5&&py<by+.35&&py+hh>by&&pz-hw<bz+.9&&pz+hw>bz-.9)return true;}
+  for(const t of trophies){const tx=t.x+.5,ty=t.y,tz=t.z+.5;if(px-hw<tx+.38&&px+hw>tx-.38&&py<ty+.75&&py+hh>ty&&pz-hw<tz+.38&&pz+hw>tz-.38)return true;}
   return false;
 }
 let lavaDmgTimer=0,snowDmgTimer=0;
@@ -842,13 +850,14 @@ function hitDragon(dmg,isDiamond){
 function killDragon(){
   if(!dragon)return;
   const dp=dragon.root.position;
-  for(let i=0;i<6;i++)setTimeout(()=>spawnParticles(dp.x+(Math.random()-.5)*3,dp.y+(Math.random()-.5)*1.5,dp.z+(Math.random()-.5)*3,0x00e5ff,5),i*90);
-  inv.diamond+=4;updateInvHUD();
+  for(let i=0;i<8;i++)setTimeout(()=>spawnParticles(dp.x+(Math.random()-.5)*3,dp.y+(Math.random()-.5)*1.5,dp.z+(Math.random()-.5)*3,0x00e5ff,5),i*80);
+  inv.diamond+=4;inv.dragonCore+=1;updateInvHUD();
   gs.score+=2000;gs.kills++;
   scene.remove(dragon.root);dragon=null;
   dragonSpawnT=180;
-  showAlert('💎 DRAGON SLAYER! ダイヤ×4獲得！');
+  showAlert('💠 DIAMOND DRAGON DEFEATED!');
   playTone(1800,.3,.4,'sine');setTimeout(()=>playTone(2200,.2,.3,'sine'),180);setTimeout(()=>playTone(2600,.15,.4,'sine'),360);
+  setTimeout(()=>showBonus('💠 ドラゴンコア×1 獲得！ 像をクラフトしよう'),1200);
 }
 function moveEnemy(e,vx,vz,dt){const p=e.root.position,fy=p.y-.85;e.velY-=GRAV*dt;const nx=p.x+vx*dt;if(!overlaps(nx,fy,p.z,.5,1.7))p.x=nx;const nz=p.z+vz*dt;if(!overlaps(p.x,fy,nz,.5,1.7))p.z=nz;const ny=fy+e.velY*dt;if(!overlaps(p.x,ny,p.z,.5,1.7)){p.y=ny+.85;e.onGround=false;}else{if(e.velY<0)e.onGround=true;e.velY=0;}if(p.y<-38)e.hp=0;}
 
@@ -1102,6 +1111,38 @@ function sleepBed(){
 }
 function resetBeds(){for(const b of beds)scene.remove(b.mesh);beds=[];bedCount=0;updateBedHUD();}
 
+let trophies=[];
+let trophyCount=0;
+const $trophyLabel=document.getElementById('invTrophy');
+function updateTrophyHUD(){if($trophyLabel)$trophyLabel.textContent='🏆 DRAGON STATUE: '+trophyCount;}
+function makeTrophyMesh(){
+  const root=new THREE.Object3D();
+  const bMat=new THREE.MeshStandardMaterial({color:0x1b2838,roughness:.3,emissive:0x001525,emissiveIntensity:.6});
+  const cMat=new THREE.MeshStandardMaterial({color:0x00b4d8,emissive:0x00e5ff,emissiveIntensity:1.4,roughness:.1});
+  const pedMat=new THREE.MeshStandardMaterial({color:0x2a2e3d,roughness:.75});
+  const ped=new THREE.Mesh(new THREE.BoxGeometry(.7,.14,.7),pedMat);ped.position.y=.07;
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.34,.38,.28),bMat.clone());body.position.y=.34;
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.19,.17,.21),bMat.clone());head.position.set(0,.60,.05);
+  const snout=new THREE.Mesh(new THREE.BoxGeometry(.12,.1,.14),bMat.clone());snout.position.set(0,.57,.19);
+  const wingL=new THREE.Mesh(new THREE.BoxGeometry(.07,.26,.20),cMat.clone());wingL.position.set(-.27,.44,0);wingL.rotation.z=.38;
+  const wingR=new THREE.Mesh(new THREE.BoxGeometry(.07,.26,.20),cMat.clone());wingR.position.set(.27,.44,0);wingR.rotation.z=-.38;
+  const core=new THREE.Mesh(new THREE.OctahedronGeometry(.09,0),cMat.clone());core.position.set(0,.37,.16);
+  root.add(ped,body,head,snout,wingL,wingR,core);
+  return root;
+}
+function placeTrophy(){
+  if(!gs.running)return;if(trophyCount<=0){showBonus('ドラゴン像がない！クラフトしよう');return;}
+  const bh=castVoxel();if(!bh)return;
+  const n=bh.face.normal,d=bh.object.userData;
+  const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
+  for(const t of trophies){if(Math.floor(t.x)===px&&Math.floor(t.y)===py&&Math.floor(t.z)===pz)return;}
+  if(px<P.x+.4&&px+1>P.x-.4&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.4&&pz+1>P.z-.4)return;
+  const mesh=makeTrophyMesh();mesh.position.set(px,py,pz);scene.add(mesh);
+  trophyCount--;trophies.push({mesh,x:px,y:py,z:pz});
+  updateTrophyHUD();sfxPlace();showBonus('🏆 ドラゴン像を設置した！');
+}
+function resetTrophies(){for(const t of trophies)scene.remove(t.mesh);trophies=[];trophyCount=0;updateTrophyHUD();}
+
 // ═══ MOBS（豚） ═══
 const mobs=[];const MAX_MOBS=15;let meat=0;
 const _pigGeos={body:new THREE.BoxGeometry(.9,.65,.6),head:new THREE.BoxGeometry(.58,.52,.52),leg:new THREE.BoxGeometry(.2,.45,.2),nose:new THREE.BoxGeometry(.26,.18,.08),eye:new THREE.BoxGeometry(.09,.09,.05)};
@@ -1271,6 +1312,7 @@ document.addEventListener('keydown',(e)=>{
     else if(_chestNearby()) interactChest();
     else if(bedCount>0)     placeBed();
     else if(chestCount>0)   placeChest();
+    else if(trophyCount>0)  placeTrophy();
     else showBonus('置ける家具がない！');
   }
   if(e.code==='KeyB'){
@@ -1421,6 +1463,7 @@ function _startPlacePress(){
     else if(_chestNearby()) interactChest();
     else if(bedCount>0)     placeBed();
     else if(chestCount>0)   placeChest();
+    else if(trophyCount>0)  placeTrophy();
     else showBonus('置ける家具がない！');
   },500);
 }
@@ -1449,7 +1492,7 @@ function undergroundDeath(){
     if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;unlockedWeapons[1]=false;}}
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;unlockedWeapons[3]=false;}}
     if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;unlockedWeapons[5]=false;}}
-    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;updateChestHUD();updateBedHUD();
+    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;updateChestHUD();updateBedHUD();updateTrophyHUD();
     undergroundSnapshot=null;
   }
   prevPlayerUnderground=false;
@@ -1474,7 +1517,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies)scene.remove(e.root);enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
-  resetChests();resetBeds();
+  resetChests();resetBeds();resetTrophies();
   if(boss){scene.remove(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
@@ -1524,6 +1567,10 @@ async function continueGame(){
   bedCount=d.bedCount||0;
   if(d.beds){for(const bd of d.beds){const mesh=makeBedMesh();mesh.position.set(bd.x,bd.y,bd.z);scene.add(mesh);beds.push({mesh,x:bd.x,y:bd.y,z:bd.z});}}
   updateBedHUD();
+  // ドラゴン像復元
+  trophyCount=d.trophyCount||0;
+  if(d.trophies){for(const td of d.trophies){const mesh=makeTrophyMesh();mesh.position.set(td.x,td.y,td.z);scene.add(mesh);trophies.push({mesh,x:td.x,y:td.y,z:td.z});}}
+  updateTrophyHUD();
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   $pauseBtn.style.display='flex';
   spawnPigs(8);updateInvHUD();resize();
@@ -1575,7 +1622,7 @@ function tick(now){
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
   const _isUnder=P.y<0;
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,chestCount,bedCount};}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,chestCount,bedCount,trophyCount};}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;}
   prevPlayerUnderground=_isUnder;
   if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
