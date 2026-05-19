@@ -92,6 +92,8 @@ canvas#c{display:block;touch-action:none}
 #saveToast.show{opacity:1}
 #chestInfo{position:absolute;bottom:calc(148px + var(--safeB));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);border:1px solid rgba(255,200,80,.35);border-radius:8px;padding:4px 12px;font-size:10px;font-weight:700;color:#ffe082;text-shadow:1px 1px 0 #000;letter-spacing:.3px;z-index:10;pointer-events:none;white-space:nowrap;display:none}
 #chestInfo.show{display:block}
+#treasureInfo{position:absolute;bottom:calc(170px + var(--safeB));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);border:1px solid rgba(0,200,255,.4);border-radius:8px;padding:4px 12px;font-size:10px;font-weight:700;color:#88eeff;text-shadow:0 0 6px #00aaff88;letter-spacing:.3px;z-index:10;pointer-events:none;white-space:nowrap;display:none}
+#treasureInfo.show{display:block}
 #bossHpWrap{position:absolute;bottom:calc(120px + var(--safeB));left:50%;transform:translateX(-50%);width:min(320px,85vw);pointer-events:none;z-index:15;opacity:0;transition:opacity .5s}
 #bossHpWrap.show{opacity:1}
 #bossName{text-align:center;font-size:13px;font-weight:900;color:#ff6666;text-shadow:0 0 10px #ff0000,1px 1px 0 #000;letter-spacing:2px;margin-bottom:4px}
@@ -143,6 +145,7 @@ canvas#c{display:block;touch-action:none}
   <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
   <div id="chestInfo"></div>
+  <div id="treasureInfo"></div>
   <button id="pauseBtn">⏸</button>
   <div id="pauseOverlay">
     <div id="pauseTitle">⏸ PAUSE</div>
@@ -239,6 +242,7 @@ const $invBrick=document.getElementById('invBrick');
 const $invArrow=document.getElementById('invArrow');
 const $invDiamond=document.getElementById('invDiamond');
 const $invDragonCore=document.getElementById('invDragonCore');
+const $treasureInfo=document.getElementById('treasureInfo');
 const $craftPanel=document.getElementById('craftPanel');
 
 function updateInvHUD(){
@@ -376,6 +380,7 @@ async function saveGame(){
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),
+    openedTreasures:[...openedTreasureKeys],
     savedAt:Date.now()
   };
   try{const r=await window.storage.set(SAVE_KEY,JSON.stringify(data));showSaveToast(r?'💾 SAVED!':'⚠ 保存失敗');updateOverlaySaveInfo();}
@@ -580,7 +585,23 @@ function updateChunks(force){
 function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)scene.remove(m);for(const key in underChunks)for(const m of underChunks[key].meshes)scene.remove(m);chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};blockMeshes=new Set();lavaBlocks.clear();lastPCX=null;lastPCZ=null;lastPCY=null;}
 
 // ─── UNDERGROUND GENERATION ───
+function _underRoomType(rx,ry,rz){
+  const cd=-(ry*8+4);if(cd<9||cd>32)return 0;
+  const r=rand3(rx,ry+5000,rz,WORLD_SEED+99887);
+  if(cd>=10&&cd<=22&&r<0.04)return 1; // mine room
+  if(cd>22&&r<0.032)return 2;          // altar room
+  return 0;
+}
+function _isRoomVoid(wx,wy,wz){
+  const depth=-wy;if(depth<9||depth>32)return false;
+  const rx=Math.floor(wx/24),ry=Math.floor(wy/8),rz=Math.floor(wz/24);
+  const rt=_underRoomType(rx,ry,rz);if(!rt)return false;
+  const lx=wx-rx*24,ly=wy-ry*8,lz=wz-rz*24;
+  if(rt===1)return lx>=8&&lx<=16&&ly>=1&&ly<=3&&lz>=8&&lz<=16;
+  return lx>=9&&lx<=15&&ly>=1&&ly<=4&&lz>=9&&lz<=15;
+}
 function isUnderSolid(wx,wy,wz){
+  if(_isRoomVoid(wx,wy,wz))return false;
   const depth=-wy;
   const n1=noiseB(wx*0.09+wy*0.13,wz*0.09);
   const n2=noiseV(wx*0.09,wz*0.09+wy*0.13);
@@ -635,7 +656,82 @@ function generateUnderChunk(cx,cy,cz){
     }
     const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
   }
+  _spawnRoomContent(cx,cy,cz,meshes);
   underChunks[key]={meshes,loaded:true};
+}
+
+// ─── UNDERGROUND ROOMS ───
+let underTreasures={},openedTreasureKeys=new Set();
+function _makeTreasureMesh(type){
+  const root=new THREE.Object3D();
+  const bMat=new THREE.MeshStandardMaterial({color:type===2?0x1a3a50:0x4a2c0a,roughness:.7});
+  const lMat=new THREE.MeshStandardMaterial({color:type===2?0x0088cc:0x7a4a10,roughness:.5,emissive:type===2?0x005588:0,emissiveIntensity:type===2?.5:0});
+  const lockMat=new THREE.MeshStandardMaterial({color:0xddcc44,roughness:.4,metalness:.6});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.78,.5,.58),bMat);body.position.y=.25;
+  const lid=new THREE.Mesh(new THREE.BoxGeometry(.78,.18,.58),lMat);lid.position.y=.59;
+  const lock=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.07),lockMat);lock.position.set(0,.55,.31);
+  root.add(body,lid,lock);return root;
+}
+function _spawnRoomContent(cx,cy,cz,meshes){
+  const ox=cx*CHUNK,oy=cy*CHUNK_Y,oz=cz*CHUNK;
+  const rxA=Math.floor((ox-8)/24),rxB=Math.floor((ox+CHUNK+7)/24);
+  const rzA=Math.floor((oz-8)/24),rzB=Math.floor((oz+CHUNK+7)/24);
+  const pb=(wx,wy,wz,ti)=>{if(wx<ox||wx>=ox+CHUNK||wy<oy||wy>=oy+CHUNK_Y||wz<oz||wz>=oz+CHUNK)return;const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);};
+  for(let rx=rxA;rx<=rxB;rx++)for(let rz=rzA;rz<=rzB;rz++){
+    const rt=_underRoomType(rx,cy,rz);if(!rt)continue;
+    const wcx=rx*24,wcy=cy*CHUNK_Y,wcz=rz*24;
+    if(rt===1){ // 廃採掘部屋: 木の支柱 + 宝箱
+      [[8,1,8],[8,2,8],[16,1,8],[16,2,8],[8,1,16],[8,2,16],[16,1,16],[16,2,16]].forEach(([dlx,dly,dlz])=>pb(wcx+dlx,wcy+dly,wcz+dlz,3));
+      if(rand3(rx,cy,rz,77)<0.5){pb(wcx+8,wcy+2,wcz+12,COAL_ORE);pb(wcx+8,wcy+1,wcz+11,COAL_ORE);}
+      const tx=wcx+12,ty=wcy+1,tz=wcz+12,tk=vKey(tx,ty,tz);
+      if(!underTreasures[tk]&&tx>=ox&&tx<ox+CHUNK&&tz>=oz&&tz<oz+CHUNK&&ty>=oy&&ty<oy+CHUNK_Y){
+        const mesh=_makeTreasureMesh(1);mesh.position.set(tx,ty,tz);
+        if(!openedTreasureKeys.has(tk))scene.add(mesh);
+        underTreasures[tk]={mesh,opened:openedTreasureKeys.has(tk),type:1};
+      }
+    }else{ // 地下祭壇: クリスタル柱 + 祭壇石 + 宝箱
+      [[9,1,9],[9,2,9],[9,3,9],[15,1,9],[15,2,9],[15,3,9],[9,1,15],[9,2,15],[9,3,15],[15,1,15],[15,2,15],[15,3,15]].forEach(([dlx,dly,dlz])=>pb(wcx+dlx,wcy+dly,wcz+dlz,DIAMOND_ORE));
+      pb(wcx+12,wcy+1,wcz+12,DEEP_STONE);pb(wcx+12,wcy+2,wcz+12,DIAMOND_ORE);
+      const tx=wcx+10,ty=wcy+1,tz=wcz+10,tk=vKey(tx,ty,tz);
+      if(!underTreasures[tk]&&tx>=ox&&tx<ox+CHUNK&&tz>=oz&&tz<oz+CHUNK&&ty>=oy&&ty<oy+CHUNK_Y){
+        const mesh=_makeTreasureMesh(2);mesh.position.set(tx,ty,tz);
+        if(!openedTreasureKeys.has(tk))scene.add(mesh);
+        underTreasures[tk]={mesh,opened:openedTreasureKeys.has(tk),type:2};
+      }
+    }
+  }
+}
+function resetTreasures(){for(const k in underTreasures)scene.remove(underTreasures[k].mesh);underTreasures={};openedTreasureKeys=new Set();$treasureInfo.classList.remove('show');}
+function _treasureNearby(){for(const k in underTreasures){const t=underTreasures[k];if(t.opened)continue;const[tx,ty,tz]=k.split('|').map(Number);if(Math.hypot(tx+.5-P.x,ty+.3-(P.y+.8),tz+.5-P.z)<2.5)return true;}return false;}
+function _updateTreasureInfo(){
+  let near=null,nearD=2.5;
+  for(const k in underTreasures){const t=underTreasures[k];if(t.opened)continue;const[tx,ty,tz]=k.split('|').map(Number);const d=Math.hypot(tx+.5-P.x,ty+.3-(P.y+.8),tz+.5-P.z);if(d<nearD){nearD=d;near={k,t};}}
+  if(near){$treasureInfo.textContent=near.t.type===2?'💠 地下祭壇の宝箱！ 長押しで開ける':'📦 古い宝箱！ 長押しで開ける';$treasureInfo.classList.add('show');}
+  else $treasureInfo.classList.remove('show');
+}
+function openTreasure(){
+  if(!gs.running)return;
+  let nearK=null,nearD=2.5;
+  for(const k in underTreasures){const t=underTreasures[k];if(t.opened)continue;const[tx,ty,tz]=k.split('|').map(Number);const d=Math.hypot(tx+.5-P.x,ty+.3-(P.y+.8),tz+.5-P.z);if(d<nearD){nearD=d;nearK=k;}}
+  if(!nearK)return;
+  const t=underTreasures[nearK];t.opened=true;openedTreasureKeys.add(nearK);scene.remove(t.mesh);
+  let msg='';
+  if(t.type===2){
+    const d=1+Math.floor(Math.random()*2);inv.diamond+=d;msg='💎×'+d;
+    if(Math.random()<0.08){inv.dragonCore+=1;msg+=' 💠×1';}
+    if(Math.random()<0.35){const a=5+Math.floor(Math.random()*6);inv.arrow+=a;msg+=' 🏹×'+a;}
+  }else{
+    const roll=Math.random();
+    if(roll<0.30){const w=2+Math.floor(Math.random()*3);inv.wood+=w;msg='🪵×'+w;}
+    else if(roll<0.55){const s=3+Math.floor(Math.random()*3);inv.stone+=s;msg='🪨×'+s;}
+    else if(roll<0.75){const a=4+Math.floor(Math.random()*5);inv.arrow+=a;msg='🏹×'+a;}
+    else if(roll<0.90){const m=1+Math.floor(Math.random()*2);meat+=m;updateMeatHUD();msg='🥩×'+m;}
+    else{inv.diamond+=1;msg='💎×1';}
+  }
+  updateInvHUD();
+  showBonus('📦 宝箱を開けた！ '+msg);
+  playTone(900,.12,.1,'sine');setTimeout(()=>playTone(1300,.08,.08,'sine'),90);
+  _updateTreasureInfo();saveGame();
 }
 
 // ═══ PHYSICS ═══
@@ -1242,7 +1338,7 @@ function updateHUD(){
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
-  updateChestInfo();
+  updateChestInfo();_updateTreasureInfo();
   const isBossNext=BOSS_DEFS.some(b=>b.wave===gs.wave+1);
   if(gs.nextWave>0&&gs.nextWave<=10){
     $wt.textContent=(isBossNext?'👑 BOSS WAVE ':'⚠️ WAVE ')+(gs.wave+1)+' まで '+Math.ceil(gs.nextWave)+'秒';
@@ -1308,11 +1404,12 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
   if(e.code==='KeyX'){
     if(!gs.running)return;
-    if(_bedNearby())        sleepBed();
-    else if(_chestNearby()) interactChest();
-    else if(bedCount>0)     placeBed();
-    else if(chestCount>0)   placeChest();
-    else if(trophyCount>0)  placeTrophy();
+    if(_bedNearby())           sleepBed();
+    else if(_chestNearby())    interactChest();
+    else if(_treasureNearby()) openTreasure();
+    else if(bedCount>0)        placeBed();
+    else if(chestCount>0)      placeChest();
+    else if(trophyCount>0)     placeTrophy();
     else showBonus('置ける家具がない！');
   }
   if(e.code==='KeyB'){
@@ -1459,11 +1556,12 @@ function _startPlacePress(){
   initAudio();
   placeLongPressTimer=setTimeout(()=>{
     placeLongPressTimer=null;
-    if(_bedNearby())        sleepBed();
-    else if(_chestNearby()) interactChest();
-    else if(bedCount>0)     placeBed();
-    else if(chestCount>0)   placeChest();
-    else if(trophyCount>0)  placeTrophy();
+    if(_bedNearby())           sleepBed();
+    else if(_chestNearby())    interactChest();
+    else if(_treasureNearby()) openTreasure();
+    else if(bedCount>0)        placeBed();
+    else if(chestCount>0)      placeChest();
+    else if(trophyCount>0)     placeTrophy();
     else showBonus('置ける家具がない！');
   },500);
 }
@@ -1517,7 +1615,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies)scene.remove(e.root);enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
-  resetChests();resetBeds();resetTrophies();
+  resetChests();resetBeds();resetTrophies();resetTreasures();
   if(boss){scene.remove(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
@@ -1571,6 +1669,8 @@ async function continueGame(){
   trophyCount=d.trophyCount||0;
   if(d.trophies){for(const td of d.trophies){const mesh=makeTrophyMesh();mesh.position.set(td.x,td.y,td.z);scene.add(mesh);trophies.push({mesh,x:td.x,y:td.y,z:td.z});}}
   updateTrophyHUD();
+  // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
+  if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   $pauseBtn.style.display='flex';
   spawnPigs(8);updateInvHUD();resize();
