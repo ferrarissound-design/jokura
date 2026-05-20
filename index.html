@@ -85,6 +85,7 @@ canvas#c{display:block;touch-action:none}
 #contBtn:active{transform:scale(.95)}
 #contBtn.disabled{opacity:.32;pointer-events:none;background:linear-gradient(135deg,#555,#333);box-shadow:none;color:#888}
 #saveInfo{font-size:min(10px,2.8vw);color:#7ecfff88;letter-spacing:.5px;text-align:center}
+#rankInfo{text-align:center;margin-top:6px;min-height:0}
 #coordsDisplay{position:absolute;top:calc(56px + var(--safeT));right:calc(8px + var(--safeR));font-size:8px;color:#fff6;letter-spacing:.5px;z-index:10;text-shadow:1px 1px 0 #000;text-align:right}
 #cdBar{position:absolute;bottom:calc(180px + var(--safeB));right:calc(14px + var(--safeR));width:80px;height:5px;background:rgba(0,0,0,.4);border-radius:2px;z-index:10;overflow:hidden}
 #cdFill{height:100%;width:0%;background:#f80;border-radius:2px;transition:width .05s}
@@ -188,6 +189,7 @@ canvas#c{display:block;touch-action:none}
   <button id="contDeathBtn" style="display:none;padding:12px 36px;border-radius:12px;background:linear-gradient(135deg,#66bb6a,#2e7d32);border:none;color:#fff;font-size:min(15px,4.2vw);font-weight:900;cursor:pointer;letter-spacing:1px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;line-height:1.5">▶ コンティニュー<br><span style="font-size:.75em;font-weight:600;opacity:.85">HP全回復 / スコア半減</span></button>
   <button id="contBtn" class="disabled">▶ 続きから</button>
   <div id="saveInfo">セーブデータ確認中...</div>
+  <div id="rankInfo"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -396,6 +398,29 @@ async function updateOverlaySaveInfo(){
   else{$contBtn.classList.add('disabled');$saveInfo.textContent='セーブデータなし';}
 }
 updateOverlaySaveInfo();
+const SCORE_KEY='jokura_scores';
+function saveScore(cleared){
+  try{
+    const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
+    const now=new Date();
+    arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,date:(now.getMonth()+1)+'/'+(now.getDate())});
+    arr.sort((a,b)=>b.score-a.score);arr.splice(5);
+    localStorage.setItem(SCORE_KEY,JSON.stringify(arr));
+  }catch(e){}
+}
+const $rankInfo=document.getElementById('rankInfo');
+function renderRankHUD(){
+  if(!$rankInfo)return;
+  try{
+    const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
+    if(!arr.length){$rankInfo.innerHTML='';return;}
+    const medals=['🥇','🥈','🥉','',''];
+    let h='<div style="color:#f9d342;font-size:min(10px,2.8vw);font-weight:900;letter-spacing:2px;margin-bottom:3px">🏆 BEST SCORES</div>';
+    arr.forEach((r,i)=>{h+='<div style="font-size:min(9px,2.6vw);color:#ccc;letter-spacing:.4px;line-height:1.75">'+(medals[i]||'　')+(r.cleared?'💎':'　')+' #'+(i+1)+'　'+r.score.toLocaleString()+'pt　W'+r.wave+'　'+r.kills+'kill　'+r.day+'日　<span style="color:#7ecfff66">'+r.date+'</span></div>';});
+    $rankInfo.innerHTML=h;
+  }catch(e){$rankInfo.innerHTML='';}
+}
+renderRankHUD();
 const $saveToast=document.getElementById('saveToast');let saveToastTimer=0;
 function showSaveToast(msg){$saveToast.textContent=msg;$saveToast.classList.add('show');saveToastTimer=2;}
 
@@ -1665,19 +1690,20 @@ function undergroundDeath(){
 }
 function gameComplete(){
   gs.running=false;
-  try{const prev=JSON.parse(localStorage.getItem('jokura_clear')||'null');if(!prev||gs.score>prev.score)localStorage.setItem('jokura_clear',JSON.stringify({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day}));}catch(e){}
+  saveScore(true);
   ovTitle.style.color='#00e5ff';ovTitle.style.textShadow='0 0 30px #00e5ffaa,3px 3px 0 #000';
   ovTitle.textContent='🎉 GAME CLEAR!!';
   ovSub.textContent='💎 ダイヤドラゴン王を討伐！';
   ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日';
   ovBtn.textContent='▶ もう一度';
   $contDeathBtn.style.display='none';$contBtn.classList.add('disabled');
-  overlay.classList.remove('hide');
+  renderRankHUD();overlay.classList.remove('hide');
   [1200,1500,1800,2200,2600,3000].forEach((f,i)=>setTimeout(()=>playTone(f,.25,.35,'sine'),i*160));
 }
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
-  gs.running=false;ovTitle.textContent='GAME OVER';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='▶ RETRY (最初から)';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');overlay.classList.remove('hide');updateOverlaySaveInfo();
+  saveScore(false);
+  gs.running=false;ovTitle.textContent='GAME OVER';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='▶ RETRY (最初から)';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo();
 }
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
