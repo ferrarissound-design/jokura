@@ -269,7 +269,7 @@ function canCraft(recipe){
 
 function applyDiamondSword(){
   hasDiamondSword=true;
-  WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=12;WEAPONS[1].cd=0.32;
+  WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=8;WEAPONS[1].cd=0.35;
   unlockedWeapons[1]=true;
   if(weaponIdx===1){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='💎 Diamond Sword';}
 }
@@ -1810,7 +1810,7 @@ function tick(now){
       if(e.lWing)e.lWing.rotation.z=Math.sin(e.wingT)*.7;
       if(e.rWing)e.rWing.rotation.z=-Math.sin(e.wingT)*.7;
       e.atkCd=Math.max(0,e.atkCd-dt);
-      if(dist3<1.1&&e.atkCd<=0){dmgPlayer(e.type.dmg);e.atkCd=0.7;}
+      if(dist3<1.1&&e.atkCd<=0){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=0.7;}
       e.hpBar.lookAt(camera.position);
       continue;
     }
