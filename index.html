@@ -189,7 +189,7 @@ canvas#c{display:block;touch-action:none}
   <div id="ovTitle">ジョークラ</div>
   <div id="ovSplash">ダイヤを掘れ！</div>
   <div id="ovSub">VOXEL SURVIVAL</div>
-  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 ダイヤドラゴン王を倒してゲームクリア！<br>🐷豚を倒して🥩ミートをゲット！</div>
+  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>🐷豚を倒して🥩ミートをゲット！</div>
   <button id="ovBtn" class="mc-btn">NEW GAME</button>
   <button id="contDeathBtn" class="mc-btn" style="display:none;background:linear-gradient(to bottom,#6b8b5b 0%,#4a6a3a 100%)">コンティニュー<br><span style="font-size:.75em;opacity:.8">HP全回復 / スコア半減</span></button>
   <button id="contBtn" class="mc-btn disabled">続きから</button>
@@ -403,7 +403,7 @@ async function updateOverlaySaveInfo(){
   else{$contBtn.classList.add('disabled');$saveInfo.textContent='セーブデータなし';}
 }
 updateOverlaySaveInfo();
-const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','ダイヤドラゴン王を倒せ！'];
+const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！'];
 const $ovSplash=document.getElementById('ovSplash');
 function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];}
 rotateSplash();
@@ -1062,7 +1062,7 @@ const BOSS_DEFS=[
   {wave:5, name:'💀 スケルトンキング',color:0xaaaaee,emissive:0x3333aa,baseHp:60, dmg:18,score:800, scale:2.2,patterns:['multishot','charge','stomp'],   deathColor:0x8888ff},
   {wave:10,name:'🔥 炎のゴーレム',  color:0xff4400,emissive:0x881100,baseHp:110,dmg:28,score:1500,scale:2.8,patterns:['charge','aoeBlast','multishot'], deathColor:0xff6600},
   {wave:15,name:'👁 ダークアイ',    color:0x220044,emissive:0x550088,baseHp:175,dmg:35,score:2500,scale:3.2,patterns:['omnishot','charge','aoeBlast'],  deathColor:0xaa00ff},
-  {wave:20,name:'💎 ダイヤドラゴン王',color:0x0a1520,emissive:0x00aaff,baseHp:260,dmg:45,score:8000,scale:3.8,patterns:['multishot','omnishot','charge','stomp','aoeBlast'],deathColor:0x00e5ff,finalBoss:true},
+  {wave:20,name:'💎 キングダイヤモンドドラゴン',color:0x0a1520,emissive:0x00aaff,baseHp:260,dmg:45,score:8000,scale:3.8,patterns:['multishot','omnishot','charge','stomp','aoeBlast'],deathColor:0x00e5ff,finalBoss:true},
 ];
 let boss=null;
 const $bossWrap=document.getElementById('bossHpWrap'),$bossName=document.getElementById('bossName'),$bossHpFill=document.getElementById('bossHpFill'),$bossPhase=document.getElementById('bossPhase');
@@ -1715,7 +1715,7 @@ function gameComplete(){
   saveScore(true);
   ovTitle.style.color='#00e5ff';ovTitle.style.textShadow='3px 3px 0 #006688,6px 6px 0 #003344,0 0 30px #00e5ffaa';
   ovTitle.textContent='GAME CLEAR!!';
-  if($ovSplash)$ovSplash.textContent='💎 ダイヤドラゴン王を討伐！';
+  if($ovSplash)$ovSplash.textContent='💎 キングダイヤモンドドラゴンを討伐！';
   ovSub.textContent='CONGRATULATIONS';
   ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日';
   ovBtn.textContent='もう一度';
@@ -1845,7 +1845,7 @@ function tick(now){
   if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,chestCount,bedCount,trophyCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
-  if(!_isUnder&&finalBossPending&&!boss){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 ダイヤドラゴン王 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
+  if(!_isUnder&&finalBossPending&&!boss){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
   if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
   if(_isUnder&&P.y<-12&&dragon===null&&!dragonWarnPending){dragonSpawnT-=dt;if(dragonSpawnT<=0){dragonSpawnT=60+Math.random()*30;if(Math.random()<0.09){dragonWarnPending=true;showAlert('⚠ 地下の底から咆哮が響く…💎');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}}}
 
