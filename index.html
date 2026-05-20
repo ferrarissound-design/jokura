@@ -1062,11 +1062,54 @@ const BOSS_DEFS=[
   {wave:5, name:'💀 スケルトンキング',color:0xaaaaee,emissive:0x3333aa,baseHp:60, dmg:18,score:800, scale:2.2,patterns:['multishot','charge','stomp'],   deathColor:0x8888ff},
   {wave:10,name:'🔥 炎のゴーレム',  color:0xff4400,emissive:0x881100,baseHp:110,dmg:28,score:1500,scale:2.8,patterns:['charge','aoeBlast','multishot'], deathColor:0xff6600},
   {wave:15,name:'👁 ダークアイ',    color:0x220044,emissive:0x550088,baseHp:175,dmg:35,score:2500,scale:3.2,patterns:['omnishot','charge','aoeBlast'],  deathColor:0xaa00ff},
-  {wave:20,name:'💎 キングダイヤモンドドラゴン',color:0x0a1520,emissive:0x00aaff,baseHp:260,dmg:45,score:8000,scale:3.8,patterns:['multishot','omnishot','charge','stomp','aoeBlast'],deathColor:0x00e5ff,finalBoss:true},
+  {wave:20,name:'💎 キングダイヤモンドドラゴン',color:0x0a1520,emissive:0x00aaff,baseHp:260,dmg:45,score:8000,scale:2.0,patterns:['multishot','omnishot','charge','stomp','aoeBlast'],deathColor:0x00e5ff,finalBoss:true},
 ];
 let boss=null;
 const $bossWrap=document.getElementById('bossHpWrap'),$bossName=document.getElementById('bossName'),$bossHpFill=document.getElementById('bossHpFill'),$bossPhase=document.getElementById('bossPhase');
+function buildKingDragon(sc,def){
+  const root=new THREE.Object3D();
+  const bMat=makeMat(0x44c0e8,0x0099cc,.55,.06);
+  const cMat=makeMat(0xb8f4ff,0x00ffff,2.0,.0);
+  const coreMat=makeMat(0xaaf8ff,0x00ffff,2.8,.0);
+  const eyeM=new THREE.MeshBasicMaterial({color:0xffffff});
+  const g=new THREE.Object3D();g.position.y=-0.5*sc;root.add(g);
+  const body=makeBox(1.0*sc,.88*sc,1.8*sc,bMat.clone());g.add(body);
+  const chest=makeBox(.55*sc,.45*sc,.1*sc,cMat.clone());chest.position.set(0,.08*sc,.92*sc);body.add(chest);
+  const core=makeBox(.28*sc,.28*sc,.12*sc,coreMat.clone());core.position.set(0,.08*sc,.97*sc);body.add(core);
+  for(let i=0;i<4;i++){const sp=makeBox(.1*sc,(.32-.04*i)*sc,.09*sc,cMat.clone());sp.position.set(0,.48*sc,(.6-.4*i)*sc);body.add(sp);}
+  for(let i=0;i<4;i++){const sl=makeBox(.1*sc,.18*sc,.14*sc,cMat.clone());sl.position.set(-.52*sc,(.08+.08*i)*sc,(.55-.36*i)*sc);sl.rotation.z=.4;body.add(sl);const sr=sl.clone();sr.position.x=.52*sc;sr.rotation.z=-.4;body.add(sr);}
+  const neck=makeBox(.4*sc,.52*sc,.4*sc,bMat.clone());neck.position.set(0,.55*sc,.88*sc);neck.rotation.x=-.3;g.add(neck);
+  const head=makeBox(.75*sc,.6*sc,.9*sc,bMat.clone());head.position.set(0,1.1*sc,1.42*sc);g.add(head);
+  const snout=makeBox(.42*sc,.32*sc,.52*sc,bMat.clone());snout.position.set(0,-.14*sc,.52*sc);head.add(snout);
+  const njL=makeBox(.07*sc,.15*sc,.06*sc,cMat.clone());njL.position.set(-.13*sc,-.14*sc,.28*sc);snout.add(njL);
+  const njR=njL.clone();njR.position.x=.13*sc;snout.add(njR);
+  const eyeL=makeBox(.13*sc,.13*sc,.07*sc,eyeM.clone());eyeL.position.set(-.25*sc,.1*sc,.47*sc);head.add(eyeL);
+  const eyeR=makeBox(.13*sc,.13*sc,.07*sc,eyeM.clone());eyeR.position.set(.25*sc,.1*sc,.47*sc);head.add(eyeR);
+  const h0=makeBox(.1*sc,.52*sc,.09*sc,cMat.clone());h0.position.set(0,.44*sc,-.06*sc);h0.rotation.x=.28;head.add(h0);
+  const hL=makeBox(.09*sc,.4*sc,.09*sc,cMat.clone());hL.position.set(-.26*sc,.36*sc,-.05*sc);hL.rotation.set(.22,0,-.38);head.add(hL);
+  const hR=makeBox(.09*sc,.4*sc,.09*sc,cMat.clone());hR.position.set(.26*sc,.36*sc,-.05*sc);hR.rotation.set(.22,0,.38);head.add(hR);
+  const jcL=makeBox(.07*sc,.16*sc,.06*sc,cMat.clone());jcL.position.set(-.14*sc,-.15*sc,.28*sc);snout.add(jcL);
+  const jcR=jcL.clone();jcR.position.x=.14*sc;snout.add(jcR);
+  function makeWing(side){const wg=new THREE.Object3D();const w1=makeBox(1.2*sc,.06*sc,1.5*sc,cMat.clone());w1.position.set(side*.6*sc,0,0);w1.rotation.z=side*.28;wg.add(w1);const w2=makeBox(.75*sc,.05*sc,.9*sc,cMat.clone());w2.position.set(side*1.25*sc,-.32*sc,-.08*sc);w2.rotation.z=side*.52;wg.add(w2);const wt=makeBox(.11*sc,.11*sc,.42*sc,cMat.clone());wt.position.set(side*1.75*sc,-.52*sc,-.18*sc);wg.add(wt);return wg;}
+  const wingL=makeWing(-1);wingL.position.set(-.5*sc,.26*sc,.18*sc);g.add(wingL);
+  const wingR=makeWing(1);wingR.position.set(.5*sc,.26*sc,.18*sc);g.add(wingR);
+  function makeLeg(){const lg=new THREE.Object3D();lg.add(makeBox(.3*sc,.45*sc,.28*sc,bMat.clone()));const lo=makeBox(.22*sc,.38*sc,.22*sc,bMat.clone());lo.position.y=-.42*sc;lg.add(lo);const ft=makeBox(.36*sc,.1*sc,.44*sc,cMat.clone());ft.position.y=-.66*sc;lg.add(ft);return lg;}
+  const legFL=makeLeg();legFL.position.set(-.52*sc,-.44*sc,.62*sc);g.add(legFL);
+  const legFR=makeLeg();legFR.position.set(.52*sc,-.44*sc,.62*sc);g.add(legFR);
+  const legBL=makeLeg();legBL.position.set(-.52*sc,-.44*sc,-.62*sc);g.add(legBL);
+  const legBR=makeLeg();legBR.position.set(.52*sc,-.44*sc,-.62*sc);g.add(legBR);
+  const tail1=makeBox(.38*sc,.32*sc,.8*sc,bMat.clone());tail1.position.set(0,-.1*sc,-1.08*sc);tail1.rotation.x=.18;g.add(tail1);
+  const tail2=makeBox(.26*sc,.22*sc,.62*sc,bMat.clone());tail2.position.set(0,-.08*sc,-.76*sc);tail2.rotation.x=.22;tail1.add(tail2);
+  const tailTip=makeBox(.14*sc,.14*sc,.28*sc,cMat.clone());tailTip.position.set(0,-.04*sc,-.44*sc);tail2.add(tailTip);
+  for(let i=0;i<3;i++){const ts=makeBox(.08*sc,(.2-.04*i)*sc,.07*sc,cMat.clone());ts.position.set(0,.18*sc,(.22-.22*i)*sc);tail1.add(ts);}
+  const hpBg=makeBox(2.8*sc,.14,.07,new THREE.MeshBasicMaterial({color:0x003344}));hpBg.position.y=1.9*sc;root.add(hpBg);
+  const hpFg=makeBox(2.8*sc,.14,.08,new THREE.MeshBasicMaterial({color:0x00e5ff}));hpFg.position.y=1.9*sc;hpFg.position.z=.01;root.add(hpFg);
+  const lc=document.createElement('canvas');lc.width=256;lc.height=48;const lx=lc.getContext('2d');lx.fillStyle='rgba(0,0,0,.65)';lx.fillRect(0,0,256,48);lx.fillStyle='#00e5ff';lx.font='bold 14px sans-serif';lx.textAlign='center';lx.fillText(def.name,128,32);
+  const tex=new THREE.CanvasTexture(lc);const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));sprite.scale.set(4.5*sc,.65*sc,1);sprite.position.y=2.3*sc;root.add(sprite);
+  return{root,body,head,hpBar:hpFg,mat:bMat};
+}
 function buildBoss(def,sc){
+  if(def.finalBoss)return buildKingDragon(sc,def);
   const root=new THREE.Object3D();
   const mat=new THREE.MeshStandardMaterial({color:def.color,roughness:.5,emissive:def.emissive,emissiveIntensity:.35});
   const body=new THREE.Mesh(new THREE.BoxGeometry(.85*sc,1.7*sc,.85*sc),mat.clone());
