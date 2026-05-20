@@ -820,6 +820,53 @@ function buildBat(mat){
   root.add(body,lWingG,rWingG,hp.bg,hp.fg,lb);
   return{root,body,head:body,hpBar:hp.fg,lWing:lWingG,rWing:rWingG};
 }
+function buildCaveSlime(mat){
+  const root=new THREE.Object3D();
+  const body=makeBox(1.0,.55,1.0,mat.clone());body.position.y=.27;
+  const top=makeBox(.75,.35,.75,mat.clone());top.position.y=.66;
+  const eyeM=new THREE.MeshBasicMaterial({color:0xffcc00});
+  const el=makeBox(.14,.1,.07,eyeM);el.position.set(-.18,.05,.38);top.add(el);
+  const er=makeBox(.14,.1,.07,eyeM.clone());er.position.set(.18,.05,.38);top.add(er);
+  const hp=makeHpBar(.8);hp.bg.position.y=1.1;hp.fg.position.y=1.1;
+  const lb=makeLabelSprite('スライム','#cc44ff');lb.position.y=1.3;
+  root.add(body,top,hp.bg,hp.fg,lb);
+  return{root,body,head:top,hpBar:hp.fg};
+}
+function buildAbyssBat(mat){
+  const root=new THREE.Object3D();
+  const body=makeBox(.55,.45,.4,mat.clone());
+  const lWingG=new THREE.Object3D();lWingG.position.set(-.21,0,0);
+  const lWing=makeBox(.52,.08,.36,mat.clone());lWing.position.set(-.26,0,0);lWingG.add(lWing);
+  const rWingG=new THREE.Object3D();rWingG.position.set(.21,0,0);
+  const rWing=makeBox(.52,.08,.36,mat.clone());rWing.position.set(.26,0,0);rWingG.add(rWing);
+  const eyeM=new THREE.MeshBasicMaterial({color:0x00ffcc});
+  const el=makeBox(.1,.09,.07,eyeM);el.position.set(-.14,.07,.21);body.add(el);
+  const er=makeBox(.1,.09,.07,eyeM.clone());er.position.set(.14,.07,.21);body.add(er);
+  const earL=makeBox(.1,.22,.08,mat.clone());earL.position.set(-.18,.32,.0);body.add(earL);
+  const earR=makeBox(.1,.22,.08,mat.clone());earR.position.set(.18,.32,.0);body.add(earR);
+  const hp=makeHpBar(.55);hp.bg.position.y=.52;hp.fg.position.y=.52;hp.fg.material.color.setHex(0xaa44ff);
+  const lb=makeLabelSprite('深淵コウモリ','#9966ff');lb.position.y=.7;
+  root.add(body,lWingG,rWingG,hp.bg,hp.fg,lb);
+  return{root,body,head:body,hpBar:hp.fg,lWing:lWingG,rWing:rWingG};
+}
+function buildCrystalGolem(mat){
+  const root=new THREE.Object3D();
+  const cMat=new THREE.MeshStandardMaterial({color:0x44aacc,emissive:0x00bbff,emissiveIntensity:1.2,roughness:.1,transparent:true,opacity:.9});
+  const body=makeBox(1.3,1.2,.95,mat.clone());body.position.y=-.1;
+  const head=makeBox(.6,.52,.6,mat.clone());head.position.y=.9;
+  const eyeM=new THREE.MeshBasicMaterial({color:0x00ffff});
+  const el=makeBox(.13,.1,.07,eyeM);el.position.set(-.15,.04,.32);head.add(el);
+  const er=makeBox(.13,.1,.07,eyeM.clone());er.position.set(.15,.04,.32);head.add(er);
+  const sp1=makeBox(.18,.52,.18,cMat);sp1.position.set(.42,.6,.48);body.add(sp1);
+  const sp2=makeBox(.16,.44,.16,cMat.clone());sp2.position.set(-.38,.55,.48);body.add(sp2);
+  const sp3=makeBox(.14,.35,.14,cMat.clone());sp3.position.set(.12,.62,.48);body.add(sp3);
+  const armL=makeBox(.38,1.1,.38,mat.clone());armL.position.set(-.88,-.15,0);
+  const armR=makeBox(.38,1.1,.38,mat.clone());armR.position.set(.88,-.15,0);
+  const hp=makeHpBar(1.3);hp.bg.position.y=1.4;hp.fg.position.y=1.4;hp.fg.material.color.setHex(0x00ccff);
+  const lb=makeLabelSprite('クリスタルゴーレム','#00ddff');lb.position.y=1.6;
+  root.add(body,head,armL,armR,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg};
+}
 function buildDiamondDragon(){
   const root=new THREE.Object3D();
   const bMat=makeMat(0x1b2838,0x001020,.3,.25);
@@ -867,7 +914,10 @@ const ENEMY_TYPES=[
   {name:'Golem',   color:0x556677,emissive:0x111822,hp:8,dmg:20,score:100,builder:buildGolem,               breakPow:3,  breakCd0:3},
   {name:'FireDemon',color:0xcc3300,emissive:0x661100,hp:5,dmg:15,score:80,builder:buildFireDemon,lava:true,  breakPow:2.5,firePow:true,  breakCd0:3.5},
   {name:'IceGolem',color:0x88bbdd,emissive:0x224466,hp:6,dmg:12,score:70,builder:buildIceGolem,ice:true,    breakPow:2,  breakCd0:4},
-  {name:'Bat',     color:0x2a1a3a,emissive:0x220033,emissiveIntensity:.2, hp:2,dmg:5,score:30, builder:buildBat,bat:true,breakPow:0},
+  {name:'Bat',        color:0x2a1a3a,emissive:0x220033,emissiveIntensity:.2, hp:2,dmg:5, score:30, builder:buildBat,        bat:true,   breakPow:0},
+  {name:'CaveSlime',  color:0x331155,emissive:0x660099,emissiveIntensity:.3, hp:2,dmg:7, score:35, builder:buildCaveSlime,              breakPow:0},
+  {name:'AbyssBat',   color:0x050010,emissive:0x440088,emissiveIntensity:.25,hp:3,dmg:9, score:55, builder:buildAbyssBat,  bat:true,   breakPow:0},
+  {name:'CrystalGolem',color:0x1e3040,emissive:0x00aacc,emissiveIntensity:.3,hp:10,dmg:22,score:120,builder:buildCrystalGolem,crystal:true,breakPow:3,breakCd0:3.5},
 ];
 let enemies=[];
 function spawnEnemy(){
@@ -901,9 +951,9 @@ function spawnUnderEnemy(){
       if(!vf||!vf.active||vf.ti===WATER_BLOCK||vf.ti===LAVA_BLOCK)continue;
       const depth=-sy;
       let et;
-      if(depth>=24)et=ENEMY_TYPES[2];
-      else if(depth>=12)et=ENEMY_TYPES[Math.random()<.5?0:2];
-      else et=Math.random()<.5?ENEMY_TYPES[5]:ENEMY_TYPES[Math.random()<.6?0:1];
+      if(depth>=22){et=Math.random()<.3?ENEMY_TYPES[7]:ENEMY_TYPES[8];}
+      else if(depth>=12){const r=Math.random();et=r<.25?ENEMY_TYPES[6]:r<.65?ENEMY_TYPES[7]:ENEMY_TYPES[8];}
+      else et=Math.random()<.6?ENEMY_TYPES[6]:ENEMY_TYPES[7];
       const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
       const built=et.builder(mat);
       built.root.position.set(sx+.5,sy+.85,sz+.5);scene.add(built.root);
@@ -1070,6 +1120,7 @@ function dropItem(x,y,z,etype){
   let it;
   if(etype.name==='Skeleton')it=Math.random()<.35?ITEM_DEFS[3]:ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
   else if(etype.name==='Golem'||etype.name==='IceGolem')it=Math.random()<.35?ITEM_DEFS[4]:ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
+  else if(etype.name==='CrystalGolem')it=Math.random()<.45?ITEM_DEFS[4]:ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
   else it=ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
   const mat=new THREE.MeshBasicMaterial({color:it.color,transparent:true,opacity:.9});
   const m=new THREE.Mesh(itemGeo,mat);m.position.set(x,y+.5,z);scene.add(m);
@@ -1770,6 +1821,7 @@ function tick(now){
     e.atkCd=Math.max(0,e.atkCd-dt);e.breakCd=Math.max(0,e.breakCd-dt);if(dist<1.6&&e.atkCd<=0&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=1.2;}
     if(e.type.lava){const pulse=.35+Math.sin(t*4+i)*.2;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
     else if(e.type.ice){const pulse=.2+Math.sin(t*2+i)*.1;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
+    else if(e.type.crystal){const pulse=.4+Math.sin(t*3+i)*.25;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
     else if(e.type.name==='Skeleton'){const nb=gs.time>.5?(gs.time-.5)*2:0;e.body.material.emissiveIntensity=.15+nb*.35;e.head.material.emissiveIntensity=.15+nb*.35;}
     else{const nb=gs.time>.5?(gs.time-.5)*2:0;e.body.material.emissiveIntensity=.08+nb*.3;e.head.material.emissiveIntensity=.08+nb*.3;}
     e.hpBar.lookAt(camera.position);
