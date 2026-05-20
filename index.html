@@ -4,6 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 <title>ジョークラ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;touch-action:none}
@@ -1833,13 +1835,13 @@ function tick(now){
   if(gs.time<prevTime){gs.day++;showAlert('🌅 DAY '+gs.day);}
   const curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
   const inVolcano=curBiome===BIOMES.VOLCANO,inSnow=curBiome===BIOMES.SNOW;
+  const _isUnder=P.y<0;
   updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome,_isUnder);
-  if(P.y<0){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
+  if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
   else{scene.fog.near=20;scene.fog.far=60;skyMesh.visible=true;}
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
-  const _isUnder=P.y<0;
   if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,chestCount,bedCount,trophyCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
