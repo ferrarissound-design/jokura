@@ -754,7 +754,7 @@ function checkLava(){const px=Math.floor(P.x),py=Math.floor(P.y),pz=Math.floor(P
 
 // ═══ PARTICLES ═══
 let particles=[];const particleGeo=new THREE.BoxGeometry(.1,.1,.1);
-function spawnParticles(x,y,z,color,count){count=Math.min(count,5);for(let i=0;i<count;i++){const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:1});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x,y,z);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*5,vy:Math.random()*4+2,vz:(Math.random()-.5)*5,life:.4+Math.random()*.3});}}
+function spawnParticles(x,y,z,color,count){count=isTouch?Math.min(count,2):Math.min(count,5);if(isTouch&&particles.length>=12)return;for(let i=0;i<count;i++){const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:1});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x,y,z);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*5,vy:Math.random()*4+2,vz:(Math.random()-.5)*5,life:.4+Math.random()*.3});}}
 function spawnLavaParticles(x,y,z){for(let i=0;i<3;i++){const mat=new THREE.MeshBasicMaterial({color:Math.random()<.5?0xff4400:0xff8800,transparent:true,opacity:1});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x,y,z);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*2,vy:Math.random()*3+2,vz:(Math.random()-.5)*2,life:.6+Math.random()*.4});}}
 function spawnSnowParticles(x,y,z){for(let i=0;i<2;i++){const mat=new THREE.MeshBasicMaterial({color:0xddeeff,transparent:true,opacity:.8});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x+Math.random()-.5,y+Math.random()*2+1,z+Math.random()-.5);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*.5,vy:-Math.random()*1.5-.5,vz:(Math.random()-.5)*.5,life:1.5+Math.random()});}}
 function updateParticles(dt){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;if(p.life<=0){scene.remove(p.mesh);p.mat.dispose();particles.splice(i,1);continue;}p.vy-=12*dt;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.mesh.rotation.x+=dt*4;p.mat.opacity=Math.max(0,p.life/.4);}}
@@ -1755,9 +1755,10 @@ $pauseSaveBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopProp
 
 // ═══ MAIN LOOP ═══
 let lavaParticleT=0,snowParticleT=0,lastT=0,minimapT=0,hudT=0,chunkT=0;
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)lastT=performance.now();});
 function tick(now){
   requestAnimationFrame(tick);
-  if(isTouch&&now-lastT<FRAME_MIN){renderer.render(scene,camera);return;}
+  if(isTouch&&now-lastT<FRAME_MIN){return;}
   const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
   if(!gs.running){renderer.render(scene,camera);return;}
   if(gs.paused){renderer.render(scene,camera);return;}
