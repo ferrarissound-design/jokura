@@ -930,9 +930,9 @@ function buildCrystalGolem(mat){
 }
 function buildDiamondDragon(){
   const root=new THREE.Object3D();
-  const bMat=makeMat(0x1b2838,0x001020,.3,.25);
-  const cMat=makeMat(0x00b4d8,0x00e5ff,.7,.1);
-  const coreMat=new THREE.MeshStandardMaterial({color:0x88ffff,emissive:0x00ffff,emissiveIntensity:1.8,roughness:.05});
+  const bMat=makeMat(0xc2f7ff,0x22d6ff,1.35,.02);
+  const cMat=makeMat(0xe9fdff,0x66f2ff,2.0,.0);
+  const coreMat=new THREE.MeshStandardMaterial({color:0xeaffff,emissive:0x66ffff,emissiveIntensity:2.4,roughness:.02,metalness:.12,transparent:true,opacity:.92});
   const eyeM=new THREE.MeshBasicMaterial({color:0xaaf0ff});
   // Body
   const body=makeBox(.9,1.0,.7,bMat.clone());
@@ -958,6 +958,14 @@ function buildDiamondDragon(){
   const wingRb=makeBox(.38,.05,.48,cMat.clone());wingRb.position.set(.32,.05,.22);wingRa.add(wingRb);
   // Crystal scales on body
   for(let i=0;i<4;i++){const sc=makeBox(.12,.09,.1,cMat.clone());sc.position.set(i%2===0?-.28:.28,.3-i*.15,.37);body.add(sc);}
+  // Diamond facets around torso
+  for(let i=0;i<6;i++){
+    const ang=(i/6)*Math.PI*2;
+    const ft=makeBox(.09,.3,.13,cMat.clone());
+    ft.position.set(Math.sin(ang)*.43,.08,Math.cos(ang)*.2);
+    ft.rotation.y=ang;
+    body.add(ft);
+  }
   // Tail
   const tail=makeBox(.3,.3,.85,bMat.clone());tail.position.set(0,-.1,-.72);tail.rotation.x=.2;
   const tailTip=makeBox(.15,.15,.3,cMat.clone());tailTip.position.set(0,0,-.58);tail.add(tailTip);
@@ -1080,16 +1088,25 @@ let boss=null;
 const $bossWrap=document.getElementById('bossHpWrap'),$bossName=document.getElementById('bossName'),$bossHpFill=document.getElementById('bossHpFill'),$bossPhase=document.getElementById('bossPhase');
 function buildKingDragon(sc,def){
   const root=new THREE.Object3D();
-  const bMat=makeMat(0x44c0e8,0x0099cc,.55,.06);
-  const cMat=makeMat(0xb8f4ff,0x00ffff,2.0,.0);
-  const coreMat=makeMat(0xaaf8ff,0x00ffff,2.8,.0);
+  const bMat=makeMat(0xd5fbff,0x3de6ff,1.6,.02);
+  const cMat=makeMat(0xf0feff,0x8af8ff,2.5,.0);
+  const coreMat=makeMat(0xffffff,0x9cffff,3.2,.0);
   const eyeM=new THREE.MeshBasicMaterial({color:0xffffff});
   const g=new THREE.Object3D();g.position.y=-0.5*sc;root.add(g);
   const body=makeBox(1.0*sc,.88*sc,1.8*sc,bMat.clone());g.add(body);
   const chest=makeBox(.55*sc,.45*sc,.1*sc,cMat.clone());chest.position.set(0,.08*sc,.92*sc);body.add(chest);
   const core=makeBox(.28*sc,.28*sc,.12*sc,coreMat.clone());core.position.set(0,.08*sc,.97*sc);body.add(core);
+  const chestGem=makeBox(.42*sc,.42*sc,.16*sc,cMat.clone());chestGem.position.set(0,.08*sc,.84*sc);chestGem.rotation.y=Math.PI/4;body.add(chestGem);
+  const chestGem2=makeBox(.22*sc,.5*sc,.12*sc,cMat.clone());chestGem2.position.set(0,.08*sc,.84*sc);chestGem2.rotation.x=Math.PI/4;body.add(chestGem2);
   for(let i=0;i<4;i++){const sp=makeBox(.1*sc,(.32-.04*i)*sc,.09*sc,cMat.clone());sp.position.set(0,.48*sc,(.6-.4*i)*sc);body.add(sp);}
   for(let i=0;i<4;i++){const sl=makeBox(.1*sc,.18*sc,.14*sc,cMat.clone());sl.position.set(-.52*sc,(.08+.08*i)*sc,(.55-.36*i)*sc);sl.rotation.z=.4;body.add(sl);const sr=sl.clone();sr.position.x=.52*sc;sr.rotation.z=-.4;body.add(sr);}
+  for(let i=0;i<8;i++){
+    const ang=(i/8)*Math.PI*2;
+    const facet=makeBox(.09*sc,.32*sc,.14*sc,cMat.clone());
+    facet.position.set(Math.sin(ang)*.58*sc,.06*sc,Math.cos(ang)*.75*sc);
+    facet.rotation.y=ang;
+    body.add(facet);
+  }
   const neck=makeBox(.4*sc,.52*sc,.4*sc,bMat.clone());neck.position.set(0,.55*sc,.88*sc);neck.rotation.x=-.3;g.add(neck);
   const head=makeBox(.75*sc,.6*sc,.9*sc,bMat.clone());head.position.set(0,1.1*sc,1.42*sc);g.add(head);
   const snout=makeBox(.42*sc,.32*sc,.52*sc,bMat.clone());snout.position.set(0,-.14*sc,.52*sc);head.add(snout);
