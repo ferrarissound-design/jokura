@@ -1225,11 +1225,8 @@ const ITEM_DEFS=[
 const itemGeo=new THREE.BoxGeometry(.35,.35,.35);
 function dropItem(x,y,z,etype){
   if(Math.random()>.45)return;
-  let it;
-  if(etype.name==='Skeleton')it=Math.random()<.35?ITEM_DEFS[3]:ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
-  else if(etype.name==='Golem'||etype.name==='IceGolem')it=Math.random()<.35?ITEM_DEFS[4]:ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
-  else if(etype.name==='CrystalGolem')it=Math.random()<.45?ITEM_DEFS[4]:ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
-  else it=ITEM_DEFS[Math.floor(Math.random()*ITEM_DEFS.length)];
+  const pool=ITEM_DEFS.filter(i=>i.type!=='weapon');
+  const it=pool[Math.floor(Math.random()*pool.length)];
   const mat=new THREE.MeshBasicMaterial({color:it.color,transparent:true,opacity:.9});
   const m=new THREE.Mesh(itemGeo,mat);m.position.set(x,y+.5,z);scene.add(m);
   items.push({mesh:m,mat,info:it,x,y:y+.5,z,time:0});
