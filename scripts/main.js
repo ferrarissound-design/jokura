@@ -252,9 +252,9 @@ async function saveGame(){
   catch(e){showSaveToast('⚠ 保存失敗');}
 }
 async function loadSaveData(){
-  try{
-    const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];
-    for(const key of keys){
+  const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];
+  for(const key of keys){
+    try{
       const r=await window.storage.get(key);
       if(!r||!r.value)continue;
       const parsed=JSON.parse(r.value);
@@ -264,9 +264,11 @@ async function loadSaveData(){
         await window.storage.set(SAVE_KEY,JSON.stringify(migrated));
       }
       return migrated;
+    }catch(e){
+      continue;
     }
-    return null;
-  }catch(e){return null;}
+  }
+  return null;
 }
 async function deleteSave(){try{const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];for(const key of keys)await window.storage.delete(key);}catch(e){}}
 const $contBtn=document.getElementById('contBtn'),$saveInfo=document.getElementById('saveInfo');
