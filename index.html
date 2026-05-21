@@ -239,7 +239,6 @@ const CRAFT_RECIPES=[
   {name:'💎 Diamond Bow',  wi:-7,needs:{diamond:3,wood:2},desc:'💎×3+🪵×2',req:3},
   {name:'🔮 Diamond Staff',wi:-8,needs:{diamond:5,wood:2},desc:'💎×5+🪵×2'},
   {name:'🏆 ダイヤドラゴン像',wi:-9,needs:{dragonCore:1,diamond:3},desc:'💠×1+💎×3'},
-  {name:'🔨 Hammer',       wi:2,  needs:{stone:15,wood:5},          desc:'🪨×15+🪵×5'},
   {name:'💎 Diamond Hammer',wi:-10,needs:{diamond:4,stone:20},       desc:'💎×4+🪨×20', req:2},
 ];
 
@@ -306,7 +305,7 @@ function doCraft(idx){
   if(r.wi===-7&&hasDiamondBow)return;
   if(r.wi===-8&&hasDiamondStaff)return;
   if(r.wi===-10&&hasDiamondHammer)return;
-  if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に弓を入手しよう 🏹');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
+  if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に'+WEAPONS[r.req].name+'を入手しよう');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
   if(r.wi===-1){chestCount++;updateChestHUD();showBonus('📦 チェスト×'+chestCount);}
@@ -1824,7 +1823,7 @@ async function continueGame(){
   const d=await loadSaveData();if(!d)return;
   $contDeathBtn.style.display='none';
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
-  overlay.classList.add('hide');initAudio();commonReset();
+  overlay.classList.add('hide');initAudio();commonReset();resetInv();
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
   P.hp=d.hp||100;P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
