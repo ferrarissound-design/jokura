@@ -76,6 +76,26 @@ function canCraft(recipe){
   return true;
 }
 
+const MATERIAL_LABELS={
+  wood:'🪵 WOOD',
+  stone:'🪨 STONE',
+  sand:'🏖 SAND',
+  grass:'🌿 GRASS',
+  brick:'🧱 BRICK',
+  arrow:'🏹 ARROW',
+  diamond:'💎 DIAMOND',
+  dragonCore:'💠 DRAGON CORE'
+};
+
+function getMissingMaterialsText(recipe){
+  const lacks=[];
+  for(const[k,v] of Object.entries(recipe.needs)){
+    const cur=inv[k]||0;
+    if(cur<v){const label=MATERIAL_LABELS[k]||k.toUpperCase();lacks.push(label+' '+cur+'/'+v);} 
+  }
+  return lacks.join('  ');
+}
+
 function applyDiamondSword(){
   hasDiamondSword=true;
   WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=8;WEAPONS[1].cd=0.35;
@@ -135,7 +155,8 @@ function buildCraftPanel(){
     else if(r.wi===-8&&hasDiamondStaff){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-10&&hasDiamondHammer){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-9&&trophyCount>0){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み×'+trophyCount+')';}
-    else if((r.req!=null&&!unlockedWeapons[r.req])||!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
+    else if(r.req!=null&&!unlockedWeapons[r.req]){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 要:'+WEAPONS[r.req].name;}
+    else if(!canCraft(r)){el.classList.add('locked');const miss=getMissingMaterialsText(r);el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+miss;}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
   });
@@ -202,9 +223,19 @@ function applyWorldEdits(){
 }
 
 // ═══ SAVE ═══
-const SAVE_KEY='jokura-save-v5';
+const SAVE_VERSION=6;
+const SAVE_KEY='jokura-save-v6';
+const LEGACY_SAVE_KEYS=['jokura-save-v5'];
+function migrateSaveData(data){
+  if(!data||typeof data!=='object')return null;
+  const migrated={...data};
+  const version=Number(migrated.version||0);
+  if(version<6)migrated.version=6;
+  return migrated;
+}
 async function saveGame(){
   const data={
+    version:SAVE_VERSION,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
@@ -220,8 +251,24 @@ async function saveGame(){
   try{const r=await window.storage.set(SAVE_KEY,JSON.stringify(data));showSaveToast(r?'💾 SAVED!':'⚠ 保存失敗');updateOverlaySaveInfo();}
   catch(e){showSaveToast('⚠ 保存失敗');}
 }
-async function loadSaveData(){try{const r=await window.storage.get(SAVE_KEY);if(!r||!r.value)return null;return JSON.parse(r.value);}catch(e){return null;}}
-async function deleteSave(){try{await window.storage.delete(SAVE_KEY);}catch(e){}}
+async function loadSaveData(){
+  try{
+    const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];
+    for(const key of keys){
+      const r=await window.storage.get(key);
+      if(!r||!r.value)continue;
+      const parsed=JSON.parse(r.value);
+      const migrated=migrateSaveData(parsed);
+      if(!migrated)continue;
+      if(key!==SAVE_KEY||migrated.version!==SAVE_VERSION){
+        await window.storage.set(SAVE_KEY,JSON.stringify(migrated));
+      }
+      return migrated;
+    }
+    return null;
+  }catch(e){return null;}
+}
+async function deleteSave(){try{const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];for(const key of keys)await window.storage.delete(key);}catch(e){}}
 const $contBtn=document.getElementById('contBtn'),$saveInfo=document.getElementById('saveInfo');
 async function updateOverlaySaveInfo(){
   const d=await loadSaveData();
