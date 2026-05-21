@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;touch-action:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:fixed;inset:0}
 canvas#c{display:block;touch-action:none}
@@ -199,14 +198,15 @@ canvas#c{display:block;touch-action:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
+function boot(){
 if(typeof THREE==='undefined'){document.getElementById('ovTitle').textContent='読込失敗';return;}
 
 // ═══ STORAGE POLYFILL ═══
 if(!window.storage){
   window.storage={
-    get:function(k){var v=localStorage.getItem(k);return Promise.resolve(v!=null?{value:v}:null);},
+    get:function(k){try{var v=localStorage.getItem(k);return Promise.resolve(v!=null?{value:v}:null);}catch(e){return Promise.resolve(null);}},
     set:function(k,v){try{localStorage.setItem(k,v);return Promise.resolve(true);}catch(e){return Promise.resolve(false);}},
-    delete:function(k){localStorage.removeItem(k);return Promise.resolve();}
+    delete:function(k){try{localStorage.removeItem(k);}catch(e){}return Promise.resolve();}
   };
 }
 
@@ -350,8 +350,21 @@ function unlockWeaponByDrop(wi){
 const $craftBtn=document.getElementById('craftBtn');
 let _craftBtnLastT=0;
 function _onCraftBtnTap(){const now=Date.now();if(now-_craftBtnLastT<100)return;_craftBtnLastT=now;toggleCraftPanel();}
-$craftBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onCraftBtnTap();},{passive:false});
-$craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onCraftBtnTap();});
+function bindTapSafe(el,fn){
+  let lockUntil=0;
+  const run=(e)=>{
+    const now=performance.now();
+    if(now<lockUntil)return;
+    lockUntil=now+350;
+    e.preventDefault();
+    e.stopPropagation();
+    fn(e);
+  };
+  el.addEventListener('pointerdown',run);
+  el.addEventListener('touchstart',run,{passive:false});
+}
+
+bindTapSafe($craftBtn,_onCraftBtnTap);
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
@@ -1472,8 +1485,7 @@ function updateMeatHUD(){$meatLabel.textContent='🥩 MEAT: '+meat;if(meat>0)$ea
 function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.hp=Math.min(P.maxHp,P.hp+MEAT_HP);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('🍖 +'+MEAT_HP+'HP  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
 let _eatBtnLastT=0;
 function _onEatBtnTap(){const now=Date.now();if(now-_eatBtnLastT<100)return;_eatBtnLastT=now;eatMeat();}
-$eatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onEatBtnTap();},{passive:false});
-$eatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onEatBtnTap();});
+bindTapSafe($eatBtn,_onEatBtnTap);
 
 // ═══ GAME STATE ═══
 const gs={running:false,score:0,kills:0,day:1,time:0,wave:0,nextWave:15,paused:false};
@@ -1719,16 +1731,13 @@ breakBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagati
 breakBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);},{passive:false});
 let _jumpBtnLastT=0;
 function _onJumpBtnTap(){const now=Date.now();if(now-_jumpBtnLastT<100)return;_jumpBtnLastT=now;doJump();}
-jumpBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onJumpBtnTap();},{passive:false});
-jumpBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onJumpBtnTap();});
+bindTapSafe(jumpBtn,_onJumpBtnTap);
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
-weaponBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();},{passive:false});
-weaponBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();});
+bindTapSafe(weaponBtn,_onWeaponBtnTap);
 let _saveBtnLastT=0;
 function _onSaveBtnTap(){const now=Date.now();if(now-_saveBtnLastT<100)return;_saveBtnLastT=now;if(gs.running)saveGame();}
-saveFloatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onSaveBtnTap();},{passive:false});
-saveFloatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onSaveBtnTap();});
+bindTapSafe(saveFloatBtn,_onSaveBtnTap);
 
 // PLACEボタン長押し：近くにベッド→睡眠、チェスト→操作、ベッド所持→設置、チェスト所持→設置
 let placeLongPressTimer=null;
@@ -1762,8 +1771,7 @@ const overlay=document.getElementById('overlay'),ovTitle=document.getElementById
 const $contDeathBtn=document.getElementById('contDeathBtn');
 let _contDeathLastT=0;
 function _onContDeathTap(){const now=Date.now();if(now-_contDeathLastT<100)return;_contDeathLastT=now;continueAfterDeath();}
-$contDeathBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContDeathTap();},{passive:false});
-$contDeathBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContDeathTap();});
+bindTapSafe($contDeathBtn,_onContDeathTap);
 let undergroundSnapshot=null,prevPlayerUnderground=false;
 function undergroundDeath(){
   P.hp=0;P.invT=99;gs.running=false;updateHUD();
@@ -1884,24 +1892,19 @@ function pickupItem(info){
 }
 let _ovBtnLastT=0;
 function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startGame();}
-ovBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onOvBtnTap();},{passive:false});
-ovBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onOvBtnTap();});
+bindTapSafe(ovBtn,_onOvBtnTap);
 let _contBtnLastT=0;
 function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))continueGame();}
-$contBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContBtnTap();},{passive:false});
-$contBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContBtnTap();});
+bindTapSafe($contBtn,_onContBtnTap);
 let _pauseBtnLastT=0;
 function _onPauseBtnTap(){const now=Date.now();if(now-_pauseBtnLastT<100)return;_pauseBtnLastT=now;togglePause();}
-$pauseBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onPauseBtnTap();},{passive:false});
-$pauseBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onPauseBtnTap();});
+bindTapSafe($pauseBtn,_onPauseBtnTap);
 let _resumeBtnLastT=0;
 function _onResumeBtnTap(){const now=Date.now();if(now-_resumeBtnLastT<100)return;_resumeBtnLastT=now;if(gs.paused)togglePause();}
-$resumeBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onResumeBtnTap();},{passive:false});
-$resumeBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onResumeBtnTap();});
+bindTapSafe($resumeBtn,_onResumeBtnTap);
 let _pauseSaveBtnLastT=0;
 function _onPauseSaveBtnTap(){const now=Date.now();if(now-_pauseSaveBtnLastT<100)return;_pauseSaveBtnLastT=now;saveGame();}
-$pauseSaveBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onPauseSaveBtnTap();},{passive:false});
-$pauseSaveBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onPauseSaveBtnTap();});
+bindTapSafe($pauseSaveBtn,_onPauseSaveBtnTap);
 
 // ═══ MAIN LOOP ═══
 let lavaParticleT=0,snowParticleT=0,lastT=0,minimapT=0,hudT=0,chunkT=0;
@@ -1994,6 +1997,16 @@ document.addEventListener('gestureend',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('touchstart',(e)=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 document.addEventListener('dblclick',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('wheel',(e)=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+}
+if(typeof THREE==='undefined'){
+  var fallback=document.createElement('script');
+  fallback.src='https://unpkg.com/three@0.128.0/build/three.min.js';
+  fallback.onload=boot;
+  fallback.onerror=function(){document.getElementById('ovTitle').textContent='読込失敗';};
+  document.head.appendChild(fallback);
+}else{
+  boot();
+}
 })();
 </script>
 </body>
