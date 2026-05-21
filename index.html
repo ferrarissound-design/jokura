@@ -220,7 +220,7 @@ if(isDesktop){document.getElementById('joyWrap').style.display='none';document.g
 
 // ═══ INVENTORY ═══
 const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0};
-let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false;
+let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 const unlockedWeapons=[true,false,false,false,false,false];
 const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond'];
 const SLOT_MAT=['grass','stone','sand','wood','brick'];
@@ -239,6 +239,8 @@ const CRAFT_RECIPES=[
   {name:'💎 Diamond Bow',  wi:-7,needs:{diamond:3,wood:2},desc:'💎×3+🪵×2',req:3},
   {name:'🔮 Diamond Staff',wi:-8,needs:{diamond:5,wood:2},desc:'💎×5+🪵×2'},
   {name:'🏆 ダイヤドラゴン像',wi:-9,needs:{dragonCore:1,diamond:3},desc:'💠×1+💎×3'},
+  {name:'🔨 Hammer',       wi:2,  needs:{stone:15,wood:5},          desc:'🪨×15+🪵×5'},
+  {name:'💎 Diamond Hammer',wi:-10,needs:{diamond:4,stone:20},       desc:'💎×4+🪨×20', req:2},
 ];
 
 const $invWood=document.getElementById('invWood');
@@ -291,12 +293,19 @@ function applyDiamondStaff(){
   unlockedWeapons[5]=true;
   if(weaponIdx===5){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='🔮 Diamond Staff';}
 }
+function applyDiamondHammer(){
+  hasDiamondHammer=true;
+  WEAPONS[2].name='💎 Diamond Hammer';WEAPONS[2].dmg=18;WEAPONS[2].cd=1.1;WEAPONS[2].range=4.5;WEAPONS[2].type='hammer';
+  unlockedWeapons[2]=true;
+  if(weaponIdx===2){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='💎 Diamond Hammer';}
+}
 function doCraft(idx){
   const r=CRAFT_RECIPES[idx];if(!r)return;
   if(r.wi>=0&&unlockedWeapons[r.wi])return;
   if(r.wi===-6&&hasDiamondSword)return;
   if(r.wi===-7&&hasDiamondBow)return;
   if(r.wi===-8&&hasDiamondStaff)return;
+  if(r.wi===-10&&hasDiamondHammer)return;
   if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に弓を入手しよう 🏹');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
@@ -309,6 +318,7 @@ function doCraft(idx){
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
   else if(r.wi===-9){trophyCount++;updateTrophyHUD();showAlert('🏆 ダイヤドラゴン像 CRAFTED! 拠点に飾ろう！');playTone(2000,.2,.15,'sine');setTimeout(()=>playTone(2600,.15,.12,'sine'),130);setTimeout(()=>playTone(3200,.1,.1,'sine'),260);}
+  else if(r.wi===-10){applyDiamondHammer();showAlert('💎 DIAMOND HAMMER CRAFTED!');playTone(900,.15,.2,'square');setTimeout(()=>playTone(700,.15,.18,'square'),120);setTimeout(()=>playTone(1100,.1,.15,'square'),240);}
   else{unlockedWeapons[r.wi]=true;showBonus('🛠 '+r.name+' CRAFTED!');}
   updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8&&r.wi!==-9){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
   closeCraftPanel();
@@ -323,6 +333,7 @@ function buildCraftPanel(){
     else if(r.wi===-6&&hasDiamondSword){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-7&&hasDiamondBow){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-8&&hasDiamondStaff){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
+    else if(r.wi===-10&&hasDiamondHammer){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-9&&trophyCount>0){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み×'+trophyCount+')';}
     else if((r.req!=null&&!unlockedWeapons[r.req])||!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
@@ -351,6 +362,8 @@ function resetInv(){
   hasDiamondBow=false;
   WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;
   hasDiamondStaff=false;
+  hasDiamondHammer=false;
+  WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';
   for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=(i===0);
   updateInvHUD();
 }
@@ -382,7 +395,7 @@ async function saveGame(){
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
-    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,
+    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
     worldSeed:WORLD_SEED,
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
@@ -1646,6 +1659,17 @@ function doAttack(e){
     const eh=castEnemiesFar(w.range);if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
     fireArrow();return;
   }
+  if(w.type==='hammer'){
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;spawnParticles(P.x+Math.cos(a)*2.5,P.y+.3,P.z+Math.sin(a)*2.5,0x00e5ff,1);}
+    spawnParticles(P.x,P.y+.5,P.z,0xaaf8ff,3);
+    let anyHit=false;
+    if(boss){const bp=boss.root.position;if(Math.hypot(bp.x-P.x,bp.z-P.z)<w.range){hitBoss(w.dmg);anyHit=true;}}
+    if(dragon){const dp=dragon.root.position;if(Math.hypot(dp.x-P.x,dp.z-P.z)<w.range){hitDragon(w.dmg,true);anyHit=true;}}
+    for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(ep.x-P.x,ep.z-P.z)<w.range){hitEnemy(en,w.dmg);anyHit=true;}}
+    attackMobs(w);
+    if(!anyHit){const bh=castVoxel();if(bh){breakBlock(bh);}}
+    return;
+  }
   if(w.type==='aoe'){
     spawnParticles(P.x,P.y+1.5,P.z,0xff44ff,4);let anyHit=false;
     if(boss){const bp=boss.root.position,dx=bp.x-P.x,dy=bp.y-P.y,dz=bp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitBoss(w.dmg);anyHit=true;}}
@@ -1736,6 +1760,7 @@ function undergroundDeath(){
     if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;unlockedWeapons[1]=false;}}
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;unlockedWeapons[3]=false;}}
     if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;unlockedWeapons[5]=false;}}
+    if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';unlockedWeapons[2]=false;}}
     chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;updateChestHUD();updateBedHUD();updateTrophyHUD();
     undergroundSnapshot=null;
   }
@@ -1815,6 +1840,7 @@ async function continueGame(){
   if(d.hasDiamondSword)applyDiamondSword();
   if(d.hasDiamondBow)applyDiamondBow();
   if(d.hasDiamondStaff)applyDiamondStaff();
+  if(d.hasDiamondHammer)applyDiamondHammer();
   if(d.worldSeed)initWorldNoise(d.worldSeed);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();Object.assign(worldEdits.placed,d.worldEdits.placed||{});Object.assign(worldEdits.removed,d.worldEdits.removed||{});}
@@ -1885,7 +1911,7 @@ function tick(now){
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,chestCount,bedCount,trophyCount};sfxEnterUnder();}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,chestCount,bedCount,trophyCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
   if(!_isUnder&&finalBossPending&&!boss){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
