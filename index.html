@@ -1073,7 +1073,9 @@ function moveEnemy(e,vx,vz,dt){const p=e.root.position,fy=p.y-.85;e.velY-=GRAV*d
 const BOSS_DEFS=[
   {wave:5, name:'💀 スケルトンキング',color:0xaaaaee,emissive:0x3333aa,baseHp:60, dmg:18,score:800, scale:2.2,patterns:['multishot','charge','stomp'],   deathColor:0x8888ff},
   {wave:10,name:'🔥 炎のゴーレム',  color:0xff4400,emissive:0x881100,baseHp:110,dmg:28,score:1500,scale:2.8,patterns:['charge','aoeBlast','multishot'], deathColor:0xff6600},
+  {wave:13,name:'🦴 スケルトンウォーロード',color:0xbbccee,emissive:0x2244aa,baseHp:95,dmg:22,score:1200,scale:1.8,patterns:['multishot','charge','stomp'],deathColor:0x8899ff,miniBoss:true,diamondDrop:2},
   {wave:15,name:'👁 ダークアイ',    color:0x220044,emissive:0x550088,baseHp:175,dmg:35,score:2500,scale:3.2,patterns:['omnishot','charge','aoeBlast'],  deathColor:0xaa00ff},
+  {wave:17,name:'🔮 ダークウィザード',color:0x1a0030,emissive:0x7700bb,baseHp:145,dmg:30,score:1800,scale:2.0,patterns:['omnishot','aoeBlast','charge'],deathColor:0xbb44ff,miniBoss:true,diamondDrop:3},
   {wave:20,name:'💎 キングダイヤモンドドラゴン',color:0x0a1520,emissive:0x00aaff,baseHp:260,dmg:45,score:8000,scale:2.0,patterns:['multishot','omnishot','charge','stomp','aoeBlast'],deathColor:0x00e5ff,finalBoss:true},
 ];
 let boss=null;
@@ -1158,8 +1160,10 @@ function killBoss(){
   const m2=new THREE.Mesh(itemGeo,mat2);m2.position.set(bp.x+1,bp.y+1,bp.z);scene.add(m2);
   items.push({mesh:m2,mat:mat2,info:hp,x:bp.x+1,y:bp.y+1,z:bp.z,time:0});
   gs.score+=bossScore;gs.kills++;
-  sfxBossDie();showBonus('💀 BOSS DEAD! +'+bossScore);
+  const wasMiniBoss=boss.def.miniBoss||false;const dDrop=boss.def.diamondDrop||0;
+  sfxBossDie();showBonus((wasMiniBoss?'⚡ MINI BOSS DEAD! ':'💀 BOSS DEAD! ')+'+'+bossScore);
   scene.remove(bossRoot);const wasFinal=boss.def.finalBoss||false;boss=null;$bossWrap.classList.remove('show');
+  if(dDrop>0){inv.diamond+=dDrop;updateInvHUD();setTimeout(()=>showBonus('💎×'+dDrop+' ゲット！'),1000);}
   if(wasFinal)setTimeout(()=>gameComplete(),2000);
 }
 function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);if(boss.flashT>0){boss.flashT-=dt;if(boss.flashT<=0){boss.body.material.emissive.setHex(boss.def.emissive);boss.body.material.emissiveIntensity=.35+boss.phase*.2;boss.head.material.emissive.setHex(boss.def.emissive);boss.head.material.emissiveIntensity=.35+boss.phase*.2;}}const fy=bp.y-(.85*sc);boss.velY-=GRAV*dt;const spd=2+boss.phase*.8+(gs.wave*.15);if(boss.charging){const cd=boss.chargeDir;const nx=bp.x+cd.x*12*dt;const nz=bp.z+cd.z*12*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}boss.chargeT-=dt;if(boss.chargeT<=0)boss.charging=false;}else if(dist>2){const nx=bp.x+(dx/dist)*spd*dt;const nz=bp.z+(dz/dist)*spd*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;}const ny=fy+boss.velY*dt;if(!overlaps(bp.x,ny,bp.z,sc*.4,1.7*sc)){bp.y=ny+.85*sc;boss.onGround=false;}else{if(boss.velY<0)boss.onGround=true;boss.velY=0;}if(bp.y<-1){const rh=getHeight(Math.floor(bp.x),Math.floor(bp.z));bp.y=rh+1.85*sc;boss.velY=0;boss.onGround=true;}bp.x=Math.max(-WORLD_R*CHUNK+2,Math.min(WORLD_R*CHUNK-2,bp.x));bp.z=Math.max(-WORLD_R*CHUNK+2,Math.min(WORLD_R*CHUNK-2,bp.z));boss.root.rotation.y=Math.atan2(dx,dz);boss.stuckT+=dt;if(boss.stuckT>1.5){const mv=Math.abs(bp.x-boss.lastX)+Math.abs(bp.z-boss.lastZ);if(mv<.3&&boss.onGround){boss.velY=7;if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(1,2.5-boss.phase*.3);}}boss.lastX=bp.x;boss.lastZ=bp.z;boss.stuckT=0;}boss.atkCd=Math.max(0,boss.atkCd-dt);boss.breakCd=Math.max(0,boss.breakCd-dt);if(dist<2.5*sc&&boss.atkCd<=0&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg+boss.phase*5);boss.atkCd=1.5-boss.phase*.2;}if(!boss.charging){boss.atkPhase=(boss.atkPhase||0)-dt;if(boss.atkPhase<=0){const pats=boss.def.patterns,pat=pats[Math.floor(Math.random()*pats.length)];boss.atkPhase=Math.max(1.2,3-boss.phase*.5);if(pat==='multishot'){[-0.4,0,0.4].forEach(a=>{const ca=Math.atan2(dx,dz)+a;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ca)*20,bp.y+sc,bp.z+Math.cos(ca)*20,boss.def.dmg*.6);});sfxBow();}else if(pat==='omnishot'){for(let a=0;a<8;a++){const ang=(a/8)*Math.PI*2;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ang)*20,bp.y+sc,bp.z+Math.cos(ang)*20,boss.def.dmg*.5);}sfxBow();sfxMagic();}else if(pat==='charge'){if(dist>4){sfxCharge();boss.charging=true;boss.chargeDir={x:dx/dist,z:dz/dist};boss.chargeT=0.6;boss.velY=4;}}else if(pat==='stomp'){if(boss.onGround){boss.velY=8;sfxHammer();}if(dist<6&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*.8);spawnParticles(bp.x,bp.y,bp.z,boss.def.deathColor,5);}}else if(pat==='aoeBlast'){spawnParticles(bp.x,bp.y+.5,bp.z,boss.def.deathColor,8);if(dist<7&&hasLOS(bp.x,bp.y+sc,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*1.2);sfxMagic();}for(const e of enemies){const ed=Math.hypot(e.root.position.x-bp.x,e.root.position.z-bp.z);if(ed<8)e.hp=Math.min(e.hp+2,e.maxHp);}}}}boss.hpBar.lookAt(camera.position);updateBossHUD();}
@@ -1461,7 +1465,7 @@ $eatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagatio
 // ═══ GAME STATE ═══
 const gs={running:false,score:0,kills:0,day:1,time:0,wave:0,nextWave:15,paused:false};
 const DAY_DUR=90;
-function startWave(){gs.wave++;const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
+function startWave(){gs.wave++;const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
 
 // ═══ HUD ═══
 const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer');
@@ -1494,10 +1498,12 @@ function updateHUD(){
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();_updateTreasureInfo();
-  const isBossNext=BOSS_DEFS.some(b=>b.wave===gs.wave+1);
+  const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);
+  const isBossNext=!!nextDef&&!nextDef.miniBoss;const isMiniBossNext=!!nextDef&&!!nextDef.miniBoss;
   if(gs.nextWave>0&&gs.nextWave<=10){
-    $wt.textContent=(isBossNext?'👑 BOSS WAVE ':'⚠️ WAVE ')+(gs.wave+1)+' まで '+Math.ceil(gs.nextWave)+'秒';
-    $wt.className='show'+(isBossNext?' boss':'');
+    const label=isBossNext?'👑 BOSS WAVE ':isMiniBossNext?'⚡ MINI BOSS ':'⚠️ WAVE ';
+    $wt.textContent=label+(gs.wave+1)+' まで '+Math.ceil(gs.nextWave)+'秒';
+    $wt.className='show'+(isBossNext||isMiniBossNext?' boss':'');
   }else{$wt.classList.remove('show');}
 }
 
