@@ -1,106 +1,13 @@
-<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
-<title>ジョークラ</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css">
-
-</head>
-<body>
-<canvas id="c"></canvas>
-<div id="hud">
-  <div id="topBar">
-    <div class="pi"><div class="plabel">SCORE</div><div class="pval" id="scoreVal">0</div></div>
-    <div class="pi"><div class="pval" id="dayIcon">☀️</div><div class="pval" id="dayVal">DAY 1</div></div>
-    <div class="pi"><div class="plabel">KILLS</div><div class="pval" id="killVal">0</div></div>
-  </div>
-  <div id="hpArea"><div id="hpLabel">HP ❤️</div><div id="hpBar"><div id="hpFill"></div></div></div>
-  <div id="biomeLabel">🌿 PLAINS</div>
-  <div id="weaponLabel">👊 Fist</div>
-  <div id="meatLabel">🥩 MEAT: 0</div>
-  <button id="eatBtn" class="disabled">🍖 EAT</button>
-  <div id="invPanel">
-    <div class="invRow" id="invWood">🪵 WOOD: 0</div>
-    <div class="invRow" id="invStone">🪨 STONE: 0</div>
-    <div class="invRow" id="invSand">🏖 SAND: 0</div>
-    <div class="invRow" id="invGrass">🌿 GRASS: 0</div>
-    <div class="invRow" id="invBrick">🧱 BRICK: 0</div>
-    <div class="invRow" id="invArrow">🏹 ARROW: 0</div>
-    <div class="invRow" id="invDiamond" style="color:#00e5ff;text-shadow:0 0 6px #00bfff88">💎 DIAMOND: 0</div>
-    <div class="invRow" id="invDragonCore" style="color:#88ffff;text-shadow:0 0 6px #00e5ff88">💠 DRAGON CORE: 0</div>
-    <div class="invRow" id="invChest">📦 CHEST: 0</div>
-    <div class="invRow" id="invBed">🛏 BED: 0</div>
-    <div class="invRow" id="invTrophy" style="color:#aaf0ff">🏆 DRAGON STATUE: 0</div>
-  </div>
-  <button id="craftBtn">🛠 CRAFT</button>
-  <div id="craftPanel"></div>
-  <div id="coordsDisplay">X:0 Z:0</div>
-  <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
-  <button id="saveFloatBtn">💾</button>
-  <div id="waveAlert"></div>
-  <div id="waveTimer"></div>
-  <div id="bonusPopup"></div>
-  <div id="chestInfo"></div>
-  <div id="treasureInfo"></div>
-  <button id="pauseBtn">⏸</button>
-  <div id="pauseOverlay">
-    <div id="pauseTitle">⏸ PAUSE</div>
-    <button class="pmBtn" id="resumeBtn">▶ RESUME</button>
-    <button class="pmBtn" id="pauseSaveBtn">💾 SAVE</button>
-  </div>
-  <div id="saveToast">💾 SAVED!</div>
-  <div id="xhair"></div>
-  <div id="dmgFlash"></div>
-  <div id="lavaFlash"></div>
-  <div id="snowFlash"></div>
-  <div id="cdBar"><div id="cdFill"></div></div>
-  <div id="bossHpWrap">
-    <div id="bossName">💀 BOSS</div>
-    <div id="bossHpBar"><div id="bossHpFill"></div></div>
-    <div id="bossPhase">PHASE 1</div>
-  </div>
-  <div id="hotbar">
-    <div class="hslot active" data-i="0"><div class="dot" style="background:#4caf50"></div>Grass</div>
-    <div class="hslot" data-i="1"><div class="dot" style="background:#8a8f98"></div>Stone</div>
-    <div class="hslot" data-i="2"><div class="dot" style="background:#d9c27a"></div>Sand</div>
-    <div class="hslot" data-i="3"><div class="dot" style="background:#5d4037"></div>Wood</div>
-    <div class="hslot" data-i="4"><div class="dot" style="background:#ef9a9a"></div>Brick</div>
-  </div>
-  <div id="hint">左スティック移動 / 右スワイプ視点 / ⛏攻撃 / 🧱設置(長押し=家具) / 🔄武器切替</div>
-  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / 1-5:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト</div>
-  <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
-  <button id="weaponBtn">🔄 WEAPON</button>
-  <div id="actionWrap">
-    <button class="abtn" id="breakBtn">⛏ ATTACK</button>
-    <button class="abtn" id="placeBtn">🧱 PLACE</button>
-    <button class="abtn" id="jumpBtn">↑ JUMP</button>
-  </div>
-</div>
-<div id="overlay">
-  <div id="ovTitle">ジョークラ</div>
-  <div id="ovSplash">ダイヤを掘れ！</div>
-  <div id="ovSub">VOXEL SURVIVAL</div>
-  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>🐷豚を倒して🥩ミートをゲット！</div>
-  <button id="ovBtn" class="mc-btn">NEW GAME</button>
-  <button id="contDeathBtn" class="mc-btn" style="display:none;background:linear-gradient(to bottom,#6b8b5b 0%,#4a6a3a 100%)">コンティニュー<br><span style="font-size:.75em;opacity:.8">HP全回復 / スコア半減</span></button>
-  <button id="contBtn" class="mc-btn disabled">続きから</button>
-  <div id="saveInfo">セーブデータ確認中...</div>
-  <div id="rankInfo"></div>
-</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
 (function(){
+function boot(){
 if(typeof THREE==='undefined'){document.getElementById('ovTitle').textContent='読込失敗';return;}
 
 // ═══ STORAGE POLYFILL ═══
 if(!window.storage){
   window.storage={
-    get:function(k){var v=localStorage.getItem(k);return Promise.resolve(v!=null?{value:v}:null);},
+    get:function(k){try{var v=localStorage.getItem(k);return Promise.resolve(v!=null?{value:v}:null);}catch(e){return Promise.resolve(null);}},
     set:function(k,v){try{localStorage.setItem(k,v);return Promise.resolve(true);}catch(e){return Promise.resolve(false);}},
-    delete:function(k){localStorage.removeItem(k);return Promise.resolve();}
+    delete:function(k){try{localStorage.removeItem(k);}catch(e){}return Promise.resolve();}
   };
 }
 
@@ -169,6 +76,15 @@ function canCraft(recipe){
   return true;
 }
 
+function getMissingMaterialsText(recipe){
+  const lacks=[];
+  for(const[k,v] of Object.entries(recipe.needs)){
+    const cur=inv[k]||0;
+    if(cur<v)lacks.push(k.toUpperCase()+':'+cur+'/'+v);
+  }
+  return lacks.join('  ');
+}
+
 function applyDiamondSword(){
   hasDiamondSword=true;
   WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=8;WEAPONS[1].cd=0.35;
@@ -228,7 +144,8 @@ function buildCraftPanel(){
     else if(r.wi===-8&&hasDiamondStaff){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-10&&hasDiamondHammer){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-9&&trophyCount>0){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み×'+trophyCount+')';}
-    else if((r.req!=null&&!unlockedWeapons[r.req])||!canCraft(r)){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+')';}
+    else if(r.req!=null&&!unlockedWeapons[r.req]){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 要:'+WEAPONS[r.req].name;}
+    else if(!canCraft(r)){el.classList.add('locked');const miss=getMissingMaterialsText(r);el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+miss;}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
   });
@@ -244,8 +161,21 @@ function unlockWeaponByDrop(wi){
 const $craftBtn=document.getElementById('craftBtn');
 let _craftBtnLastT=0;
 function _onCraftBtnTap(){const now=Date.now();if(now-_craftBtnLastT<100)return;_craftBtnLastT=now;toggleCraftPanel();}
-$craftBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onCraftBtnTap();},{passive:false});
-$craftBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onCraftBtnTap();});
+function bindTapSafe(el,fn){
+  let lockUntil=0;
+  const run=(e)=>{
+    const now=performance.now();
+    if(now<lockUntil)return;
+    lockUntil=now+350;
+    e.preventDefault();
+    e.stopPropagation();
+    fn(e);
+  };
+  el.addEventListener('pointerdown',run);
+  el.addEventListener('touchstart',run,{passive:false});
+}
+
+bindTapSafe($craftBtn,_onCraftBtnTap);
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
@@ -282,9 +212,19 @@ function applyWorldEdits(){
 }
 
 // ═══ SAVE ═══
-const SAVE_KEY='jokura-save-v5';
+const SAVE_VERSION=6;
+const SAVE_KEY='jokura-save-v6';
+const LEGACY_SAVE_KEYS=['jokura-save-v5'];
+function migrateSaveData(data){
+  if(!data||typeof data!=='object')return null;
+  const migrated={...data};
+  const version=Number(migrated.version||0);
+  if(version<6)migrated.version=6;
+  return migrated;
+}
 async function saveGame(){
   const data={
+    version:SAVE_VERSION,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
@@ -300,7 +240,23 @@ async function saveGame(){
   try{const r=await window.storage.set(SAVE_KEY,JSON.stringify(data));showSaveToast(r?'💾 SAVED!':'⚠ 保存失敗');updateOverlaySaveInfo();}
   catch(e){showSaveToast('⚠ 保存失敗');}
 }
-async function loadSaveData(){try{const r=await window.storage.get(SAVE_KEY);if(!r||!r.value)return null;return JSON.parse(r.value);}catch(e){return null;}}
+async function loadSaveData(){
+  try{
+    const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];
+    for(const key of keys){
+      const r=await window.storage.get(key);
+      if(!r||!r.value)continue;
+      const parsed=JSON.parse(r.value);
+      const migrated=migrateSaveData(parsed);
+      if(!migrated)continue;
+      if(key!==SAVE_KEY||migrated.version!==SAVE_VERSION){
+        await window.storage.set(SAVE_KEY,JSON.stringify(migrated));
+      }
+      return migrated;
+    }
+    return null;
+  }catch(e){return null;}
+}
 async function deleteSave(){try{await window.storage.delete(SAVE_KEY);}catch(e){}}
 const $contBtn=document.getElementById('contBtn'),$saveInfo=document.getElementById('saveInfo');
 async function updateOverlaySaveInfo(){
@@ -824,9 +780,9 @@ function buildCrystalGolem(mat){
 }
 function buildDiamondDragon(){
   const root=new THREE.Object3D();
-  const bMat=makeMat(0x1b2838,0x001020,.3,.25);
-  const cMat=makeMat(0x00b4d8,0x00e5ff,.7,.1);
-  const coreMat=new THREE.MeshStandardMaterial({color:0x88ffff,emissive:0x00ffff,emissiveIntensity:1.8,roughness:.05});
+  const bMat=makeMat(0xc2f7ff,0x22d6ff,1.35,.02);
+  const cMat=makeMat(0xe9fdff,0x66f2ff,2.0,.0);
+  const coreMat=new THREE.MeshStandardMaterial({color:0xeaffff,emissive:0x66ffff,emissiveIntensity:2.4,roughness:.02,metalness:.12,transparent:true,opacity:.92});
   const eyeM=new THREE.MeshBasicMaterial({color:0xaaf0ff});
   // Body
   const body=makeBox(.9,1.0,.7,bMat.clone());
@@ -852,6 +808,14 @@ function buildDiamondDragon(){
   const wingRb=makeBox(.38,.05,.48,cMat.clone());wingRb.position.set(.32,.05,.22);wingRa.add(wingRb);
   // Crystal scales on body
   for(let i=0;i<4;i++){const sc=makeBox(.12,.09,.1,cMat.clone());sc.position.set(i%2===0?-.28:.28,.3-i*.15,.37);body.add(sc);}
+  // Diamond facets around torso
+  for(let i=0;i<6;i++){
+    const ang=(i/6)*Math.PI*2;
+    const ft=makeBox(.09,.3,.13,cMat.clone());
+    ft.position.set(Math.sin(ang)*.43,.08,Math.cos(ang)*.2);
+    ft.rotation.y=ang;
+    body.add(ft);
+  }
   // Tail
   const tail=makeBox(.3,.3,.85,bMat.clone());tail.position.set(0,-.1,-.72);tail.rotation.x=.2;
   const tailTip=makeBox(.15,.15,.3,cMat.clone());tailTip.position.set(0,0,-.58);tail.add(tailTip);
@@ -976,16 +940,25 @@ let boss=null;
 const $bossWrap=document.getElementById('bossHpWrap'),$bossName=document.getElementById('bossName'),$bossHpFill=document.getElementById('bossHpFill'),$bossPhase=document.getElementById('bossPhase');
 function buildKingDragon(sc,def){
   const root=new THREE.Object3D();
-  const bMat=makeMat(0x44c0e8,0x0099cc,.55,.06);
-  const cMat=makeMat(0xb8f4ff,0x00ffff,2.0,.0);
-  const coreMat=makeMat(0xaaf8ff,0x00ffff,2.8,.0);
+  const bMat=makeMat(0xd5fbff,0x3de6ff,1.6,.02);
+  const cMat=makeMat(0xf0feff,0x8af8ff,2.5,.0);
+  const coreMat=makeMat(0xffffff,0x9cffff,3.2,.0);
   const eyeM=new THREE.MeshBasicMaterial({color:0xffffff});
   const g=new THREE.Object3D();g.position.y=-0.5*sc;root.add(g);
   const body=makeBox(1.0*sc,.88*sc,1.8*sc,bMat.clone());g.add(body);
   const chest=makeBox(.55*sc,.45*sc,.1*sc,cMat.clone());chest.position.set(0,.08*sc,.92*sc);body.add(chest);
   const core=makeBox(.28*sc,.28*sc,.12*sc,coreMat.clone());core.position.set(0,.08*sc,.97*sc);body.add(core);
+  const chestGem=makeBox(.42*sc,.42*sc,.16*sc,cMat.clone());chestGem.position.set(0,.08*sc,.84*sc);chestGem.rotation.y=Math.PI/4;body.add(chestGem);
+  const chestGem2=makeBox(.22*sc,.5*sc,.12*sc,cMat.clone());chestGem2.position.set(0,.08*sc,.84*sc);chestGem2.rotation.x=Math.PI/4;body.add(chestGem2);
   for(let i=0;i<4;i++){const sp=makeBox(.1*sc,(.32-.04*i)*sc,.09*sc,cMat.clone());sp.position.set(0,.48*sc,(.6-.4*i)*sc);body.add(sp);}
   for(let i=0;i<4;i++){const sl=makeBox(.1*sc,.18*sc,.14*sc,cMat.clone());sl.position.set(-.52*sc,(.08+.08*i)*sc,(.55-.36*i)*sc);sl.rotation.z=.4;body.add(sl);const sr=sl.clone();sr.position.x=.52*sc;sr.rotation.z=-.4;body.add(sr);}
+  for(let i=0;i<8;i++){
+    const ang=(i/8)*Math.PI*2;
+    const facet=makeBox(.09*sc,.32*sc,.14*sc,cMat.clone());
+    facet.position.set(Math.sin(ang)*.58*sc,.06*sc,Math.cos(ang)*.75*sc);
+    facet.rotation.y=ang;
+    body.add(facet);
+  }
   const neck=makeBox(.4*sc,.52*sc,.4*sc,bMat.clone());neck.position.set(0,.55*sc,.88*sc);neck.rotation.x=-.3;g.add(neck);
   const head=makeBox(.75*sc,.6*sc,.9*sc,bMat.clone());head.position.set(0,1.1*sc,1.42*sc);g.add(head);
   const snout=makeBox(.42*sc,.32*sc,.52*sc,bMat.clone());snout.position.set(0,-.14*sc,.52*sc);head.add(snout);
@@ -1353,8 +1326,7 @@ function updateMeatHUD(){$meatLabel.textContent='🥩 MEAT: '+meat;if(meat>0)$ea
 function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.hp=Math.min(P.maxHp,P.hp+MEAT_HP);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('🍖 +'+MEAT_HP+'HP  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
 let _eatBtnLastT=0;
 function _onEatBtnTap(){const now=Date.now();if(now-_eatBtnLastT<100)return;_eatBtnLastT=now;eatMeat();}
-$eatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onEatBtnTap();},{passive:false});
-$eatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onEatBtnTap();});
+bindTapSafe($eatBtn,_onEatBtnTap);
 
 // ═══ GAME STATE ═══
 const gs={running:false,score:0,kills:0,day:1,time:0,wave:0,nextWave:15,paused:false};
@@ -1602,16 +1574,13 @@ breakBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagati
 breakBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);},{passive:false});
 let _jumpBtnLastT=0;
 function _onJumpBtnTap(){const now=Date.now();if(now-_jumpBtnLastT<100)return;_jumpBtnLastT=now;doJump();}
-jumpBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onJumpBtnTap();},{passive:false});
-jumpBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onJumpBtnTap();});
+bindTapSafe(jumpBtn,_onJumpBtnTap);
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
-weaponBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();},{passive:false});
-weaponBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onWeaponBtnTap();});
+bindTapSafe(weaponBtn,_onWeaponBtnTap);
 let _saveBtnLastT=0;
 function _onSaveBtnTap(){const now=Date.now();if(now-_saveBtnLastT<100)return;_saveBtnLastT=now;if(gs.running)saveGame();}
-saveFloatBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onSaveBtnTap();},{passive:false});
-saveFloatBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onSaveBtnTap();});
+bindTapSafe(saveFloatBtn,_onSaveBtnTap);
 
 // PLACEボタン長押し：近くにベッド→睡眠、チェスト→操作、ベッド所持→設置、チェスト所持→設置
 let placeLongPressTimer=null;
@@ -1645,8 +1614,7 @@ const overlay=document.getElementById('overlay'),ovTitle=document.getElementById
 const $contDeathBtn=document.getElementById('contDeathBtn');
 let _contDeathLastT=0;
 function _onContDeathTap(){const now=Date.now();if(now-_contDeathLastT<100)return;_contDeathLastT=now;continueAfterDeath();}
-$contDeathBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContDeathTap();},{passive:false});
-$contDeathBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContDeathTap();});
+bindTapSafe($contDeathBtn,_onContDeathTap);
 let undergroundSnapshot=null,prevPlayerUnderground=false;
 function undergroundDeath(){
   P.hp=0;P.invT=99;gs.running=false;updateHUD();
@@ -1767,24 +1735,19 @@ function pickupItem(info){
 }
 let _ovBtnLastT=0;
 function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startGame();}
-ovBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onOvBtnTap();},{passive:false});
-ovBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onOvBtnTap();});
+bindTapSafe(ovBtn,_onOvBtnTap);
 let _contBtnLastT=0;
 function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))continueGame();}
-$contBtn.addEventListener('touchstart',(e)=>{e.preventDefault();_onContBtnTap();},{passive:false});
-$contBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();_onContBtnTap();});
+bindTapSafe($contBtn,_onContBtnTap);
 let _pauseBtnLastT=0;
 function _onPauseBtnTap(){const now=Date.now();if(now-_pauseBtnLastT<100)return;_pauseBtnLastT=now;togglePause();}
-$pauseBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onPauseBtnTap();},{passive:false});
-$pauseBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onPauseBtnTap();});
+bindTapSafe($pauseBtn,_onPauseBtnTap);
 let _resumeBtnLastT=0;
 function _onResumeBtnTap(){const now=Date.now();if(now-_resumeBtnLastT<100)return;_resumeBtnLastT=now;if(gs.paused)togglePause();}
-$resumeBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onResumeBtnTap();},{passive:false});
-$resumeBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onResumeBtnTap();});
+bindTapSafe($resumeBtn,_onResumeBtnTap);
 let _pauseSaveBtnLastT=0;
 function _onPauseSaveBtnTap(){const now=Date.now();if(now-_pauseSaveBtnLastT<100)return;_pauseSaveBtnLastT=now;saveGame();}
-$pauseSaveBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();_onPauseSaveBtnTap();},{passive:false});
-$pauseSaveBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();_onPauseSaveBtnTap();});
+bindTapSafe($pauseSaveBtn,_onPauseSaveBtnTap);
 
 // ═══ MAIN LOOP ═══
 let lavaParticleT=0,snowParticleT=0,lastT=0,minimapT=0,hudT=0,chunkT=0;
@@ -1877,7 +1840,14 @@ document.addEventListener('gestureend',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('touchstart',(e)=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 document.addEventListener('dblclick',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('wheel',(e)=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+}
+if(typeof THREE==='undefined'){
+  var fallback=document.createElement('script');
+  fallback.src='https://unpkg.com/three@0.128.0/build/three.min.js';
+  fallback.onload=boot;
+  fallback.onerror=function(){document.getElementById('ovTitle').textContent='読込失敗';};
+  document.head.appendChild(fallback);
+}else{
+  boot();
+}
 })();
-</script>
-</body>
-</html>
