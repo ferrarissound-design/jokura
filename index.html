@@ -22,6 +22,7 @@
   <div id="hpArea"><div id="hpLabel">HP ❤️</div><div id="hpBar"><div id="hpFill"></div></div></div>
   <div id="biomeLabel">🌿 PLAINS</div>
   <div id="weaponLabel">👊 Fist</div>
+  <div id="goalLabel">🎯 目標: 木を集めて剣を作ろう</div>
   <div id="meatLabel">🥩 MEAT: 0</div>
   <button id="eatBtn" class="disabled">🍖 EAT</button>
   <div id="invPanel">
@@ -52,6 +53,7 @@
     <div id="pauseTitle">⏸ PAUSE</div>
     <button class="pmBtn" id="resumeBtn">▶ RESUME</button>
     <button class="pmBtn" id="pauseSaveBtn">💾 SAVE</button>
+    <button class="pmBtn" id="pauseSettingsBtn">⚙ SETTINGS</button>
   </div>
   <div id="saveToast">💾 SAVED!</div>
   <div id="xhair"></div>
@@ -87,10 +89,42 @@
   <div id="ovSub">VOXEL SURVIVAL</div>
   <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>🐷豚を倒して🥩ミートをゲット！</div>
   <button id="ovBtn" class="mc-btn">NEW GAME</button>
+  <button id="helpBtn" class="mc-btn secondary">HOW TO PLAY</button>
+  <button id="settingsBtn" class="mc-btn secondary">SETTINGS</button>
   <button id="contDeathBtn" class="mc-btn" style="display:none;background:linear-gradient(to bottom,#6b8b5b 0%,#4a6a3a 100%)">コンティニュー<br><span style="font-size:.75em;opacity:.8">HP全回復 / スコア半減</span></button>
-  <button id="contBtn" class="mc-btn disabled">続きから</button>
+  <button id="contBtn" class="mc-btn">セーブスロット</button>
   <div id="saveInfo">セーブデータ確認中...</div>
   <div id="rankInfo"></div>
+</div>
+<div id="helpPanel" class="menuPanel">
+  <div class="menuCard">
+    <div class="menuTitle">📘 HOW TO PLAY</div>
+    <div class="menuText">
+      <b>目的</b>: 素材を集めて装備を強化し、WAVE20のキングダイヤモンドドラゴンを倒そう。<br>
+      <b>序盤</b>: 木を5個集めて剣を作る → 石を集めてハンマー/弓を作る → ベッドとチェストで拠点準備。<br>
+      <b>地下</b>: 深く掘るとダイヤ・古い宝箱・地下ドラゴンに出会える。危険なら地上へ戻ろう。<br>
+      <b>PC</b>: WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / E武器切替 / Cクラフト / F5セーブ。<br>
+      <b>スマホ</b>: 左スティック移動 / 右スワイプ視点 / ATTACK攻撃 / PLACE長押しで家具・宝箱操作。
+    </div>
+    <button class="pmBtn menuClose" id="helpCloseBtn">OK</button>
+  </div>
+</div>
+<div id="settingsPanel" class="menuPanel">
+  <div class="menuCard">
+    <div class="menuTitle">⚙ SETTINGS</div>
+    <button class="pmBtn settingToggle" id="bgmToggleBtn">BGM: ON</button>
+    <button class="pmBtn settingToggle" id="sfxToggleBtn">SE: ON</button>
+    <div class="menuText small">設定はこの端末に保存されます。ミュート中もゲーム進行とセーブには影響しません。</div>
+    <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
+  </div>
+</div>
+<div id="saveSlotPanel" class="menuPanel">
+  <div class="menuCard">
+    <div class="menuTitle">💾 SAVE SLOTS</div>
+    <div id="saveSlotList"></div>
+    <div class="menuText small">空スロットは NEW GAME で使用できます。保存は選択中スロットへ書き込まれます。</div>
+    <button class="pmBtn menuClose" id="saveSlotCloseBtn">CLOSE</button>
+  </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="scripts/main.js"></script>

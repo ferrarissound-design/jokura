@@ -213,8 +213,21 @@ function applyWorldEdits(){
 
 // ═══ SAVE ═══
 const SAVE_VERSION=6;
-const SAVE_KEY='jokura-save-v6';
+const SAVE_SLOT_COUNT=3;
+const SAVE_BASE_KEY='jokura-save-v6';
+const SAVE_KEY=SAVE_BASE_KEY; // legacy single-slot key kept for migration
 const LEGACY_SAVE_KEYS=['jokura-save-v5'];
+const ACTIVE_SAVE_SLOT_KEY='jokura-active-save-slot';
+function getStoredActiveSaveSlot(){
+  try{const n=Number(localStorage.getItem(ACTIVE_SAVE_SLOT_KEY)||1);return Math.max(1,Math.min(SAVE_SLOT_COUNT,n||1));}
+  catch(e){return 1;}
+}
+let activeSaveSlot=getStoredActiveSaveSlot();
+function saveKeyForSlot(slot){return SAVE_BASE_KEY+'-slot-'+slot;}
+function setActiveSaveSlot(slot){
+  activeSaveSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  try{localStorage.setItem(ACTIVE_SAVE_SLOT_KEY,String(activeSaveSlot));}catch(e){}
+}
 function migrateSaveData(data){
   if(!data||typeof data!=='object')return null;
   const migrated={...data};
@@ -222,9 +235,42 @@ function migrateSaveData(data){
   if(version<6)migrated.version=6;
   return migrated;
 }
+async function loadSaveData(slot=activeSaveSlot){
+  try{
+    const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+    const keys=[saveKeyForSlot(safeSlot)];
+    if(safeSlot===1)keys.push(SAVE_KEY,...LEGACY_SAVE_KEYS);
+    for(const key of keys){
+      const r=await window.storage.get(key);
+      if(!r||!r.value)continue;
+      const parsed=JSON.parse(r.value);
+      const migrated=migrateSaveData(parsed);
+      if(!migrated)continue;
+      migrated.saveSlot=safeSlot;
+      if(key!==saveKeyForSlot(safeSlot)||migrated.version!==SAVE_VERSION){
+        await window.storage.set(saveKeyForSlot(safeSlot),JSON.stringify(migrated));
+      }
+      return migrated;
+    }
+    return null;
+  }catch(e){return null;}
+}
+async function getAllSaveSlots(){
+  const rows=[];
+  for(let slot=1;slot<=SAVE_SLOT_COUNT;slot++)rows.push({slot,data:await loadSaveData(slot)});
+  return rows;
+}
+async function deleteSave(slot=activeSaveSlot){
+  const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  try{await window.storage.delete(saveKeyForSlot(safeSlot));}catch(e){}
+  if(safeSlot===1){
+    try{await window.storage.delete(SAVE_KEY);}catch(e){}
+    for(const key of LEGACY_SAVE_KEYS){try{await window.storage.delete(key);}catch(e){}}
+  }
+}
 async function saveGame(){
   const data={
-    version:SAVE_VERSION,
+    version:SAVE_VERSION,saveSlot:activeSaveSlot,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
@@ -237,33 +283,45 @@ async function saveGame(){
     openedTreasures:[...openedTreasureKeys],
     savedAt:Date.now()
   };
-  try{const r=await window.storage.set(SAVE_KEY,JSON.stringify(data));showSaveToast(r?'💾 SAVED!':'⚠ 保存失敗');updateOverlaySaveInfo();}
+  try{
+    const r=await window.storage.set(saveKeyForSlot(activeSaveSlot),JSON.stringify(data));
+    showSaveToast(r?'💾 SLOT '+activeSaveSlot+' SAVED!':'⚠ 保存失敗');
+    updateOverlaySaveInfo();
+    if($saveSlotPanel&&$saveSlotPanel.classList.contains('show'))renderSaveSlots();
+  }
   catch(e){showSaveToast('⚠ 保存失敗');}
 }
-async function loadSaveData(){
-  try{
-    const keys=[SAVE_KEY,...LEGACY_SAVE_KEYS];
-    for(const key of keys){
-      const r=await window.storage.get(key);
-      if(!r||!r.value)continue;
-      const parsed=JSON.parse(r.value);
-      const migrated=migrateSaveData(parsed);
-      if(!migrated)continue;
-      if(key!==SAVE_KEY||migrated.version!==SAVE_VERSION){
-        await window.storage.set(SAVE_KEY,JSON.stringify(migrated));
-      }
-      return migrated;
-    }
-    return null;
-  }catch(e){return null;}
-}
-async function deleteSave(){try{await window.storage.delete(SAVE_KEY);}catch(e){}}
 const $contBtn=document.getElementById('contBtn'),$saveInfo=document.getElementById('saveInfo');
-async function updateOverlaySaveInfo(){
-  const d=await loadSaveData();
-  if(d){$contBtn.classList.remove('disabled');const dt=new Date(d.savedAt);$saveInfo.textContent=`💾 DAY${d.day} WAVE${d.wave} スコア${d.score}　(${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')})`;}
-  else{$contBtn.classList.add('disabled');$saveInfo.textContent='セーブデータなし';}
+const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=document.getElementById('saveSlotList'),$saveSlotCloseBtn=document.getElementById('saveSlotCloseBtn');
+function formatSaveMeta(d){
+  if(!d)return 'EMPTY';
+  const dt=new Date(d.savedAt||Date.now());
+  return `DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
 }
+async function updateOverlaySaveInfo(){
+  const rows=await getAllSaveSlots();
+  const filled=rows.filter(r=>r.data);
+  if(filled.length){$contBtn.classList.remove('disabled');$saveInfo.textContent=`💾 SLOT ${activeSaveSlot}: ${formatSaveMeta(rows[activeSaveSlot-1].data)}　(${filled.length}/${SAVE_SLOT_COUNT})`;}
+  else{$contBtn.classList.remove('disabled');$saveInfo.textContent='セーブデータなし / セーブスロットから空スロットを選べます';}
+}
+async function renderSaveSlots(){
+  if(!$saveSlotList)return;
+  const rows=await getAllSaveSlots();
+  $saveSlotList.innerHTML='';
+  rows.forEach(({slot,data})=>{
+    const wrap=document.createElement('div');
+    wrap.className='saveSlot'+(slot===activeSaveSlot?' active':'');
+    const title=document.createElement('div');title.className='saveSlotTitle';title.textContent='SLOT '+slot+(slot===activeSaveSlot?'  ★ SELECTED':'');wrap.appendChild(title);
+    const meta=document.createElement('div');meta.className='saveSlotMeta';meta.textContent=formatSaveMeta(data);wrap.appendChild(meta);
+    const btns=document.createElement('div');btns.className='saveSlotBtns';
+    const main=document.createElement('button');main.className='slotBtn';main.textContent=data?'LOAD':'NEW GAME';main.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);closeSaveSlots();data?continueGame():startGame();});btns.appendChild(main);
+    const use=document.createElement('button');use.className='slotBtn secondary';use.textContent='SELECT';use.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' SELECTED');});btns.appendChild(use);
+    if(data){const del=document.createElement('button');del.className='slotBtn danger';del.textContent='DELETE';del.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();if(confirm('SLOT '+slot+' を削除しますか？')){await deleteSave(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' DELETED');}});btns.appendChild(del);}
+    wrap.appendChild(btns);$saveSlotList.appendChild(wrap);
+  });
+}
+function openSaveSlots(){renderSaveSlots();if($saveSlotPanel)$saveSlotPanel.classList.add('show');}
+function closeSaveSlots(){if($saveSlotPanel)$saveSlotPanel.classList.remove('show');}
 updateOverlaySaveInfo();
 const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！'];
 const $ovSplash=document.getElementById('ovSplash');
@@ -284,9 +342,10 @@ function renderRankHUD(){
   if(!$rankInfo)return;
   try{
     const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
-    if(!arr.length){$rankInfo.innerHTML='';return;}
+    if(!arr.length){$rankInfo.innerHTML='<div style="color:#f9d34299;font-size:min(9px,2.5vw);letter-spacing:1px">🏆 BEST SCORE: 0</div>';return;}
     const medals=['🥇','🥈','🥉','',''];
-    let h='<div style="color:#f9d342;font-size:min(10px,2.8vw);font-weight:900;letter-spacing:2px;margin-bottom:3px">🏆 BEST SCORES</div>';
+    const best=arr[0];
+    let h='<div style="color:#f9d342;font-size:min(10px,2.8vw);font-weight:900;letter-spacing:2px;margin-bottom:3px">🏆 BEST SCORE: '+best.score.toLocaleString()+'pt</div>';
     arr.forEach((r,i)=>{h+='<div style="font-size:min(9px,2.6vw);color:#ccc;letter-spacing:.4px;line-height:1.75">'+(medals[i]||'　')+(r.cleared?'💎':'　')+' #'+(i+1)+'　'+r.score.toLocaleString()+'pt　W'+r.wave+'　'+r.kills+'kill　'+r.day+'日　<span style="color:#7ecfff66">'+r.date+'</span></div>';});
     $rankInfo.innerHTML=h;
   }catch(e){$rankInfo.innerHTML='';}
@@ -295,10 +354,47 @@ renderRankHUD();
 const $saveToast=document.getElementById('saveToast');let saveToastTimer=0;
 function showSaveToast(msg){$saveToast.textContent=msg;$saveToast.classList.add('show');saveToastTimer=2;}
 
+// ═══ HELP / SETTINGS ═══
+const SETTINGS_KEY='jokura-settings-v1';
+const settings={bgmMuted:false,sfxMuted:false};
+function loadSettings(){
+  try{const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');Object.assign(settings,saved);}catch(e){}
+}
+function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
+const $helpPanel=document.getElementById('helpPanel'),$settingsPanel=document.getElementById('settingsPanel');
+const $helpBtn=document.getElementById('helpBtn'),$helpCloseBtn=document.getElementById('helpCloseBtn');
+const $settingsBtn=document.getElementById('settingsBtn'),$settingsCloseBtn=document.getElementById('settingsCloseBtn'),$pauseSettingsBtn=document.getElementById('pauseSettingsBtn');
+const $bgmToggleBtn=document.getElementById('bgmToggleBtn'),$sfxToggleBtn=document.getElementById('sfxToggleBtn');
+function setPanel(panel,open){if(panel)panel.classList.toggle('show',open);}
+function openHelp(){setPanel($helpPanel,true);}
+function closeHelp(){setPanel($helpPanel,false);}
+function openSettings(){updateSettingsUI();setPanel($settingsPanel,true);}
+function closeSettings(){setPanel($settingsPanel,false);}
+function updateSettingsUI(){
+  if($bgmToggleBtn){$bgmToggleBtn.textContent='BGM: '+(settings.bgmMuted?'OFF':'ON');$bgmToggleBtn.classList.toggle('on',!settings.bgmMuted);$bgmToggleBtn.classList.toggle('off',settings.bgmMuted);}
+  if($sfxToggleBtn){$sfxToggleBtn.textContent='SE: '+(settings.sfxMuted?'OFF':'ON');$sfxToggleBtn.classList.toggle('on',!settings.sfxMuted);$sfxToggleBtn.classList.toggle('off',settings.sfxMuted);}
+}
+function toggleBgmMute(){
+  settings.bgmMuted=!settings.bgmMuted;saveSettings();updateSettingsUI();
+  if(settings.bgmMuted)stopBgm();
+  else if(gs&&gs.running)bgmBiome=-1;
+  showSaveToast(settings.bgmMuted?'🔇 BGM OFF':'🎵 BGM ON');
+}
+function toggleSfxMute(){settings.sfxMuted=!settings.sfxMuted;saveSettings();updateSettingsUI();showSaveToast(settings.sfxMuted?'🔇 SE OFF':'🔊 SE ON');}
+loadSettings();updateSettingsUI();
+if($helpBtn)bindTapSafe($helpBtn,openHelp);
+if($helpCloseBtn)bindTapSafe($helpCloseBtn,closeHelp);
+if($settingsBtn)bindTapSafe($settingsBtn,openSettings);
+if($pauseSettingsBtn)bindTapSafe($pauseSettingsBtn,openSettings);
+if($settingsCloseBtn)bindTapSafe($settingsCloseBtn,closeSettings);
+if($saveSlotCloseBtn)bindTapSafe($saveSlotCloseBtn,closeSaveSlots);
+if($bgmToggleBtn)bindTapSafe($bgmToggleBtn,toggleBgmMute);
+if($sfxToggleBtn)bindTapSafe($sfxToggleBtn,toggleSfxMute);
+
 // ═══ AUDIO ═══
 let audioCtx=null;
 function initAudio(){if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return;}}if(audioCtx.state==='suspended'){audioCtx.resume().catch(()=>{});}}
-function playTone(f,d,v,t){initAudio();if(!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||'square';o.frequency.value=f;g.gain.setValueAtTime(v||.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+(d||.1));o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+(d||.1));}catch(e){}}
+function playTone(f,d,v,t){if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||'square';o.frequency.value=f;g.gain.setValueAtTime(v||.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+(d||.1));o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+(d||.1));}catch(e){}}
 const sfxHit=()=>playTone(220,.08,.12);
 const sfxKill=()=>{playTone(440,.05,.15);setTimeout(()=>playTone(660,.1,.12),60);};
 const sfxBreak=()=>playTone(160,.06,.08,'sawtooth');
@@ -326,10 +422,11 @@ const sfxKillDragon=()=>{[500,600,700,800,1000,1300].forEach((f,i)=>setTimeout((
 let bgmNodes=[],bgmSeqTimer=null,bgmBiome=-1,bgmBoss=false,bgmWave=false,bgmUnder=false,bgmUnderDragon=false;
 function stopBgm(){stopSeq();bgmNodes.forEach(n=>{try{n.stop(audioCtx.currentTime+.05);}catch(e){}});bgmNodes=[];}
 function stopSeq(){if(bgmSeqTimer){clearInterval(bgmSeqTimer);bgmSeqTimer=null;}}
-function bgmOsc(freq,type,vol){if(!audioCtx||audioCtx.state!=='running')return null;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||.02;o.connect(g);g.connect(audioCtx.destination);o.start();bgmNodes.push(o);return o;}
-function bgmNote(freq,dur,vol,type){if(!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.setValueAtTime(vol||.04,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);}catch(e){}}
+function bgmOsc(freq,type,vol){if(settings.bgmMuted||!audioCtx||audioCtx.state!=='running')return null;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||.02;o.connect(g);g.connect(audioCtx.destination);o.start();bgmNodes.push(o);return o;}
+function bgmNote(freq,dur,vol,type){if(settings.bgmMuted||!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.setValueAtTime(vol||.04,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);}catch(e){}}
 function bgmSeq(notes,interval,vol,type){let i=0;bgmSeqTimer=setInterval(()=>{if(!audioCtx||audioCtx.state!=='running')return;const f=notes[i%notes.length];if(f>0)bgmNote(f,interval*.9/1000,vol,type);i++;},interval);}
 function startBgm(m){
+  if(settings.bgmMuted){stopBgm();return;}
   initAudio();stopBgm();if(!audioCtx||audioCtx.state!=='running')return;
   if(m==='boss'){bgmOsc(36,'sine',.022);bgmOsc(54,'triangle',.012);bgmSeq([36,0,36,41,0,33,36,0,36,0,41,36,0,36,0,0],170,.04,'triangle');}
   else if(m==='wave'){bgmOsc(55,'sine',.018);bgmOsc(82,'triangle',.01);bgmSeq([110,0,110,82,110,0,82,0],190,.035,'triangle');}
@@ -343,6 +440,7 @@ function startBgm(m){
   else if(m==='under_dragon'){bgmOsc(24,'sine',.032);bgmOsc(36,'sawtooth',.01);bgmOsc(48,'triangle',.008);bgmSeq([36,0,36,0,33,0,36,0,29,0,0,0,36,0,33,29],220,.028,'sawtooth');}
 }
 function updateBgm(biome,isUnder){
+  if(settings.bgmMuted){if(bgmNodes.length||bgmSeqTimer)stopBgm();return;}
   if(!audioCtx||audioCtx.state!=='running')return;
   // 地下ドラゴン戦が最優先
   if(isUnder&&dragon){if(!bgmUnderDragon){bgmUnderDragon=true;bgmUnder=false;bgmBoss=false;bgmWave=false;bgmBiome=-1;startBgm('under_dragon');}return;}
@@ -1334,7 +1432,7 @@ const DAY_DUR=90;
 function startWave(){gs.wave++;const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
 
 // ═══ HUD ═══
-const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer');
+const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer'),$goalLabel=document.getElementById('goalLabel');
 const $pauseBtn=document.getElementById('pauseBtn'),$pauseOverlay=document.getElementById('pauseOverlay');
 const $resumeBtn=document.getElementById('resumeBtn'),$pauseSaveBtn=document.getElementById('pauseSaveBtn');
 function togglePause(){
@@ -1355,6 +1453,24 @@ const showBonus=t=>{$bp.textContent=t;$bp.classList.add('show');bpTimer=1.5;};
 function dmgPlayer(v){if(P.invT>0)return;P.hp=Math.max(0,P.hp-v);P.invT=.8;$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);sfxDmg();if(P.hp<=0)gameOver();}
 function dmgLava(){P.hp=Math.max(0,P.hp-8);$lavaFlash.classList.add('on');setTimeout(()=>$lavaFlash.classList.remove('on'),200);sfxLava();if(P.hp<=0)gameOver();}
 function dmgSnow(){P.hp=Math.max(0,P.hp-3);$snowFlash.classList.add('on');setTimeout(()=>$snowFlash.classList.remove('on'),200);sfxSnow();if(P.hp<=0)gameOver();}
+function matProgress(mat,need){return (inv[mat]||0)+'/'+need;}
+function getCurrentGoal(){
+  if(!gs.running)return '🎯 NEW GAMEで冒険開始';
+  if(P.hp<=35&&meat>0)return '🍖 HPが低い！肉で回復しよう';
+  if(!unlockedWeapons[1])return '🪵 木を集めて剣を作ろう WOOD '+matProgress('wood',5);
+  if(!unlockedWeapons[2])return '🪨 石を集めてハンマー作成 STONE '+matProgress('stone',10)+' / WOOD '+matProgress('wood',4);
+  if(bedCount===0&&beds.length===0)return '🛏 ベッドで夜をスキップ WOOD '+matProgress('wood',6)+' / GRASS '+matProgress('grass',4);
+  if(!unlockedWeapons[3])return '🏹 弓を作って遠距離対策 WOOD '+matProgress('wood',3)+' / STONE '+matProgress('stone',3);
+  if(inv.diamond===0&&!hasDiamondSword)return '💎 地下深くでダイヤを探そう';
+  if(!hasDiamondSword)return '💎 ダイヤ剣を作ろう DIAMOND '+matProgress('diamond',3)+' / WOOD '+matProgress('wood',1);
+  if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
+  if(boss)return '👑 ボスを倒せ！攻撃後は距離を取ろう';
+  if(dragon)return '💎 地下ドラゴン戦！ダイヤ武器が有効';
+  if(gs.wave<5)return '⚔ WAVE5のボスまで生き残ろう 現在WAVE '+gs.wave;
+  if(gs.wave<20)return '🌊 WAVE20まで装備と拠点を強化しよう 現在WAVE '+gs.wave;
+  return '🏆 キングダイヤモンドドラゴンを倒してクリア！';
+}
+function updateGoalHUD(){if($goalLabel)$goalLabel.textContent=getCurrentGoal();}
 function updateHUD(){
   $sv.textContent=gs.score;$kv.textContent=gs.kills;$dv.textContent='DAY '+gs.day;
   const pct=Math.max(0,Math.min(100,P.hp));$hf.style.width=pct+'%';
@@ -1362,6 +1478,7 @@ function updateHUD(){
   $bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)));
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
+  updateGoalHUD();
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();_updateTreasureInfo();
   const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);
@@ -1652,7 +1769,7 @@ function gameComplete(){
   ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日';
   ovBtn.textContent='もう一度';
   $contDeathBtn.style.display='none';$contBtn.classList.add('disabled');
-  renderRankHUD();overlay.classList.remove('hide');
+  renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo();
   [1200,1500,1800,2200,2600,3000].forEach((f,i)=>setTimeout(()=>playTone(f,.25,.35,'sine'),i*160));
 }
 function gameOver(){
@@ -1673,8 +1790,8 @@ function commonReset(){
   clearWorld();yaw=0;pitch=0;attackCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');undergroundSnapshot=null;prevPlayerUnderground=false;finalBossPending=false;bgmUnder=false;bgmUnderDragon=false;
   gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';$pauseBtn.style.display='none';
 }
-function startGame(){
-  deleteSave();$contDeathBtn.style.display='none';
+async function startGame(){
+  await deleteSave();$contDeathBtn.style.display='none';
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';
   ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();
@@ -1737,7 +1854,7 @@ let _ovBtnLastT=0;
 function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startGame();}
 bindTapSafe(ovBtn,_onOvBtnTap);
 let _contBtnLastT=0;
-function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))continueGame();}
+function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))openSaveSlots();}
 bindTapSafe($contBtn,_onContBtnTap);
 let _pauseBtnLastT=0;
 function _onPauseBtnTap(){const now=Date.now();if(now-_pauseBtnLastT<100)return;_pauseBtnLastT=now;togglePause();}
