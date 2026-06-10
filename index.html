@@ -91,6 +91,7 @@
   <button id="ovBtn" class="mc-btn">NEW GAME</button>
   <button id="helpBtn" class="mc-btn secondary">HOW TO PLAY</button>
   <button id="settingsBtn" class="mc-btn secondary">SETTINGS</button>
+  <button id="achievementsBtn" class="mc-btn secondary">ACHIEVEMENTS</button>
   <button id="contDeathBtn" class="mc-btn" style="display:none;background:linear-gradient(to bottom,#6b8b5b 0%,#4a6a3a 100%)">コンティニュー<br><span style="font-size:.75em;opacity:.8">HP全回復 / スコア半減</span></button>
   <button id="contBtn" class="mc-btn">セーブスロット</button>
   <div id="saveInfo">セーブデータ確認中...</div>
@@ -116,6 +117,14 @@
     <button class="pmBtn settingToggle" id="sfxToggleBtn">SE: ON</button>
     <div class="menuText small">設定はこの端末に保存されます。ミュート中もゲーム進行とセーブには影響しません。</div>
     <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
+  </div>
+</div>
+<div id="achievementsPanel" class="menuPanel">
+  <div class="menuCard">
+    <div class="menuTitle">🏅 ACHIEVEMENTS</div>
+    <div id="achievementsList"></div>
+    <div class="menuText small">実績は選択中のセーブスロットごとに保存されます。</div>
+    <button class="pmBtn menuClose" id="achievementsCloseBtn">CLOSE</button>
   </div>
 </div>
 <div id="saveSlotPanel" class="menuPanel">
