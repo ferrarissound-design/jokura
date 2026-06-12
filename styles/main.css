@@ -15,15 +15,16 @@ canvas#c{display:block;touch-action:none}
 #hpFill{height:100%;width:100%;background:linear-gradient(90deg,#43a047,#a5d6a7);transition:width .25s,background .4s}
 #biomeLabel{position:absolute;top:calc(78px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#fff8;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
 #weaponLabel{position:absolute;top:calc(92px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f9d342cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#meatLabel{position:absolute;top:calc(106px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f4a9a8cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#eatBtn{position:absolute;top:calc(120px + var(--safeT));left:calc(10px + var(--safeL));padding:4px 10px;border-radius:7px;border:1.5px solid #f4a9a866;background:rgba(244,169,168,.22);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
+#goalLabel{position:absolute;top:calc(108px + var(--safeT));left:calc(10px + var(--safeL));max-width:min(430px,72vw);padding:4px 7px;border:1px solid rgba(249,211,66,.3);border-radius:7px;background:rgba(0,0,0,.45);font-size:9px;color:#fff8c6;text-shadow:1px 1px 0 #000;z-index:10;font-weight:800;line-height:1.35;letter-spacing:.2px}
+#meatLabel{position:absolute;top:calc(144px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f4a9a8cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
+#eatBtn{position:absolute;top:calc(158px + var(--safeT));left:calc(10px + var(--safeL));padding:4px 10px;border-radius:7px;border:1.5px solid #f4a9a866;background:rgba(244,169,168,.22);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #eatBtn:active{transform:scale(.92)}
 #eatBtn.disabled{opacity:.3;pointer-events:none}
-#invPanel{position:absolute;top:calc(145px + var(--safeT));left:calc(10px + var(--safeL));z-index:10;pointer-events:none}
+#invPanel{position:absolute;top:calc(183px + var(--safeT));left:calc(10px + var(--safeL));z-index:10;pointer-events:none}
 .invRow{font-size:8px;color:#cccddda0;letter-spacing:.8px;text-shadow:1px 1px 0 #000;line-height:1.55}
-#craftBtn{position:absolute;top:calc(255px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
+#craftBtn{position:absolute;top:calc(293px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #craftBtn:active{transform:scale(.92)}
-#craftPanel{position:absolute;top:calc(281px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 310px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#craftPanel{position:absolute;top:calc(319px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 348px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #craftPanel.open{display:block}
 .citem{padding:0 10px;height:32px;font-size:11px;font-weight:700;color:#ddd;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;touch-action:manipulation;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;letter-spacing:.3px}
 .citem:last-child{border-bottom:none}
@@ -78,6 +79,7 @@ canvas#c{display:block;touch-action:none}
 .mc-btn.disabled{opacity:.38;pointer-events:none;filter:grayscale(.5)}
 #ovBtn{background:linear-gradient(to bottom,#6b8b6b 0%,#4a6a4a 100%)}
 #contBtn{background:linear-gradient(to bottom,#5b7b8b 0%,#3a5a6a 100%)}
+.mc-btn.secondary{background:linear-gradient(to bottom,#5f5578 0%,#3d3557 100%);width:min(260px,70vw);padding:10px 0;font-size:min(9px,2.5vw)}
 #saveInfo{font-family:'Press Start 2P',monospace;font-size:min(7px,2vw);color:#7ecfff66;letter-spacing:.3px;text-align:center}
 #rankInfo{text-align:center;margin-top:2px;min-height:0}
 #coordsDisplay{position:absolute;top:calc(56px + var(--safeT));right:calc(8px + var(--safeR));font-size:8px;color:#fff6;letter-spacing:.5px;z-index:10;text-shadow:1px 1px 0 #000;text-align:right}
@@ -103,3 +105,32 @@ canvas#c{display:block;touch-action:none}
 .pmBtn:active{transform:scale(.95)}
 #resumeBtn{background:linear-gradient(135deg,#26c6da,#00838f);color:#fff;box-shadow:0 0 18px #26c6da44}
 #pauseSaveBtn{background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);color:#eee}
+#pauseSettingsBtn{background:rgba(120,100,180,.25);border:1.5px solid rgba(190,170,255,.35);color:#eee}
+.menuPanel{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);z-index:1200;pointer-events:auto;padding:18px;box-sizing:border-box}
+.menuPanel.show{display:flex}
+.menuCard{width:min(560px,92vw);max-height:88vh;overflow:auto;border:2px solid rgba(255,255,255,.2);border-radius:14px;background:linear-gradient(180deg,rgba(25,28,40,.96),rgba(8,10,16,.98));box-shadow:0 20px 60px rgba(0,0,0,.55),inset 0 0 24px rgba(126,207,255,.08);padding:18px;box-sizing:border-box;text-align:center;color:#eee}
+.menuTitle{font-family:'Press Start 2P',monospace;font-size:min(15px,4vw);color:#f9d342;text-shadow:2px 2px 0 #000;margin-bottom:14px;letter-spacing:1px}
+.menuText{font-size:12px;line-height:1.9;text-align:left;color:#ddd;text-shadow:1px 1px 0 #000;margin:10px 0 16px}
+.menuText.small{text-align:center;font-size:10px;color:#aaa;line-height:1.6}
+.settingToggle{width:min(340px,80vw);margin:8px auto;background:linear-gradient(135deg,#455a64,#263238);color:#fff}
+.settingToggle.on{background:linear-gradient(135deg,#26a69a,#00695c);box-shadow:0 0 18px #26a69a55}
+.settingToggle.off{background:linear-gradient(135deg,#7b3f3f,#3a1f1f);box-shadow:0 0 14px #e5393555}
+.menuClose{margin-top:8px;background:linear-gradient(135deg,#26c6da,#00838f);color:#fff}
+
+#saveSlotList{display:flex;flex-direction:column;gap:10px;margin:8px 0 12px}
+.saveSlot{border:1px solid rgba(126,207,255,.24);border-radius:10px;background:rgba(255,255,255,.055);padding:10px;text-align:left}
+.saveSlot.active{border-color:rgba(249,211,66,.75);box-shadow:0 0 14px rgba(249,211,66,.18)}
+.saveSlotTitle{font-weight:900;color:#f9d342;font-size:12px;letter-spacing:1px;margin-bottom:4px;text-shadow:1px 1px 0 #000}
+.saveSlotMeta{font-size:11px;line-height:1.7;color:#ddd;text-shadow:1px 1px 0 #000}
+.saveSlotBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.slotBtn{padding:7px 10px;border:none;border-radius:8px;background:linear-gradient(135deg,#26c6da,#00838f);color:#fff;font-size:11px;font-weight:900;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.slotBtn.secondary{background:linear-gradient(135deg,#5f5578,#3d3557)}
+.slotBtn.danger{background:linear-gradient(135deg,#8e3b3b,#4a1c1c)}
+.slotBtn:active{transform:scale(.96)}
+
+#achievementsList{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.achievementItem{border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);padding:9px 10px;text-align:left}
+.achievementItem.done{border-color:rgba(249,211,66,.55);background:rgba(249,211,66,.09);box-shadow:0 0 12px rgba(249,211,66,.12)}
+.achievementTitle{font-size:12px;font-weight:900;color:#f9d342;text-shadow:1px 1px 0 #000;margin-bottom:3px}
+.achievementDesc{font-size:10px;color:#ddd;line-height:1.55;text-shadow:1px 1px 0 #000}
+.achievementReward{font-size:10px;color:#7ecfff;margin-top:3px;text-shadow:1px 1px 0 #000}
