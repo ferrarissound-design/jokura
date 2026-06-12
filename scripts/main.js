@@ -102,11 +102,22 @@ function canCraft(recipe){
   return true;
 }
 
+const MATERIAL_LABELS={
+  wood:'🪵 WOOD',
+  stone:'🪨 STONE',
+  sand:'🏖 SAND',
+  grass:'🌿 GRASS',
+  brick:'🧱 BRICK',
+  arrow:'🏹 ARROW',
+  diamond:'💎 DIAMOND',
+  dragonCore:'💠 DRAGON CORE'
+};
+
 function getMissingMaterialsText(recipe){
   const lacks=[];
   for(const[k,v] of Object.entries(recipe.needs)){
     const cur=inv[k]||0;
-    if(cur<v)lacks.push(k.toUpperCase()+':'+cur+'/'+v);
+    if(cur<v){const label=MATERIAL_LABELS[k]||k.toUpperCase();lacks.push(label+' '+cur+'/'+v);}
   }
   return lacks.join('  ');
 }
@@ -265,11 +276,11 @@ function migrateSaveData(data){
   return migrated;
 }
 async function loadSaveData(slot=activeSaveSlot){
-  try{
-    const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
-    const keys=[saveKeyForSlot(safeSlot)];
-    if(safeSlot===1)keys.push(SAVE_KEY,...LEGACY_SAVE_KEYS);
-    for(const key of keys){
+  const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  const keys=[saveKeyForSlot(safeSlot)];
+  if(safeSlot===1)keys.push(SAVE_KEY,...LEGACY_SAVE_KEYS);
+  for(const key of keys){
+    try{
       const r=await window.storage.get(key);
       if(!r||!r.value)continue;
       const parsed=JSON.parse(r.value);
@@ -280,9 +291,11 @@ async function loadSaveData(slot=activeSaveSlot){
         await window.storage.set(saveKeyForSlot(safeSlot),JSON.stringify(migrated));
       }
       return migrated;
+    }catch(e){
+      continue;
     }
-    return null;
-  }catch(e){return null;}
+  }
+  return null;
 }
 async function getAllSaveSlots(){
   const rows=[];

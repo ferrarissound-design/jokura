@@ -128,7 +128,7 @@ canvas#c{display:block;touch-action:none}
 .slotBtn.danger{background:linear-gradient(135deg,#8e3b3b,#4a1c1c)}
 .slotBtn:active{transform:scale(.96)}
 
-#achievementsList{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px}
+#achievementsList{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .achievementItem{border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);padding:9px 10px;text-align:left}
 .achievementItem.done{border-color:rgba(249,211,66,.55);background:rgba(249,211,66,.09);box-shadow:0 0 12px rgba(249,211,66,.12)}
 .achievementTitle{font-size:12px;font-weight:900;color:#f9d342;text-shadow:1px 1px 0 #000;margin-bottom:3px}
