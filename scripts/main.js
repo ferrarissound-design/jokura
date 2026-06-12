@@ -1949,9 +1949,9 @@ function tick(now){
   requestAnimationFrame(tick);
   if(isTouch&&now-lastT<FRAME_MIN){return;}
   const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
+  if(saveToastTimer>0){saveToastTimer-=dt;if(saveToastTimer<=0)$saveToast.classList.remove('show');}
   if(!gs.running){renderer.render(scene,camera);return;}
   if(gs.paused){renderer.render(scene,camera);return;}
-  if(saveToastTimer>0){saveToastTimer-=dt;if(saveToastTimer<=0)$saveToast.classList.remove('show');}
   const prevTime=gs.time;gs.time=(gs.time+dt/DAY_DUR)%1;
   if(gs.time<prevTime){gs.day++;showAlert('🌅 DAY '+gs.day);}
   const curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
