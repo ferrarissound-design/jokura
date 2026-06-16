@@ -116,6 +116,20 @@ canvas#c{display:block;touch-action:none}
 .settingToggle.on{background:linear-gradient(135deg,#26a69a,#00695c);box-shadow:0 0 18px #26a69a55}
 .settingToggle.off{background:linear-gradient(135deg,#7b3f3f,#3a1f1f);box-shadow:0 0 14px #e5393555}
 .menuClose{margin-top:8px;background:linear-gradient(135deg,#26c6da,#00838f);color:#fff}
+.setLabel{font-size:11px;font-weight:900;color:#9fc7e6;letter-spacing:1px;margin:12px 0 4px;text-align:center}
+.segRow{display:flex;gap:6px;width:min(340px,80vw);margin:0 auto 4px}
+.segBtn{flex:1;padding:10px 4px;border:none;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;color:#cdd;background:linear-gradient(135deg,#39434d,#222a31);-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s}
+.segBtn:active{transform:scale(.94)}
+.segBtn.sel{color:#fff;background:linear-gradient(135deg,#26a69a,#00695c);box-shadow:0 0 16px #26a69a66}
+#codexBody{display:flex;flex-direction:column;gap:12px;margin:6px 0 14px;text-align:left}
+.codexSection{border:1px solid rgba(126,207,255,.18);border-radius:10px;background:rgba(255,255,255,.04);padding:10px 12px}
+.codexHd{font-size:12px;font-weight:900;color:#f9d342;text-shadow:1px 1px 0 #000;margin-bottom:7px;letter-spacing:.5px}
+.codexGoal{font-size:13px;color:#bfe6ff;font-weight:700;line-height:1.5}
+.questItem{font-size:12px;color:#bbb;line-height:1.95}
+.questItem.done{color:#9be29b}
+.codexRow{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#ddd;line-height:1.9;border-bottom:1px dashed rgba(255,255,255,.07);padding:1px 0}
+.codexRow:last-child{border-bottom:none}
+.codexCost{color:#9fc7e6;white-space:nowrap}
 
 #saveSlotList{display:flex;flex-direction:column;gap:10px;margin:8px 0 12px}
 .saveSlot{border:1px solid rgba(126,207,255,.24);border-radius:10px;background:rgba(255,255,255,.055);padding:10px;text-align:left}
