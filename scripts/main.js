@@ -568,17 +568,120 @@ const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x7890
 const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6];
 const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15;
 const boxGeo=new THREE.BoxGeometry(1,1,1);
+// ─── PIXEL-ART BLOCK TEXTURES (Minecraft style) ───
+// 16x16 procedural textures rendered to canvas, sampled with NearestFilter for
+// crisp blocky pixels instead of flat solid colours.
+const TEX_SIZE=16;
+function _shade(hex,f){ // f: -1..1, negative darkens, positive lightens
+  let r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255;
+  if(f>=0){r+=(255-r)*f;g+=(255-g)*f;b+=(255-b)*f;}else{r*=(1+f);g*=(1+f);b*=(1+f);}
+  return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
+}
+function _texCtx(){const c=document.createElement('canvas');c.width=c.height=TEX_SIZE;return[c,c.getContext('2d')];}
+function _mkTex(c){const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestMipmapNearestFilter;return t;}
+function _rng(seed){let s=seed>>>0||1;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
+// speckled solid block (stone, sand, dirt, snow…)
+function noisyTex(base,seed,amt){
+  amt=amt==null?.14:amt;const[c,x]=_texCtx();const r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){
+    const v=r();let f=0;
+    if(v<.22)f=amt;else if(v<.44)f=-amt;else if(v<.5)f=-amt*1.8;
+    x.fillStyle=_shade(base,f);x.fillRect(i,j,1,1);
+  }
+  return _mkTex(c);
+}
+// grass/dirt side: dirt body with a jagged grassy fringe along the top
+function grassSideTex(grassCol,dirtCol,seed){
+  const[c,x]=_texCtx();const r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){
+    const v=r();x.fillStyle=_shade(dirtCol,v<.3?.12:v<.55?-.12:0);x.fillRect(i,j,1,1);
+  }
+  for(let i=0;i<TEX_SIZE;i++){
+    const h=3+Math.floor(r()*2);
+    for(let j=0;j<h;j++){const v=r();x.fillStyle=_shade(grassCol,v<.4?.12:v<.7?-.1:0);x.fillRect(i,j,1,1);}
+  }
+  return _mkTex(c);
+}
+// wood log bark: vertical streaks
+function logSideTex(base,seed){
+  const[c,x]=_texCtx();const r=_rng(seed);
+  for(let i=0;i<TEX_SIZE;i++){
+    const col=(r()-.5)*.18;
+    for(let j=0;j<TEX_SIZE;j++){const v=r();x.fillStyle=_shade(base,col+(v<.18?-.1:v<.28?.08:0));x.fillRect(i,j,1,1);}
+  }
+  return _mkTex(c);
+}
+// wood log end: concentric growth rings
+function logTopTex(base,seed){
+  const[c,x]=_texCtx();
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){
+    const dx=i-7.5,dy=j-7.5,d=Math.sqrt(dx*dx+dy*dy),ring=Math.sin(d*1.9);
+    x.fillStyle=_shade(base,d<1.4?-.2:ring>.3?.12:ring<-.3?-.14:0);x.fillRect(i,j,1,1);
+  }
+  return _mkTex(c);
+}
+// brick wall with mortar lines, staggered rows
+function brickTex(base,seed){
+  const[c,x]=_texCtx();const r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){const v=r();x.fillStyle=_shade(base,v<.3?.08:v<.5?-.08:0);x.fillRect(i,j,1,1);}
+  x.fillStyle=_shade(base,-.5);
+  for(let y=0;y<TEX_SIZE;y+=4)x.fillRect(0,y,TEX_SIZE,1);
+  for(let y=0;y<TEX_SIZE;y+=4){const off=((y/4)%2)===0?0:4;for(let xx=off;xx<TEX_SIZE;xx+=8)x.fillRect(xx,y,1,4);}
+  return _mkTex(c);
+}
+// ore: stone body sprinkled with mineral blobs
+function oreTex(stoneCol,oreCol,seed){
+  const[c,x]=_texCtx();const r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){const v=r();x.fillStyle=_shade(stoneCol,v<.3?.1:v<.55?-.12:0);x.fillRect(i,j,1,1);}
+  const pts=[[0,0],[1,0],[0,1],[1,1],[2,1],[1,2]];
+  for(let b=0;b<6;b++){
+    const bx=1+Math.floor(r()*(TEX_SIZE-3)),by=1+Math.floor(r()*(TEX_SIZE-3)),n=2+Math.floor(r()*4);
+    for(let p=0;p<n;p++){const o=pts[Math.floor(r()*pts.length)];x.fillStyle=_shade(oreCol,r()<.5?0:.18);x.fillRect(bx+o[0],by+o[1],1,1);}
+  }
+  return _mkTex(c);
+}
+function smat(map,extra){return new THREE.MeshStandardMaterial(Object.assign({map,roughness:.9,metalness:.05},extra||{}));}
+const _T={
+  grassTop:noisyTex(0x6fb13a,11,.13), grassSide:grassSideTex(0x6fb13a,0x7a5230,12), dirt:noisyTex(0x7a5230,13,.14),
+  forestTop:noisyTex(0x3f9a3a,14,.13), forestSide:grassSideTex(0x3f9a3a,0x5d4a28,15),
+  stone:noisyTex(0x8a8f98,21,.12), sand:noisyTex(0xd9c27a,22,.1),
+  logSide:logSideTex(0x6b4a2f,23), logTop:logTopTex(0x9a7a4f,24), brick:brickTex(0xc05a4a,25),
+  greyStone:noisyTex(0x78909c,26,.12), volcano:noisyTex(0x1a0a00,27,.5), snow:noisyTex(0xeef3ff,28,.06),
+  caveDirt:noisyTex(0x6b4226,29,.14), coal:oreTex(0x8a8f98,0x1a1a1a,30), deepStone:noisyTex(0x2a2e3d,31,.18),
+  iron:oreTex(0x8a8f98,0xcaa472,32), diamond:oreTex(0x7fb6c8,0x3fe0ff,33), lava:noisyTex(0xff4500,34,.22),
+};
+// BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
+function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
 const blockMats=BLOCK_COLORS.map((c,i)=>{
-  if(i===LAVA_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.8,emissive:0xff2200,emissiveIntensity:1.2});
-  if(i===7)return new THREE.MeshStandardMaterial({color:c,roughness:.3,metalness:.4,emissive:0x330000,emissiveIntensity:.3});
-  if(i===SNOW_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.3,metalness:.1,emissive:0x8899bb,emissiveIntensity:.08});
-  if(i===WATER_BLOCK)return new THREE.MeshStandardMaterial({color:c,roughness:.1,metalness:.2,transparent:true,opacity:.78,emissive:0x003366,emissiveIntensity:.12});
-  if(i===COAL_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.95,metalness:.05,emissive:0x111111,emissiveIntensity:.05});
-  if(i===DEEP_STONE)return new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:.15,emissive:0x0a0d1a,emissiveIntensity:.1});
-  if(i===IRON_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.7,metalness:.35,emissive:0x3a1500,emissiveIntensity:.08});
-  if(i===DIAMOND_ORE)return new THREE.MeshStandardMaterial({color:c,roughness:.15,metalness:.7,emissive:0x00aaff,emissiveIntensity:.45,transparent:true,opacity:.95});
-  return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05});
+  switch(i){
+    case 0: return faceMats(_T.grassSide,_T.grassTop,_T.dirt);
+    case 1: return smat(_T.stone);
+    case 2: return smat(_T.sand);
+    case 3: return faceMats(_T.logSide,_T.logTop,_T.logTop);
+    case 4: return smat(_T.brick);
+    case 5: return faceMats(_T.forestSide,_T.forestTop,_T.dirt);
+    case 6: return smat(_T.greyStone);
+    case 7: return smat(_T.volcano,{roughness:.3,metalness:.4,emissive:0x330000,emissiveIntensity:.3});
+    case LAVA_BLOCK: return smat(_T.lava,{roughness:.8,emissive:0xff2200,emissiveIntensity:1.2});
+    case SNOW_BLOCK: return smat(_T.snow,{roughness:.3,metalness:.1,emissive:0x8899bb,emissiveIntensity:.08});
+    case WATER_BLOCK: return new THREE.MeshStandardMaterial({color:c,roughness:.1,metalness:.2,transparent:true,opacity:.78,emissive:0x003366,emissiveIntensity:.12});
+    case CAVE_DIRT: return smat(_T.caveDirt);
+    case COAL_ORE: return smat(_T.coal,{roughness:.95,metalness:.05,emissive:0x111111,emissiveIntensity:.05});
+    case DEEP_STONE: return smat(_T.deepStone,{roughness:.8,metalness:.15,emissive:0x0a0d1a,emissiveIntensity:.1});
+    case IRON_ORE: return smat(_T.iron,{roughness:.7,metalness:.35,emissive:0x3a1500,emissiveIntensity:.08});
+    case DIAMOND_ORE: return smat(_T.diamond,{roughness:.15,metalness:.7,emissive:0x00aaff,emissiveIntensity:.45,transparent:true,opacity:.95});
+    default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05});
+  }
 });
+// give the hotbar swatches the matching pixel-art look
+(function(){
+  const swatch=[_T.grassTop,_T.stone,_T.sand,_T.logSide,_T.brick];
+  document.querySelectorAll('.hslot .dot').forEach((dot,i)=>{
+    const t=swatch[i];if(!t||!t.image)return;
+    dot.style.backgroundImage='url('+t.image.toDataURL()+')';
+    dot.style.backgroundSize='cover';dot.style.imageRendering='pixelated';
+  });
+})();
 let voxels={},blockMeshes=new Set(),lavaBlocks=new Set();
 const vKey=(x,y,z)=>x+'|'+y+'|'+z;const cKey=(cx,cz)=>cx+','+cz;const ucKey=(cx,cy,cz)=>cx+','+cy+','+cz;
 let chunks={},activeChunks={};
