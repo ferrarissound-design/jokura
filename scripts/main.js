@@ -981,11 +981,84 @@ function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0)
 // ═══ ENEMY BUILDERS ═══
 function makeMat(color,emissive,emissiveIntensity,roughness){return new THREE.MeshStandardMaterial({color,emissive:emissive||0,emissiveIntensity:emissiveIntensity||0,roughness:roughness||.7});}
 function makeBox(w,h,d,mat){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);}
+// limb that pivots at its top (hip/shoulder) so rotation swings like a real leg/arm
+function makeLimb(w,h,d,mat,px,py,pz){const g=new THREE.Object3D();g.position.set(px,py,pz);const m=makeBox(w,h,d,mat);m.position.y=-h/2;g.add(m);return g;}
 function makeLabelSprite(name,color){const lc=document.createElement('canvas');lc.width=128;lc.height=32;const lx=lc.getContext('2d');lx.fillStyle='rgba(0,0,0,0.5)';lx.fillRect(0,0,128,32);lx.fillStyle=color||'#fff';lx.font='bold 15px sans-serif';lx.textAlign='center';lx.fillText(name,64,22);const tex=new THREE.CanvasTexture(lc);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));sp.scale.set(1.4,.35,1);return sp;}
 function makeHpBar(width){const bg=makeBox(width,.08,.05,new THREE.MeshBasicMaterial({color:0x333333}));const fg=makeBox(width,.08,.06,new THREE.MeshBasicMaterial({color:0x44ff44}));fg.position.z=.01;return{bg,fg};}
-function buildZombie(mat){const root=new THREE.Object3D();const body=makeBox(.9,1.6,.7,mat.clone());const head=makeBox(.7,.7,.7,mat.clone());head.position.y=1.15;const eyeM=new THREE.MeshBasicMaterial({color:0xaaff44});const el=makeBox(.18,.12,.06,eyeM);el.position.set(-.18,.05,.36);head.add(el);const er=makeBox(.18,.12,.06,eyeM.clone());er.position.set(.18,.05,.36);head.add(er);const armM=mat.clone();const armL=makeBox(.28,.9,.28,armM);armL.position.set(-.62,.1,.38);armL.rotation.x=-Math.PI/4;const armR=makeBox(.28,.9,.28,armM.clone());armR.position.set(.62,.1,.38);armR.rotation.x=-Math.PI/4;const hp=makeHpBar(.9);hp.bg.position.y=1.65;hp.fg.position.y=1.65;const lb=makeLabelSprite('Zombie','#88ff44');lb.position.y=1.85;root.add(body,head,armL,armR,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
-function buildSkeleton(mat){const root=new THREE.Object3D();const body=makeBox(.55,1.8,.45,mat.clone());const head=makeBox(.6,.6,.6,mat.clone());head.position.y=1.3;const eyeM=new THREE.MeshBasicMaterial({color:0x000000});const el=makeBox(.16,.16,.07,eyeM);el.position.set(-.15,.05,.31);head.add(el);const er=makeBox(.16,.16,.07,eyeM.clone());er.position.set(.15,.05,.31);head.add(er);const armM=mat.clone();const armL=makeBox(.18,1.1,.18,armM);armL.position.set(-.38,-.1,0);const armR=makeBox(.18,1.1,.18,armM.clone());armR.position.set(.38,-.1,0);for(let i=0;i<3;i++){const rib=makeBox(.55,.06,.06,mat.clone());rib.position.y=.4-i*.25;body.add(rib);}const hp=makeHpBar(.7);hp.bg.position.y=1.75;hp.fg.position.y=1.75;const lb=makeLabelSprite('Skeleton','#eeeeff');lb.position.y=1.95;root.add(body,head,armL,armR,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
-function buildGolem(mat){const root=new THREE.Object3D();const body=makeBox(1.4,1.3,1.0,mat.clone());body.position.y=-.15;const head=makeBox(.65,.55,.65,mat.clone());head.position.y=.9;const eyeM=new THREE.MeshBasicMaterial({color:0xff2200});const el=makeBox(.14,.1,.07,eyeM);el.position.set(-.17,.04,.34);head.add(el);const er=makeBox(.14,.1,.07,eyeM.clone());er.position.set(.17,.04,.34);head.add(er);const armM=mat.clone();const armL=makeBox(.42,1.1,.42,armM);armL.position.set(-.95,-.2,0);const armR=makeBox(.42,1.1,.42,armM.clone());armR.position.set(.95,-.2,0);const chunk1=makeBox(.3,.3,.3,mat.clone());chunk1.position.set(.4,.5,.52);body.add(chunk1);const chunk2=makeBox(.25,.25,.25,mat.clone());chunk2.position.set(-.35,.2,.52);body.add(chunk2);const hp=makeHpBar(1.4);hp.bg.position.y=1.3;hp.fg.position.y=1.3;const lb=makeLabelSprite('Golem','#aaaaaa');lb.position.y=1.5;root.add(body,head,armL,armR,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
+function buildZombie(mat){
+  const root=new THREE.Object3D();
+  const skin=mat.clone();                          // green skin (head + arms) — keeps night glow
+  const shirt=makeMat(0x2f6b6b,0x0a2626,0,.75);    // torn teal shirt (torso)
+  const pants=makeMat(0x35356b,0x0a0a1a,0,.75);    // dark trousers (legs)
+  const body=makeBox(.5,.72,.27,shirt);body.position.y=.3;
+  // ragged shirt hem
+  const hem=makeBox(.52,.14,.29,makeMat(0x265a5a,0,0,.8));hem.position.y=-.32;body.add(hem);
+  const head=makeBox(.55,.55,.55,skin);head.position.y=.92;
+  const eyeM=new THREE.MeshBasicMaterial({color:0x140014});
+  const el=makeBox(.12,.1,.06,eyeM);el.position.set(-.13,.02,.28);head.add(el);
+  const er=makeBox(.12,.1,.06,eyeM.clone());er.position.set(.13,.02,.28);head.add(er);
+  const brow=makeBox(.44,.05,.05,makeMat(0x254018,0,0,.8));brow.position.set(0,.12,.27);head.add(brow);
+  // classic outstretched arms
+  const armL=makeLimb(.22,.7,.22,skin.clone(),-.36,.55,0);armL.rotation.x=-Math.PI/2;
+  const armR=makeLimb(.22,.7,.22,skin.clone(), .36,.55,0);armR.rotation.x=-Math.PI/2;
+  const legL=makeLimb(.23,.75,.25,pants.clone(),-.13,-.1,0);
+  const legR=makeLimb(.23,.75,.25,pants.clone(), .13,-.1,0);
+  const hp=makeHpBar(.9);hp.bg.position.y=1.55;hp.fg.position.y=1.55;
+  const lb=makeLabelSprite('Zombie','#88ff44');lb.position.y=1.78;
+  root.add(body,head,armL,armR,legL,legR,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg,legL,legR,armL,armR,armSwing:false};
+}
+function buildSkeleton(mat){
+  const root=new THREE.Object3D();
+  const bone=mat.clone();
+  const body=makeBox(.38,.62,.2,bone.clone());body.position.y=.32;
+  const spine=makeBox(.09,.62,.09,bone.clone());spine.position.set(0,0,-.05);body.add(spine);
+  for(let i=0;i<3;i++){const rib=makeBox(.42,.06,.06,bone.clone());rib.position.set(0,.18-i*.17,.1);body.add(rib);}
+  const pelvis=makeBox(.34,.12,.16,bone.clone());pelvis.position.y=-.32;body.add(pelvis);
+  const head=makeBox(.5,.5,.5,bone.clone());head.position.y=.9;
+  const eyeM=new THREE.MeshBasicMaterial({color:0x000000});
+  const el=makeBox(.13,.14,.06,eyeM);el.position.set(-.12,.03,.26);head.add(el);
+  const er=makeBox(.13,.14,.06,eyeM.clone());er.position.set(.12,.03,.26);head.add(er);
+  const jaw=makeBox(.36,.07,.42,makeMat(0xb8b8a8,0,0,.8));jaw.position.set(0,-.22,0);head.add(jaw);
+  for(let i=0;i<3;i++){const tooth=makeBox(.05,.06,.04,new THREE.MeshBasicMaterial({color:0x555544}));tooth.position.set(-.1+i*.1,-.18,.26);head.add(tooth);}
+  // left arm hangs, right arm raised holding a bow
+  const armL=makeLimb(.13,.7,.13,bone.clone(),-.28,.55,0);
+  const armR=makeLimb(.13,.7,.13,bone.clone(), .28,.55,.05);armR.rotation.x=-1.3;
+  const bowM=makeMat(0x6b4423,0,0,.6);const bow=new THREE.Object3D();
+  const bu=makeBox(.06,.32,.06,bowM);bu.position.y=.16;bu.rotation.z=.22;
+  const bd=makeBox(.06,.32,.06,bowM.clone());bd.position.y=-.16;bd.rotation.z=-.22;
+  const bs=makeBox(.02,.64,.02,new THREE.MeshBasicMaterial({color:0xdedede}));bs.position.x=.06;
+  bow.add(bu,bd,bs);bow.position.set(0,-.72,.05);armR.add(bow);
+  const legL=makeLimb(.14,.75,.15,bone.clone(),-.11,-.12,0);
+  const legR=makeLimb(.14,.75,.15,bone.clone(), .11,-.12,0);
+  const hp=makeHpBar(.7);hp.bg.position.y=1.5;hp.fg.position.y=1.5;
+  const lb=makeLabelSprite('Skeleton','#eeeeff');lb.position.y=1.72;
+  root.add(body,head,armL,armR,legL,legR,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg,legL,legR,armSwing:false};
+}
+function buildGolem(mat){
+  const root=new THREE.Object3D();
+  const iron=mat.clone();
+  const moss=makeMat(0x4a7a32,0x0c1808,0,.85);
+  const body=makeBox(1.1,1.15,.7,iron.clone());body.position.y=.28;
+  const belt=makeBox(1.14,.2,.74,makeMat(0x3a4650,0x0a0e12,0,.7));belt.position.y=-.26;body.add(belt);
+  const m1=makeBox(.32,.3,.04,moss);m1.position.set(.24,.1,.36);body.add(m1);
+  const m2=makeBox(.2,.42,.04,moss.clone());m2.position.set(-.3,-.02,.36);body.add(m2);
+  const head=makeBox(.5,.58,.5,iron.clone());head.position.y=1.05;
+  const nose=makeBox(.16,.48,.2,iron.clone());nose.position.set(0,-.04,.26);head.add(nose);
+  const eyeM=new THREE.MeshBasicMaterial({color:0xff2200});
+  const el=makeBox(.1,.14,.06,eyeM);el.position.set(-.15,.16,.25);head.add(el);
+  const er=makeBox(.1,.14,.06,eyeM.clone());er.position.set(.15,.16,.25);head.add(er);
+  // heavy arms reaching toward the ground
+  const armL=makeLimb(.34,1.3,.34,iron.clone(),-.78,.55,0);
+  const armR=makeLimb(.34,1.3,.34,iron.clone(), .78,.55,0);
+  const legL=makeLimb(.42,.55,.46,iron.clone(),-.27,-.3,0);
+  const legR=makeLimb(.42,.55,.46,iron.clone(), .27,-.3,0);
+  const hp=makeHpBar(1.4);hp.bg.position.y=1.5;hp.fg.position.y=1.5;
+  const lb=makeLabelSprite('Golem','#aaaaaa');lb.position.y=1.72;
+  root.add(body,head,armL,armR,legL,legR,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg,legL,legR,armL,armR};
+}
 function buildFireDemon(mat){const root=new THREE.Object3D();const body=makeBox(.8,1.5,.65,mat.clone());const head=makeBox(.65,.65,.65,mat.clone());head.position.y=1.1;const eyeM=new THREE.MeshBasicMaterial({color:0xffff00});const el=makeBox(.16,.14,.07,eyeM);el.position.set(-.16,.06,.34);head.add(el);const er=makeBox(.16,.14,.07,eyeM.clone());er.position.set(.16,.06,.34);head.add(er);const hornM=new THREE.MeshStandardMaterial({color:0x220000,emissive:0x440000,emissiveIntensity:.5});const hornL=makeBox(.1,.45,.1,hornM);hornL.position.set(-.2,.48,.0);hornL.rotation.z=-.3;head.add(hornL);const hornR=makeBox(.1,.45,.1,hornM.clone());hornR.position.set(.2,.48,.0);hornR.rotation.z=.3;head.add(hornR);const wingM=new THREE.MeshStandardMaterial({color:0xcc2200,emissive:0x661100,emissiveIntensity:.4,transparent:true,opacity:.8});const wingL=makeBox(.12,1.1,.6,wingM);wingL.position.set(-.72,.1,-.1);wingL.rotation.z=.3;const wingR=makeBox(.12,1.1,.6,wingM.clone());wingR.position.set(.72,.1,-.1);wingR.rotation.z=-.3;const armM=mat.clone();const armL=makeBox(.25,.9,.25,armM);armL.position.set(-.55,.0,0);const armR=makeBox(.25,.9,.25,armM.clone());armR.position.set(.55,.0,0);const tail=makeBox(.18,.7,.18,mat.clone());tail.position.set(0,-.5,-.4);tail.rotation.x=.6;const hp=makeHpBar(.9);hp.bg.position.y=1.6;hp.fg.position.y=1.6;hp.fg.material.color.setHex(0xff6600);const lb=makeLabelSprite('FireDemon','#ff8800');lb.position.y=1.8;root.add(body,head,wingL,wingR,armL,armR,tail,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
 function buildIceGolem(mat){const root=new THREE.Object3D();const body=makeBox(1.1,1.5,.9,mat.clone());const head=makeBox(.7,.6,.7,mat.clone());head.position.y=1.1;const eyeM=new THREE.MeshBasicMaterial({color:0x00ddff});const el=makeBox(.15,.12,.07,eyeM);el.position.set(-.18,.05,.36);head.add(el);const er=makeBox(.15,.12,.07,eyeM.clone());er.position.set(.18,.05,.36);head.add(er);const spikeM=new THREE.MeshStandardMaterial({color:0xaaddff,emissive:0x224466,emissiveIntensity:.4,transparent:true,opacity:.85});const spike1=makeBox(.15,.5,.15,spikeM);spike1.position.set(0,.45,.0);head.add(spike1);const spike2=makeBox(.12,.35,.12,spikeM.clone());spike2.position.set(-.22,.35,.0);spike2.rotation.z=.3;head.add(spike2);const spike3=makeBox(.12,.35,.12,spikeM.clone());spike3.position.set(.22,.35,.0);spike3.rotation.z=-.3;head.add(spike3);const armM=mat.clone();const armL=makeBox(.35,1.0,.35,armM);armL.position.set(-.75,-.1,0);const armR=makeBox(.35,1.0,.35,armM.clone());armR.position.set(.75,-.1,0);const hp=makeHpBar(1.1);hp.bg.position.y=1.55;hp.fg.position.y=1.55;hp.fg.material.color.setHex(0x44ddff);const lb=makeLabelSprite('IceGolem','#aaddff');lb.position.y=1.75;root.add(body,head,armL,armR,hp.bg,hp.fg,lb);return{root,body,head,hpBar:hp.fg};}
 
@@ -2110,6 +2183,8 @@ function tick(now){
     }
     e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,6.5);
     if(dist>1)moveEnemy(e,(dx/dist)*spd,(dz/dist)*spd,dt);
+    // walk cycle: swing legs (and arms unless held in a fixed pose)
+    if(e.legL){const moving=dist>1&&e.onGround;e.walkT=(e.walkT||0)+(moving?dt*7:0);const sw=moving?Math.sin(e.walkT)*.5:THREE.MathUtils.lerp(e.legL.rotation.x,0,.2);e.legL.rotation.x=sw;e.legR.rotation.x=-sw;if(e.armSwing!==false){if(e.armL)e.armL.rotation.x=-sw;if(e.armR)e.armR.rotation.x=sw;}}
     e.stuckT+=dt;if(e.stuckT>1.2){const mv=Math.abs(ep.x-e.lastX)+Math.abs(ep.z-e.lastZ);if(mv<.3&&e.onGround&&dist<14){e.velY=6.5;if(e.breakCd<=0)tryEnemyBreakBlock(e);}e.lastX=ep.x;e.lastZ=ep.z;e.stuckT=0;}
     if(e.onGround&&dist<6&&Math.random()<.008)e.velY=6;
     e.atkCd=Math.max(0,e.atkCd-dt);e.breakCd=Math.max(0,e.breakCd-dt);if(dist<1.6&&e.atkCd<=0&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=1.2;}
