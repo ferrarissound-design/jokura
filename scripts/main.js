@@ -314,7 +314,7 @@ async function saveGame(){
   const data={
     version:SAVE_VERSION,saveSlot:activeSaveSlot,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
-    nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,
+    nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,finalBossPending,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
     inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
     worldSeed:WORLD_SEED,
@@ -2062,6 +2062,7 @@ async function continueGame(){
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
+  finalBossPending=!!d.finalBossPending;
   P.hp=d.hp||100;P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
   curType=Math.max(0,Math.min(4,d.curType||0));setType(curType);
