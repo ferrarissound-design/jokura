@@ -15,7 +15,7 @@ if(!window.storage){
 const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const isDesktop=!isTouch;
 const FRAME_MIN=isTouch?(1000/30):0;
-const DRAW_R=isTouch?2:4;
+const DRAW_R=isTouch?3:6;
 const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
@@ -622,7 +622,7 @@ function rand2(x,z,seed){return hash2i(x|0,z|0,seed)/4294967296;}
 function rand3(x,y,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.imul(z,668265263)+Math.imul(y,1013904223))^seed;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296;}
 
 // ═══ WORLD ═══
-const CHUNK=16,CHUNK_Y=8,WORLD_R=16;
+const CHUNK=16,CHUNK_Y=8,WORLD_R=48;
 const WORLD_CY_MIN=-4,WORLD_CY_MAX=2; // underground (-32) to mountain tops (+16)
 const DRAW_RY=isTouch?1:2;
 const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff];
@@ -2199,7 +2199,7 @@ function tick(now){
   const _isUnder=P.y<0;
   updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome,_isUnder);
   if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
-  else{scene.fog.near=20;scene.fog.far=60;skyMesh.visible=true;}
+  else{scene.fog.near=DRAW_R*CHUNK*0.7;scene.fog.far=DRAW_R*CHUNK*0.98;skyMesh.visible=true;}
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
