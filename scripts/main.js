@@ -464,7 +464,7 @@ function updateSettingsUI(){
 function toggleBgmMute(){
   settings.bgmMuted=!settings.bgmMuted;saveSettings();updateSettingsUI();
   if(settings.bgmMuted)stopBgm();
-  else if(gs&&gs.running)bgmBiome=-1;
+  else if(gs&&gs.running){bgmBiome=-1;bgmBoss=false;bgmWave=false;bgmUnder=false;bgmUnderDragon=false;}
   showSaveToast(settings.bgmMuted?'🔇 BGM OFF':'🎵 BGM ON');
 }
 function toggleSfxMute(){settings.sfxMuted=!settings.sfxMuted;saveSettings();updateSettingsUI();showSaveToast(settings.sfxMuted?'🔇 SE OFF':'🔊 SE ON');}
@@ -771,7 +771,7 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced){
   if(addToScene){
     blockMeshes.add(m);if(ti===LAVA_BLOCK)lavaBlocks.add(k);
     const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
-    if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(!underChunks[ck])underChunks[ck]={meshes:new Set(),loaded:true};underChunks[ck].meshes.add(m);}
+    if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.add(m);}
     else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.add(m);}
   }
   return m;
@@ -929,7 +929,7 @@ function _spawnRoomContent(cx,cy,cz,meshes){
       if(rand3(rx,cy,rz,77)<0.5){pb(wcx+8,wcy+2,wcz+12,COAL_ORE);pb(wcx+8,wcy+1,wcz+11,COAL_ORE);}
       const tx=wcx+12,ty=wcy+1,tz=wcz+12,tk=vKey(tx,ty,tz);
       if(!underTreasures[tk]&&tx>=ox&&tx<ox+CHUNK&&tz>=oz&&tz<oz+CHUNK&&ty>=oy&&ty<oy+CHUNK_Y){
-        const mesh=_makeTreasureMesh(1);mesh.position.set(tx,ty,tz);
+        const mesh=_makeTreasureMesh(1);mesh.position.set(tx+.5,ty,tz+.5);
         if(!openedTreasureKeys.has(tk))scene.add(mesh);
         underTreasures[tk]={mesh,opened:openedTreasureKeys.has(tk),type:1};
       }
@@ -938,7 +938,7 @@ function _spawnRoomContent(cx,cy,cz,meshes){
       pb(wcx+12,wcy+1,wcz+12,DEEP_STONE);pb(wcx+12,wcy+2,wcz+12,DIAMOND_ORE);
       const tx=wcx+10,ty=wcy+1,tz=wcz+10,tk=vKey(tx,ty,tz);
       if(!underTreasures[tk]&&tx>=ox&&tx<ox+CHUNK&&tz>=oz&&tz<oz+CHUNK&&ty>=oy&&ty<oy+CHUNK_Y){
-        const mesh=_makeTreasureMesh(2);mesh.position.set(tx,ty,tz);
+        const mesh=_makeTreasureMesh(2);mesh.position.set(tx+.5,ty,tz+.5);
         if(!openedTreasureKeys.has(tk))scene.add(mesh);
         underTreasures[tk]={mesh,opened:openedTreasureKeys.has(tk),type:2};
       }
@@ -1029,7 +1029,8 @@ const arrowGeo=new THREE.BoxGeometry(.12,.12,.5);const arrowMat=new THREE.MeshBa
 const staffOrbGeo=new THREE.OctahedronGeometry(.22,0);const staffOrbMat=new THREE.MeshBasicMaterial({color:0x88ffff});
 function fireStaff(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const m=new THREE.Mesh(staffOrbGeo,staffOrbMat.clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);scene.add(m);projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*70,dy:dir.y*70,dz:dir.z*70,life:2.5,dmg:WEAPONS[5].dmg,staff:true});}
 function fireArrow(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const isDiamond=hasDiamondBow;const m=new THREE.Mesh(arrowGeo,(isDiamond?diamondArrowMat:arrowMat).clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);m.lookAt(sx+dir.x,sy+dir.y,sz+dir.z);scene.add(m);const spd=isDiamond?55:35;const life=isDiamond?2.4:1.8;projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*spd,dy:dir.y*spd,dz:dir.z*spd,life,dmg:WEAPONS[3].dmg,diamond:isDiamond});}
-function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-bz,l=Math.hypot(dx,dy,dz)||1;const m=new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.7),new THREE.MeshBasicMaterial({color:0xff3300}));m.position.set(bx,by,bz);scene.add(m);projectiles.push({mesh:m,x:bx,y:by,z:bz,dx:(dx/l)*22,dy:(dy/l)*22,dz:(dz/l)*22,life:2.5,dmg:dmgVal,isBossArrow:true});}
+const bossArrowGeo=new THREE.BoxGeometry(.2,.2,.7);
+function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-bz,l=Math.hypot(dx,dy,dz)||1;const m=new THREE.Mesh(bossArrowGeo,new THREE.MeshBasicMaterial({color:0xff3300}));m.position.set(bx,by,bz);scene.add(m);projectiles.push({mesh:m,x:bx,y:by,z:bz,dx:(dx/l)*22,dy:(dy/l)*22,dz:(dz/l)*22,life:2.5,dmg:dmgVal,isBossArrow:true});}
 
 // ═══ PLAYER ═══
 const P={x:0,y:20,z:0,velY:0,onGround:false,hp:100,maxHp:100,invT:0};
@@ -1329,7 +1330,7 @@ function killDragon(){
   for(let i=0;i<8;i++)setTimeout(()=>spawnParticles(dp.x+(Math.random()-.5)*3,dp.y+(Math.random()-.5)*1.5,dp.z+(Math.random()-.5)*3,0x00e5ff,5),i*80);
   const hadDiamond=inv.diamond>0;inv.diamond+=4;inv.dragonCore+=1;updateInvHUD();if(!hadDiamond)unlockAchievement('firstDiamond');
   gs.score+=2000;gs.kills++;
-  scene.remove(dragon.root);dragon=null;
+  scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;
   dragonSpawnT=180;
   showAlert('💠 DIAMOND DRAGON DEFEATED!');
   playTone(1800,.3,.4,'sine');setTimeout(()=>playTone(2200,.2,.3,'sine'),180);setTimeout(()=>playTone(2600,.15,.4,'sine'),360);
@@ -1439,7 +1440,7 @@ function killBoss(){
   gs.score+=bossScore;gs.kills++;
   const wasMiniBoss=boss.def.miniBoss||false;const dDrop=boss.def.diamondDrop||0;
   sfxBossDie();showBonus((wasMiniBoss?'⚡ MINI BOSS DEAD! ':'💀 BOSS DEAD! ')+'+'+bossScore);
-  scene.remove(bossRoot);const wasFinal=boss.def.finalBoss||false;boss=null;$bossWrap.classList.remove('show');
+  scene.remove(bossRoot);disposeObject3D(bossRoot);const wasFinal=boss.def.finalBoss||false;boss=null;$bossWrap.classList.remove('show');
   if(dDrop>0){const hadDiamond=inv.diamond>0;inv.diamond+=dDrop;updateInvHUD();if(!hadDiamond)unlockAchievement('firstDiamond');setTimeout(()=>showBonus('💎×'+dDrop+' ゲット！'),1000);}
   if(!wasMiniBoss&&!wasFinal)unlockAchievement('bossSlayer');
   if(wasFinal)setTimeout(()=>gameComplete(),2000);
@@ -1552,7 +1553,7 @@ function placeChest(){
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   for(const c of chests){if(Math.floor(c.x)===px&&Math.floor(c.y)===py&&Math.floor(c.z)===pz)return;}
   if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1>P.z-.45)return;
-  const mesh=makeChestMesh();mesh.position.set(px,py,pz);scene.add(mesh);
+  const mesh=makeChestMesh();mesh.position.set(px+.5,py,pz+.5);scene.add(mesh);
   chestCount--;chests.push({mesh,x:px,y:py,z:pz,contents:{wood:0,stone:0,sand:0,grass:0,brick:0,meat:0}});
   updateChestHUD();sfxPlace();showBonus('📦 チェスト設置！');unlockAchievement('firstBase');
 }
@@ -1606,8 +1607,8 @@ function placeBed(){
   const n=bh.face.normal,d=bh.object.userData;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   for(const b of beds){if(Math.floor(b.x)===px&&Math.floor(b.y)===py&&Math.floor(b.z)===pz)return;}
-  if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1>P.z-.45)return;
-  const mesh=makeBedMesh();mesh.position.set(px,py,pz);scene.add(mesh);
+  if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1.8>P.z-.45)return;
+  const mesh=makeBedMesh();mesh.position.set(px+.5,py,pz+.9);scene.add(mesh);
   bedCount--;beds.push({mesh,x:px,y:py,z:pz});
   updateBedHUD();sfxPlace();showBonus('🛏 ベッド設置！');unlockAchievement('firstBase');
 }
@@ -1670,7 +1671,7 @@ function placeTrophy(){
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   for(const t of trophies){if(Math.floor(t.x)===px&&Math.floor(t.y)===py&&Math.floor(t.z)===pz)return;}
   if(px<P.x+.4&&px+1>P.x-.4&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.4&&pz+1>P.z-.4)return;
-  const mesh=makeTrophyMesh();mesh.position.set(px,py,pz);scene.add(mesh);
+  const mesh=makeTrophyMesh();mesh.position.set(px+.5,py,pz+.5);scene.add(mesh);
   trophyCount--;trophies.push({mesh,x:px,y:py,z:pz});
   updateTrophyHUD();sfxPlace();showBonus('🏆 ドラゴン像を設置した！');
 }
@@ -1885,8 +1886,11 @@ slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();in
 function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
 // ═══ COMBAT ═══
+// enemy/boss/dragon meshes are built with per-instance geometries and cloned
+// materials, so they must be disposed on removal to avoid GPU memory leaks
+function disposeObject3D(root){root.traverse(o=>{if(o.isMesh){if(o.geometry)o.geometry.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else if(o.material)o.material.dispose();}else if(o.isSprite&&o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});}
 function flashEnemy(e){for(const m of e.flashMeshes||[e.body,e.head]){m.material.emissive.setHex(0xffffff);m.material.emissiveIntensity=1.5;}setTimeout(()=>{try{for(const m of e.flashMeshes||[e.body,e.head]){m.material.emissive.setHex(e.type.emissive);m.material.emissiveIntensity=e.type.emissiveIntensity||.15;}}catch(x){}},100);}
-function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0,en.hp/en.maxHp);en.hpBar.scale.x=Math.max(.01,ratio);en.hpBar.material.color.setHex(ratio>.5?0x44ff44:ratio>.25?0xffaa00:0xff2222);if(en.hp<=0&&!en.dead){en.dead=true;const ep=en.root.position;spawnParticles(ep.x,ep.y,ep.z,en.type.color,4);dropItem(ep.x,ep.y,ep.z,en.type);scene.remove(en.root);const idx=enemies.indexOf(en);if(idx>=0)enemies.splice(idx,1);gs.kills++;const pts=en.type.score*(gs.wave||1);gs.score+=pts;sfxKill();showBonus('+'+pts);}}
+function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0,en.hp/en.maxHp);en.hpBar.scale.x=Math.max(.01,ratio);en.hpBar.material.color.setHex(ratio>.5?0x44ff44:ratio>.25?0xffaa00:0xff2222);if(en.hp<=0&&!en.dead){en.dead=true;const ep=en.root.position;spawnParticles(ep.x,ep.y,ep.z,en.type.color,4);dropItem(ep.x,ep.y,ep.z,en.type);scene.remove(en.root);disposeObject3D(en.root);const idx=enemies.indexOf(en);if(idx>=0)enemies.splice(idx,1);gs.kills++;const pts=en.type.score*(gs.wave||1);gs.score+=pts;sfxKill();showBonus('+'+pts);}}
 
 // ブロック破壊共通処理
 function breakBlock(bh){
@@ -1977,7 +1981,7 @@ function doAttack(e){
     if(!anyHit){const bh=castVoxel();if(bh){breakBlock(bh);}}
     return;
   }
-  const eh=castEnemies();if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
+  const eh=castEnemies();if(eh&&eh.distance<=w.range){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
   if(dragon){const dp=dragon.root.position;if((dp.x-P.x)**2+(dp.y-(P.y+1.5))**2+(dp.z-P.z)**2<w.range*w.range){hitDragon(w.dmg,weaponIdx===1&&hasDiamondSword);return;}}
   attackMobs(w);
   const bh=castVoxel();if(bh){breakBlock(bh);sfxBreak();}
@@ -2060,7 +2064,7 @@ function undergroundDeath(){
   }
   prevPlayerUnderground=false;
   gs.score=0;
-  for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);enemies.splice(i,1);}}
+  for(let i=enemies.length-1;i>=0;i--){if(enemies[i].root.position.y<0){scene.remove(enemies[i].root);disposeObject3D(enemies[i].root);enemies.splice(i,1);}}
   if(dragon){dragon.hp=dragon.maxHp;dragon.hpBar.scale.x=1;dragon.state='prowl';dragon.stateT=3;}
   $df.classList.add('on');
   setTimeout(()=>{
@@ -2093,11 +2097,11 @@ function gameOver(){
 }
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
-  for(const e of enemies)scene.remove(e.root);enemies.length=0;
+  for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   resetChests();resetBeds();resetTrophies();resetTreasures();
-  if(boss){scene.remove(boss.root);boss=null;$bossWrap.classList.remove('show');}
-  if(dragon){scene.remove(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
+  if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
+  if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
   for(const p of projectiles)scene.remove(p.mesh);projectiles.length=0;
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
@@ -2143,15 +2147,15 @@ async function continueGame(){
   applyWorldEdits();
   // チェスト復元
   chestCount=d.chestCount||0;
-  if(d.chests){for(const cd of d.chests){const mesh=makeChestMesh();mesh.position.set(cd.x,cd.y,cd.z);scene.add(mesh);chests.push({mesh,x:cd.x,y:cd.y,z:cd.z,contents:cd.contents||{wood:0,stone:0,sand:0,grass:0,brick:0,meat:0}});}}
+  if(d.chests){for(const cd of d.chests){const mesh=makeChestMesh();mesh.position.set(cd.x+.5,cd.y,cd.z+.5);scene.add(mesh);chests.push({mesh,x:cd.x,y:cd.y,z:cd.z,contents:cd.contents||{wood:0,stone:0,sand:0,grass:0,brick:0,meat:0}});}}
   updateChestHUD();
   // ベッド復元
   bedCount=d.bedCount||0;
-  if(d.beds){for(const bd of d.beds){const mesh=makeBedMesh();mesh.position.set(bd.x,bd.y,bd.z);scene.add(mesh);beds.push({mesh,x:bd.x,y:bd.y,z:bd.z});}}
+  if(d.beds){for(const bd of d.beds){const mesh=makeBedMesh();mesh.position.set(bd.x+.5,bd.y,bd.z+.9);scene.add(mesh);beds.push({mesh,x:bd.x,y:bd.y,z:bd.z});}}
   updateBedHUD();
   // ドラゴン像復元
   trophyCount=d.trophyCount||0;
-  if(d.trophies){for(const td of d.trophies){const mesh=makeTrophyMesh();mesh.position.set(td.x,td.y,td.z);scene.add(mesh);trophies.push({mesh,x:td.x,y:td.y,z:td.z});}}
+  if(d.trophies){for(const td of d.trophies){const mesh=makeTrophyMesh();mesh.position.set(td.x+.5,td.y,td.z+.5);scene.add(mesh);trophies.push({mesh,x:td.x,y:td.y,z:td.z});}}
   updateTrophyHUD();
   // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
   if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
@@ -2229,9 +2233,9 @@ function tick(now){
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
-    if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
+    if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
-    if(dist>50){scene.remove(e.root);enemies.splice(i,1);continue;}
+    if(dist>50){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
     if(e.type.bat){
       const dy3=P.y+0.8-ep.y,dist3=Math.hypot(dx,dy3,dz);
       e.root.rotation.y=Math.atan2(dx,dz);
