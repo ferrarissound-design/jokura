@@ -491,6 +491,18 @@ $sensBtns.forEach((b,i)=>{if(b)bindTapSafe(b,()=>setLookSens(SENS_VALS[i]));});
 if($flashToggleBtn)bindTapSafe($flashToggleBtn,toggleFlash);
 if($autoSaveToggleBtn)bindTapSafe($autoSaveToggleBtn,toggleAutoSave);
 if($shadowToggleBtn)bindTapSafe($shadowToggleBtn,toggleShadows);
+// ─── ROBUST MENU CLOSE ───
+// On small phones a tall panel can push the bottom CLOSE button past the visible
+// viewport. Give every .menuPanel an always-visible corner ✕ (pinned to the
+// screen, never scrolls away) plus tap-the-dark-backdrop-to-close, so a menu can
+// always be dismissed regardless of content height or scroll quirks.
+document.querySelectorAll('.menuPanel').forEach((panel)=>{
+  const x=document.createElement('button');
+  x.className='menuCloseX';x.type='button';x.textContent='✕';x.setAttribute('aria-label','閉じる');
+  bindTapSafe(x,()=>panel.classList.remove('show'));
+  panel.appendChild(x);
+  panel.addEventListener('pointerdown',(e)=>{if(e.target===panel){e.preventDefault();e.stopPropagation();panel.classList.remove('show');}});
+});
 // ─── CODEX / QUEST LOG ───
 const $codexPanel=document.getElementById('codexPanel'),$codexBody=document.getElementById('codexBody');
 const $codexCloseBtn=document.getElementById('codexCloseBtn'),$codexBtn=document.getElementById('codexBtn'),$pauseCodexBtn=document.getElementById('pauseCodexBtn');
