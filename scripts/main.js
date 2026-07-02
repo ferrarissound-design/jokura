@@ -2414,7 +2414,7 @@ function tick(now){
   renderer.render(scene,camera);
 }
 requestAnimationFrame(tick);
-document.addEventListener('touchmove',(e)=>{if(e.target.closest('#craftPanel'))return;e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',(e)=>{if(e.target.closest('#craftPanel')||e.target.closest('.menuCard'))return;e.preventDefault();},{passive:false});
 // iOS Safari: prevent all zoom (pinch, double-tap, gesture)
 document.addEventListener('gesturestart',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('gesturechange',(e)=>e.preventDefault(),{passive:false});
