@@ -106,11 +106,15 @@ canvas#c{display:block;touch-action:none}
 #resumeBtn{background:linear-gradient(135deg,#26c6da,#00838f);color:#fff;box-shadow:0 0 18px #26c6da44}
 #pauseSaveBtn{background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.25);color:#eee}
 #pauseSettingsBtn{background:rgba(120,100,180,.25);border:1.5px solid rgba(190,170,255,.35);color:#eee}
-/* fixed + dvh so the overlay tracks the *visible* viewport: when a mobile
-   browser's URL bar is showing, dvh shrinks and the CLOSE button stays on-screen */
-.menuPanel{position:fixed;left:0;top:0;width:100%;height:100vh;height:100dvh;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);z-index:1200;pointer-events:auto;padding:14px;box-sizing:border-box}
+/* fixed + svh so the overlay/card always fit the *smallest* (URL-bar-visible)
+   viewport. svh guarantees the card never exceeds the visible area, so when the
+   content is tall it genuinely overflows and can be scrolled to reach CLOSE. */
+.menuPanel{position:fixed;left:0;top:0;width:100%;height:100vh;height:100svh;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);z-index:1200;pointer-events:auto;padding:12px;box-sizing:border-box}
 .menuPanel.show{display:flex}
-.menuCard{width:min(560px,92vw);max-height:92vh;max-height:92dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:2px solid rgba(255,255,255,.2);border-radius:14px;background:linear-gradient(180deg,rgba(25,28,40,.96),rgba(8,10,16,.98));box-shadow:0 20px 60px rgba(0,0,0,.55),inset 0 0 24px rgba(126,207,255,.08);padding:18px;box-sizing:border-box;text-align:center;color:#eee}
+.menuCard{position:relative;width:min(560px,92vw);max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:2px solid rgba(255,255,255,.2);border-radius:14px;background:linear-gradient(180deg,rgba(25,28,40,.96),rgba(8,10,16,.98));box-shadow:0 20px 60px rgba(0,0,0,.55),inset 0 0 24px rgba(126,207,255,.08);padding:18px;box-sizing:border-box;text-align:center;color:#eee}
+/* always-visible corner close: pinned to the panel (screen), never scrolls away */
+.menuCloseX{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:14px;width:46px;height:46px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:rgba(20,24,34,.92);color:#fff;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:1301;box-shadow:0 2px 12px rgba(0,0,0,.55)}
+.menuCloseX:active{background:rgba(60,70,90,.95)}
 .menuTitle{font-family:'Press Start 2P',monospace;font-size:min(15px,4vw);color:#f9d342;text-shadow:2px 2px 0 #000;margin-bottom:14px;letter-spacing:1px}
 .menuText{font-size:12px;line-height:1.9;text-align:left;color:#ddd;text-shadow:1px 1px 0 #000;margin:10px 0 16px}
 .menuText.small{text-align:center;font-size:10px;color:#aaa;line-height:1.6}
