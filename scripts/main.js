@@ -413,7 +413,7 @@ function showSaveToast(msg){$saveToast.textContent=msg;$saveToast.classList.add(
 // ═══ HELP / SETTINGS ═══
 const SETTINGS_KEY='jokura-settings-v1';
 // difficulty: player-damage multiplier; lookSens: touch look multiplier; flash: hit/lava screen flashes; autoSave: periodic save
-const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null};
+const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true};
 const DIFF_MULT={easy:.6,normal:1,hard:1.5};
 function difficultyMult(){return DIFF_MULT[settings.difficulty]||1;}
 function loadSettings(){
@@ -421,6 +421,7 @@ function loadSettings(){
   if(!(settings.difficulty in DIFF_MULT))settings.difficulty='normal';
   settings.lookSens=Math.max(.4,Math.min(2,Number(settings.lookSens)||1));
   if(typeof settings.shadows!=='boolean')settings.shadows=!isTouch; // shadows default: PC on, mobile off
+  if(typeof settings.bob!=='boolean')settings.bob=true;
   // LS initialises from settings.lookSens at its own declaration; don't touch it here (TDZ)
 }
 function applyAccessibility(){try{LS=LS_BASE*settings.lookSens;}catch(e){}}
@@ -452,7 +453,7 @@ function closeAchievements(){setPanel($achievementsPanel,false);}
 const $diffBtns={easy:document.getElementById('diffEasyBtn'),normal:document.getElementById('diffNormalBtn'),hard:document.getElementById('diffHardBtn')};
 const $sensBtns=[document.getElementById('sensLowBtn'),document.getElementById('sensMidBtn'),document.getElementById('sensHighBtn')];
 const SENS_VALS=[.6,1,1.5];
-const $flashToggleBtn=document.getElementById('flashToggleBtn'),$autoSaveToggleBtn=document.getElementById('autoSaveToggleBtn'),$shadowToggleBtn=document.getElementById('shadowToggleBtn');
+const $flashToggleBtn=document.getElementById('flashToggleBtn'),$autoSaveToggleBtn=document.getElementById('autoSaveToggleBtn'),$shadowToggleBtn=document.getElementById('shadowToggleBtn'),$bobToggleBtn=document.getElementById('bobToggleBtn');
 function updateSettingsUI(){
   if($bgmToggleBtn){$bgmToggleBtn.textContent='BGM: '+(settings.bgmMuted?'OFF':'ON');$bgmToggleBtn.classList.toggle('on',!settings.bgmMuted);$bgmToggleBtn.classList.toggle('off',settings.bgmMuted);}
   if($sfxToggleBtn){$sfxToggleBtn.textContent='SE: '+(settings.sfxMuted?'OFF':'ON');$sfxToggleBtn.classList.toggle('on',!settings.sfxMuted);$sfxToggleBtn.classList.toggle('off',settings.sfxMuted);}
@@ -462,6 +463,7 @@ function updateSettingsUI(){
   if($flashToggleBtn){$flashToggleBtn.textContent='画面フラッシュ: '+(settings.flash?'ON':'OFF');$flashToggleBtn.classList.toggle('on',settings.flash);$flashToggleBtn.classList.toggle('off',!settings.flash);}
   if($autoSaveToggleBtn){$autoSaveToggleBtn.textContent='オートセーブ: '+(settings.autoSave?'ON':'OFF');$autoSaveToggleBtn.classList.toggle('on',settings.autoSave);$autoSaveToggleBtn.classList.toggle('off',!settings.autoSave);}
   if($shadowToggleBtn){$shadowToggleBtn.textContent='影(シャドウ): '+(settings.shadows?'ON':'OFF');$shadowToggleBtn.classList.toggle('on',!!settings.shadows);$shadowToggleBtn.classList.toggle('off',!settings.shadows);}
+  if($bobToggleBtn){$bobToggleBtn.textContent='画面の揺れ: '+(settings.bob?'ON':'OFF');$bobToggleBtn.classList.toggle('on',!!settings.bob);$bobToggleBtn.classList.toggle('off',!settings.bob);}
 }
 function toggleBgmMute(){
   settings.bgmMuted=!settings.bgmMuted;saveSettings();updateSettingsUI();
@@ -475,6 +477,7 @@ function setLookSens(v){settings.lookSens=v;applyAccessibility();saveSettings();
 function toggleFlash(){settings.flash=!settings.flash;saveSettings();updateSettingsUI();showSaveToast(settings.flash?'画面フラッシュ ON':'画面フラッシュ OFF');}
 function toggleAutoSave(){settings.autoSave=!settings.autoSave;saveSettings();updateSettingsUI();showSaveToast(settings.autoSave?'オートセーブ ON':'オートセーブ OFF');}
 function toggleShadows(){settings.shadows=!settings.shadows;saveSettings();updateSettingsUI();applyShadowSetting();showSaveToast(settings.shadows?'🌤 影 ON':'影 OFF');}
+function toggleBob(){settings.bob=!settings.bob;saveSettings();updateSettingsUI();showSaveToast(settings.bob?'画面の揺れ ON':'画面の揺れ OFF');}
 loadSettings();updateSettingsUI();
 if($helpBtn)bindTapSafe($helpBtn,openHelp);
 if($helpCloseBtn)bindTapSafe($helpCloseBtn,closeHelp);
@@ -491,6 +494,7 @@ $sensBtns.forEach((b,i)=>{if(b)bindTapSafe(b,()=>setLookSens(SENS_VALS[i]));});
 if($flashToggleBtn)bindTapSafe($flashToggleBtn,toggleFlash);
 if($autoSaveToggleBtn)bindTapSafe($autoSaveToggleBtn,toggleAutoSave);
 if($shadowToggleBtn)bindTapSafe($shadowToggleBtn,toggleShadows);
+if($bobToggleBtn)bindTapSafe($bobToggleBtn,toggleBob);
 // ─── ROBUST MENU CLOSE ───
 // On small phones a tall panel can push the bottom CLOSE button past the visible
 // viewport. Give every .menuPanel an always-visible corner ✕ (pinned to the
@@ -661,6 +665,22 @@ const CLOUD_Y=46,CLOUD_RANGE=150;
     m.position.set((Math.random()*2-1)*CLOUD_RANGE,CLOUD_Y+Math.random()*6,(Math.random()*2-1)*CLOUD_RANGE);
     cloudGroup.add(m);
   }
+})();
+// night stars: points on the upper sky dome, fading in with darkness and
+// slowly rotating with the day cycle like the real Minecraft sky
+const starPivot=new THREE.Group();scene.add(starPivot);
+const starMat=new THREE.PointsMaterial({color:0xffffff,size:1.0,sizeAttenuation:true,transparent:true,opacity:0,fog:false,depthWrite:false});
+(function(){
+  const N=320,pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    // random direction biased to the upper hemisphere
+    let x,y,z,l;
+    do{x=Math.random()*2-1;y=Math.random();z=Math.random()*2-1;l=Math.hypot(x,y,z);}while(l>1||l<.2||y/l<.06);
+    pos[i*3]=x/l*100;pos[i*3+1]=y/l*100;pos[i*3+2]=z/l*100;
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const stars=new THREE.Points(g,starMat);stars.frustumCulled=false;stars.renderOrder=1;
+  starPivot.add(stars);
 })();
 
 // ═══ NOISE ═══
@@ -1908,7 +1928,19 @@ function updateUnderAtmosphere(py){
   scene.fog.near=depth>22?13:depth>10?16:19;
   scene.fog.far=depth>22?42:depth>10?52:58;
 }
-function updateSky(t,inVolcano,inSnow){const b=.5-.5*Math.cos((t-.15)*Math.PI*2);if(inVolcano){skyMesh.material.color.setRGB(.18+b*.05,.04,.02);scene.fog.color.setRGB(.22,.05,.02);renderer.setClearColor(scene.fog.color);sun.color.setHex(0xff6600);sun.intensity=Math.max(.3,.8-.4*b);hemLight.color.setHex(0xff3300);hemLight.intensity=.5;}else if(inSnow){skyMesh.material.color.setRGB(Math.max(.15,.55-.3*b),Math.max(.18,.65-.35*b),Math.max(.22,.8-.4*b));scene.fog.color.setRGB(Math.max(.2,.6-.3*b),Math.max(.22,.68-.35*b),Math.max(.25,.82-.4*b));renderer.setClearColor(scene.fog.color);sun.color.setHex(0xaaccff);sun.intensity=Math.max(.2,.7-.4*b);hemLight.color.setHex(0xaaddff);hemLight.intensity=Math.max(.2,.7-.4*b);}else{skyMesh.material.color.setRGB(Math.max(.02,.45-.43*b),Math.max(.03,.70-.66*b),Math.max(.05,.98-.92*b));scene.fog.color.setRGB(Math.max(.04,.55-.49*b),Math.max(.04,.73-.67*b),Math.max(.06,.93-.85*b));renderer.setClearColor(scene.fog.color);sun.color.setHex(0xffffff);sun.intensity=Math.max(.05,1-.95*b);hemLight.color.setHex(0xbfdcff);hemLight.intensity=Math.max(.1,.95-.82*b);}$di.textContent=b>.5?'🌙':'☀️';}
+function updateSky(t,inVolcano,inSnow){const b=.5-.5*Math.cos((t-.15)*Math.PI*2);
+// sunrise/sunset glow: peaks when the sun crosses the horizon (dayT 0 and 0.5)
+const _dT=(t+0.1)%1;const _edge=Math.min(_dT,Math.abs(_dT-.5),1-_dT);const glow=Math.max(0,1-_edge/0.07);
+if(inVolcano){skyMesh.material.color.setRGB(.18+b*.05,.04,.02);scene.fog.color.setRGB(.22,.05,.02);renderer.setClearColor(scene.fog.color);sun.color.setHex(0xff6600);sun.intensity=Math.max(.3,.8-.4*b);hemLight.color.setHex(0xff3300);hemLight.intensity=.5;}else if(inSnow){skyMesh.material.color.setRGB(Math.max(.15,.55-.3*b),Math.max(.18,.65-.35*b),Math.max(.22,.8-.4*b));scene.fog.color.setRGB(Math.max(.2,.6-.3*b),Math.max(.22,.68-.35*b),Math.max(.25,.82-.4*b));renderer.setClearColor(scene.fog.color);sun.color.setHex(0xaaccff);sun.intensity=Math.max(.2,.7-.4*b);hemLight.color.setHex(0xaaddff);hemLight.intensity=Math.max(.2,.7-.4*b);}else{
+  let sr=Math.max(.02,.45-.43*b),sg=Math.max(.03,.70-.66*b),sb=Math.max(.05,.98-.92*b);
+  let fr=Math.max(.04,.55-.49*b),fg=Math.max(.04,.73-.67*b),fb=Math.max(.06,.93-.85*b);
+  const gm=glow*.55; // mix toward warm orange at dawn/dusk
+  sr=sr*(1-gm)+1.0*gm;sg=sg*(1-gm)+.45*gm;sb=sb*(1-gm)+.20*gm;
+  fr=fr*(1-gm)+1.0*gm;fg=fg*(1-gm)+.52*gm;fb=fb*(1-gm)+.26*gm;
+  skyMesh.material.color.setRGB(sr,sg,sb);scene.fog.color.setRGB(fr,fg,fb);renderer.setClearColor(scene.fog.color);
+  sun.color.setRGB(1,1-glow*.35,1-glow*.6);sun.intensity=Math.max(.05,1-.95*b);
+  hemLight.color.setHex(0xbfdcff);hemLight.intensity=Math.max(.1,.95-.82*b);
+}$di.textContent=b>.5?'🌙':'☀️';}
 
 // ─── CELESTIAL: sun/moon orbit, drifting clouds, sky follows player ───
 function updateCelestial(t,dt){
@@ -1934,8 +1966,12 @@ function updateCelestial(t,dt){
   moonSprite.visible=skyVis&&!isDayNow&&moonDir.y>.02;
   cloudGroup.visible=skyVis;
   sun.castShadow=SHADOWS_ON&&skyVis;
+  starPivot.position.set(px,py,pz);
+  starPivot.rotation.z=-dayT*Math.PI*.5;
+  starPivot.visible=skyVis;
   if(skyVis){
     const b=.5-.5*Math.cos((t-.15)*Math.PI*2); // same brightness curve as updateSky
+    starMat.opacity=Math.max(0,Math.min(1,(b-.55)*3))*.9; // fade in after dusk
     const cb=Math.max(.25,1-b*.8);
     cloudMat.color.setRGB(cb,cb,Math.min(1,cb+.02));
     for(const cl of cloudGroup.children){
@@ -1978,6 +2014,101 @@ function updateBlockCursor(){
   const hit=gs.running&&!gs.paused?ddaTargetVoxel(7):null;
   if(hit){cursorBox.position.set(hit.x+.5,hit.y+.5,hit.z+.5);cursorBox.visible=true;}
   else cursorBox.visible=false;
+}
+
+// ─── FIRST-PERSON HAND & HELD ITEM (Minecraft-style) ───
+scene.add(camera); // so meshes attached to the camera get rendered
+const handGroup=new THREE.Group();
+handGroup.position.set(.44,-.4,-.7);
+handGroup.visible=false;
+camera.add(handGroup);
+function _hmat(color,extra){
+  const m=new THREE.MeshStandardMaterial(Object.assign({color,roughness:.8,metalness:.1},extra||{}));
+  m.depthTest=false; // always draw over the world, like Minecraft's hand
+  return m;
+}
+function _hmesh(geo,mat,x,y,z){const m=new THREE.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);m.renderOrder=1000;m.frustumCulled=false;return m;}
+function _hbox(w,h,d,mat,x,y,z){return _hmesh(new THREE.BoxGeometry(w,h,d),mat,x,y,z);}
+const armMesh=_hbox(.14,.14,.42,_hmat(0xd8a274),.02,-.05,.13);
+armMesh.rotation.set(.25,-.15,0);
+handGroup.add(armMesh);
+let heldRoot=null,heldKey='';
+function _buildHeld(){
+  const root=new THREE.Group();
+  if(weaponIdx===1){ // sword
+    const blade=_hmat(hasDiamondSword?0x59e0ff:0xcfd6dd,hasDiamondSword?{emissive:0x1188aa,emissiveIntensity:.5}:null);
+    root.add(_hbox(.05,.11,.05,_hmat(0x6b4a2f),0,-.1,0));   // grip
+    root.add(_hbox(.15,.035,.05,_hmat(0x9a7a4f),0,-.03,0)); // guard
+    root.add(_hbox(.055,.42,.028,blade,0,.2,0));            // blade
+    root.rotation.set(-.5,.15,-.25);
+  }else if(weaponIdx===2){ // hammer
+    const head=_hmat(hasDiamondHammer?0x59e0ff:0x8a8f98,hasDiamondHammer?{emissive:0x1188aa,emissiveIntensity:.4}:null);
+    root.add(_hbox(.05,.44,.05,_hmat(0x6b4a2f),0,.03,0));
+    root.add(_hbox(.24,.13,.13,head,0,.28,0));
+    root.rotation.set(-.5,.1,-.2);
+  }else if(weaponIdx===3){ // bow
+    const wood=_hmat(hasDiamondBow?0x2fbbd8:0x6b4a2f);
+    root.add(_hbox(.04,.2,.05,wood,0,.17,.045));
+    root.add(_hbox(.04,.16,.05,wood,0,0,0));
+    root.add(_hbox(.04,.2,.05,wood,0,-.17,.045));
+    root.add(_hbox(.012,.5,.012,_hmat(0xeeeeee),0,0,.09)); // string
+    root.rotation.set(0,-.5,-.15);
+  }else if(weaponIdx===4){ // magic
+    root.add(_hbox(.045,.4,.045,_hmat(0x4a2c66),0,.05,0));
+    root.add(_hmesh(new THREE.OctahedronGeometry(.075,0),_hmat(0xff66ff,{emissive:0xaa22aa,emissiveIntensity:.8}),0,.3,0));
+    root.rotation.set(-.4,0,-.15);
+  }else if(weaponIdx===5){ // diamond staff
+    root.add(_hbox(.045,.46,.045,_hmat(0x1b3a4a),0,.05,0));
+    root.add(_hmesh(new THREE.OctahedronGeometry(.085,0),_hmat(0x88ffff,{emissive:0x00ccee,emissiveIntensity:1.2}),0,.33,0));
+    root.rotation.set(-.4,0,-.15);
+  } // fist: arm only
+  root.position.set(0,.03,-.07);
+  return root;
+}
+function _refreshHeld(){
+  const key=weaponIdx+'|'+WEAPONS[weaponIdx].name;
+  if(key===heldKey)return;
+  heldKey=key;
+  if(heldRoot){handGroup.remove(heldRoot);heldRoot.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});}
+  heldRoot=_buildHeld();handGroup.add(heldRoot);
+}
+let handT=0,walkPhase=0,swingT=0,_lastStep=0;
+function triggerHandSwing(){swingT=1;}
+// per-material footsteps: soft grass, dull sand/snow, knocky wood, clicky stone
+const FOOT_TONE={0:[150,'triangle'],5:[150,'triangle'],2:[105,'triangle'],[SNOW_BLOCK]:[95,'triangle'],3:[190,'square'],[CAVE_DIRT]:[130,'triangle']};
+function playFootstep(){
+  const under=voxels[vKey(Math.floor(P.x),Math.floor(P.y-.06),Math.floor(P.z))];
+  if(!under||!under.active)return;
+  const def=FOOT_TONE[under.ti]||[240,'square']; // stone-ish default
+  playTone(def[0]+Math.random()*40-20,.05,.022,def[1]);
+}
+function updateHand(dt,moving,sprinting){
+  handGroup.visible=gs.running;
+  if(!gs.running)return;
+  _refreshHeld();
+  handT+=dt;
+  if(moving&&P.onGround)walkPhase+=dt*(sprinting?11:8);
+  const bobOn=settings.bob!==false;
+  const wb=(moving&&P.onGround&&bobOn)?1:0;
+  const sway=Math.sin(handT*1.6)*.006; // idle breathing
+  // keep the hand on-screen for any aspect ratio (portrait phones have a narrow FOV)
+  const hw=Math.tan(camera.fov*Math.PI/360)*.7*camera.aspect;
+  const hx=Math.min(.5,Math.max(.15,hw*.62));
+  handGroup.position.set(
+    hx+Math.sin(walkPhase)*.028*wb,
+    -.4+sway-Math.abs(Math.cos(walkPhase))*.03*wb,
+    -.7);
+  if(swingT>0)swingT=Math.max(0,swingT-dt*4.5);
+  const s=swingT>0?Math.sin((1-swingT)*Math.PI):0; // quick forward arc
+  handGroup.rotation.set(-s*.7,s*.3,0);
+  handGroup.position.z=-.7-s*.12;
+  handGroup.position.y-=s*.04;
+  if(wb){const step=Math.floor(walkPhase/Math.PI);if(step!==_lastStep){_lastStep=step;playFootstep();}}
+}
+function updateViewBob(moving,sprinting){
+  const wb=(settings.bob!==false&&moving&&P.onGround)?1:0;
+  camera.position.y+=Math.abs(Math.sin(walkPhase))*.045*wb;
+  camera.rotation.z=Math.sin(walkPhase)*.006*wb;
 }
 
 // ═══ RAYCAST ═══
@@ -2106,7 +2237,7 @@ function doAttack(e){
   if(!unlockedWeapons[weaponIdx]){showBonus('🔒 武器未解放！クラフトしよう');playTone(200,.08,.08,'sawtooth');return;}
   const w=WEAPONS[weaponIdx];
   if(w.type==='ranged'&&inv.arrow<=0){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
-  attackCD=w.cd;w.sfx();
+  attackCD=w.cd;w.sfx();triggerHandSwing();
   if(w.type==='staff'){fireStaff();return;}
   if(w.type==='ranged'){
     inv.arrow--;updateInvHUD();
@@ -2151,7 +2282,7 @@ function doPlace(e){
   inv[mat]--;updateInvHUD();
   addBlock(px,py,pz,curType,true,true);
   const pk=vKey(px,py,pz);worldEdits.placed[pk]=curType;delete worldEdits.removed[pk];
-  sfxPlace();
+  sfxPlace();triggerHandSwing();
 }
 
 // ═══ BUTTONS ═══
@@ -2381,6 +2512,9 @@ function tick(now){
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE,P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
+  const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
+  updateViewBob(_moving,sprinting);
+  updateHand(dt,_moving,sprinting);
   chunkT+=dt;if(chunkT>.5){updateChunks(false);applyWorldEdits();chunkT=0;}
   updateBoss(dt);updateDragon(dt);updateMobs(dt);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnPigs(Math.min(lack,4));}
