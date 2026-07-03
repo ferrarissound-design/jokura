@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260705a">
+<link rel="stylesheet" href="styles/main.css?v=20260705b">
 
 </head>
 <body>
@@ -20,6 +20,7 @@
     <div class="pi"><div class="plabel">KILLS</div><div class="pval" id="killVal">0</div></div>
   </div>
   <div id="hpArea"><div id="hpLabel">HP ❤️</div><div id="hpBar"><div id="hpFill"></div></div></div>
+  <div id="fdArea" title="満腹度"><div id="fdBar"><div id="fdFill"></div></div></div>
   <div id="biomeLabel">🌿 PLAINS</div>
   <div id="weaponLabel">👊 Fist</div>
   <div id="goalLabel">🎯 目標: 木を集めて剣を作ろう</div>
@@ -75,7 +76,7 @@
     <div class="hslot" data-i="4"><div class="dot" style="background:#ef9a9a"></div>Brick</div>
     <div class="hslot" data-i="5"><div class="dot" style="background:radial-gradient(circle at 50% 32%,#ffe6a8,#ff8a1e 58%,#5d4037)"></div>Torch<span class="hcount" id="torchCount"></span></div>
   </div>
-  <div id="hint">左スティック移動 / 右スワイプ視点 / ⛏攻撃 / 🧱設置(長押し=家具) / 🔄武器切替</div>
+  <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / ⛏攻撃 / 🧱設置(長押し=家具) / 🔄武器切替</div>
   <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / 1-6:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
   <button id="weaponBtn">🔄 WEAPON</button>
@@ -106,6 +107,7 @@
     <div class="menuText">
       <b>目的</b>: 素材を集めて装備を強化し、WAVE20のキングダイヤモンドドラゴンを倒そう。<br>
       <b>序盤</b>: 木を5個集めて剣を作る → 石を集めてハンマー/弓を作る → ベッドとチェストで拠点準備。<br>
+      <b>満腹度</b>: 走る・跳ぶ・戦うと減る。60以下で自然回復が止まり、0になるとHPが徐々に減る（10未満にはならない）。🥩肉で回復。<br>
       <b>地下</b>: 深く掘るとダイヤ・古い宝箱・地下ドラゴンに出会える。危険なら地上へ戻ろう。<br>
       <b>PC</b>: WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / E武器切替 / Cクラフト / F5セーブ。<br>
       <b>スマホ</b>: 左スティック移動 / 右スワイプ視点 / ATTACK攻撃 / PLACE長押しで家具・宝箱操作。
@@ -162,6 +164,6 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="scripts/main.js?v=20260705a"></script>
+<script src="scripts/main.js?v=20260705b"></script>
 </body>
 </html>

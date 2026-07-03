@@ -320,7 +320,7 @@ async function saveGame(){
   const data={
     version:SAVE_VERSION,saveSlot:activeSaveSlot,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
-    nextWave:gs.nextWave,hp:P.hp,weaponIdx,curType,finalBossPending,
+    nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
     inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
     worldSeed:WORLD_SEED,
@@ -1367,7 +1367,7 @@ function overlaps(px,py,pz,hw,hh){
   for(const t of trophies){const tx=t.x+.5,ty=t.y,tz=t.z+.5;if(px-hw<tx+.38&&px+hw>tx-.38&&py<ty+.75&&py+hh>ty&&pz-hw<tz+.38&&pz+hw>tz-.38)return true;}
   return false;
 }
-let lavaDmgTimer=0,snowDmgTimer=0;
+let lavaDmgTimer=0,snowDmgTimer=0,starveT=0;
 const $lavaFlash=document.getElementById('lavaFlash'),$snowFlash=document.getElementById('snowFlash');
 function checkLava(){const px=Math.floor(P.x),py=Math.floor(P.y),pz=Math.floor(P.z);for(let by=py-1;by<=py+1;by++){if(lavaBlocks.has(vKey(px,by,pz)))return true;for(const[dx,dz]of[[-1,0],[1,0],[0,-1],[0,1]]){if(lavaBlocks.has(vKey(px+dx,by,pz+dz)))return true;}}return false;}
 
@@ -1422,13 +1422,13 @@ const bossArrowGeo=new THREE.BoxGeometry(.2,.2,.7);
 function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-bz,l=Math.hypot(dx,dy,dz)||1;const m=new THREE.Mesh(bossArrowGeo,new THREE.MeshBasicMaterial({color:0xff3300}));m.position.set(bx,by,bz);scene.add(m);projectiles.push({mesh:m,x:bx,y:by,z:bz,dx:(dx/l)*22,dy:(dy/l)*22,dz:(dz/l)*22,life:2.5,dmg:dmgVal,isBossArrow:true});}
 
 // ═══ PLAYER ═══
-const P={x:0,y:20,z:0,velY:0,onGround:false,hp:100,maxHp:100,invT:0};
+const P={x:0,y:20,z:0,velY:0,onGround:false,hp:100,maxHp:100,invT:0,food:100};
 let yaw=0,pitch=0;
 const SPEED=6,SPRINT_SPEED=10,GRAV=18,JV=7.5,EYE=1.55;
 let coyoteTime=0,jumpBuffer=0;
 const COYOTE=0.15,JBUF=0.12;
 function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}const wMin=-WORLD_R*CHUNK,wMax=WORLD_R*CHUNK;P.x=Math.max(wMin+1,Math.min(wMax-1,P.x));P.z=Math.max(wMin+1,Math.min(wMax-1,P.z));if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
-function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}else{jumpBuffer=JBUF;}}
+function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}}
 
 // ═══ ENEMY BUILDERS ═══
 function makeMat(color,emissive,emissiveIntensity,roughness){return new THREE.MeshStandardMaterial({color,emissive:emissive||0,emissiveIntensity:emissiveIntensity||0,roughness:roughness||.7});}
@@ -2128,7 +2128,7 @@ function updateMobs(dt){
 
 // ═══ MEAT HUD ═══
 function updateMeatHUD(){$meatLabel.textContent='🥩 MEAT: '+meat;if(meat>0)$eatBtn.classList.remove('disabled');else $eatBtn.classList.add('disabled');}
-function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.hp=Math.min(P.maxHp,P.hp+MEAT_HP);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('🍖 +'+MEAT_HP+'HP  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
+function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('\ud83c\udf56 \u6e80\u8179\u5ea6+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
 let _eatBtnLastT=0;
 function _onEatBtnTap(){const now=Date.now();if(now-_eatBtnLastT<100)return;_eatBtnLastT=now;eatMeat();}
 bindTapSafe($eatBtn,_onEatBtnTap);
@@ -2139,7 +2139,7 @@ const DAY_DUR=90;
 function startWave(){gs.wave++;if(gs.wave>=5)unlockAchievement('wave5');if(gs.wave>=20)unlockAchievement('finalChallenge');const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
 
 // ═══ HUD ═══
-const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer'),$goalLabel=document.getElementById('goalLabel');
+const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer'),$goalLabel=document.getElementById('goalLabel'),$ff=document.getElementById('fdFill');
 const $pauseBtn=document.getElementById('pauseBtn'),$pauseOverlay=document.getElementById('pauseOverlay');
 const $resumeBtn=document.getElementById('resumeBtn'),$pauseSaveBtn=document.getElementById('pauseSaveBtn');
 function togglePause(){
@@ -2182,6 +2182,7 @@ function updateHUD(){
   $sv.textContent=gs.score;$kv.textContent=gs.kills;$dv.textContent='DAY '+gs.day;
   const pct=Math.max(0,Math.min(100,P.hp));$hf.style.width=pct+'%';
   $hf.style.background=pct>40?'linear-gradient(90deg,#43a047,#a5d6a7)':'linear-gradient(90deg,#e53935,#ff8a80)';
+  const fpct=Math.max(0,Math.min(100,P.food));if($ff){$ff.style.width=fpct+'%';$ff.style.background=fpct>20?'linear-gradient(90deg,#e07f1f,#ffcf7f)':'linear-gradient(90deg,#b71c1c,#ff8a65)';}
   $bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)));
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
@@ -2809,7 +2810,7 @@ async function startGame(){
   overlay.classList.add('hide');initAudio();
   initWorldNoise(Math.floor(Math.random()*999999));
   commonReset();resetInv();resetAchievements();resetWorldEdits();
-  P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.invT=0;
+  P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.food=100;P.invT=0;
   weaponIdx=0;curType=0;setType(0);
   updateChunks(true);
   // spawn on the actual generated surface: 3D carving (cave mouths / cliffs)
@@ -2831,7 +2832,7 @@ async function continueGame(){
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
   finalBossPending=!!d.finalBossPending;
-  P.hp=d.hp||100;P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
+  P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
   curType=Math.max(0,Math.min(5,d.curType||0));setType(curType);
   yaw=d.yaw||0;pitch=d.pitch||0;
@@ -2915,7 +2916,7 @@ function tick(now){
   // cracks heal if you stop mining a block (Minecraft-style)
   if(miningKey&&performance.now()/1000-miningLastT>0.7)resetMining();
   const isDay=(gs.time<.4||gs.time>.9);
-  if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
+  if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0&&P.food>60){P.hp=Math.min(P.maxHp,P.hp+2.5*dt);P.food=Math.max(0,P.food-.5*dt);}
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
   if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,chestCount,bedCount,trophyCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
@@ -2933,13 +2934,23 @@ function tick(now){
   if(inSnow){snowParticleT+=dt;if(snowParticleT>.3){snowParticleT=0;spawnSnowParticles(P.x,P.y,P.z);}}
   let fw=joy.y,sr=joy.x;
   if(isDesktop){fw=0;sr=0;if(keys['KeyW']||keys['ArrowUp'])fw=1;if(keys['KeyS']||keys['ArrowDown'])fw=-1;if(keys['KeyA']||keys['ArrowLeft'])sr=-1;if(keys['KeyD']||keys['ArrowRight'])sr=1;if(fw&&sr){const inv2=1/Math.SQRT2;fw*=inv2;sr*=inv2;}}
-  const sprinting=!!keys['ShiftLeft']||!!keys['ShiftRight'];const curSpeed=sprinting?SPRINT_SPEED:SPEED;
+  const _wantSprint=isDesktop?(!!keys['ShiftLeft']||!!keys['ShiftRight']):Math.hypot(joy.x,joy.y)>.92;
+  const sprinting=_wantSprint&&P.food>20; // too hungry to sprint
+  const curSpeed=sprinting?SPRINT_SPEED:SPEED;
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE,P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
+  // hunger: drains over time, faster while sprinting; at 0 you slowly starve
+  // (HP never drops below 10 from hunger, like Minecraft's gentler modes)
+  P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving?0.35:0))*dt);
+  if(P.food<=0){starveT+=dt;if(starveT>=3){starveT=0;if(P.hp>10){P.hp=Math.max(10,P.hp-2*difficultyMult());playTone(160,.12,.06,'sawtooth');}}}
+  else starveT=0;
+  // sprint FOV kick (Minecraft-style)
+  const _tgtFov=(sprinting&&_moving)?80:72;
+  if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
   chunkT+=dt;if(chunkT>.5){updateChunks(false);applyWorldEdits();chunkT=0;}
   updateBoss(dt);updateDragon(dt);updateMobs(dt);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnPigs(Math.min(lack,4));}
