@@ -1247,6 +1247,24 @@ function checkLava(){const px=Math.floor(P.x),py=Math.floor(P.y),pz=Math.floor(P
 // ═══ PARTICLES ═══
 let particles=[];const particleGeo=new THREE.BoxGeometry(.1,.1,.1);
 function spawnParticles(x,y,z,color,count){count=isTouch?Math.min(count,2):Math.min(count,5);if(isTouch&&particles.length>=12)return;for(let i=0;i<count;i++){const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:1});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x,y,z);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*5,vy:Math.random()*4+2,vz:(Math.random()-.5)*5,life:.4+Math.random()*.3});}}
+// block-break debris: more pieces than a hit spark, with per-piece shade and
+// size variation so the burst reads as chunks of the broken block
+function spawnBlockDebris(x,y,z,ti){
+  const base=BLOCK_COLORS[ti]!==undefined?BLOCK_COLORS[ti]:0x888888;
+  const n=isTouch?4:9;
+  if(isTouch&&particles.length>=12)return;
+  for(let i=0;i<n;i++){
+    const f=(Math.random()-.5)*.5;
+    let r=(base>>16&255)/255,g=(base>>8&255)/255,b=(base&255)/255;
+    if(f>=0){r+=(1-r)*f;g+=(1-g)*f;b+=(1-b)*f;}else{r*=1+f;g*=1+f;b*=1+f;}
+    const mat=new THREE.MeshBasicMaterial({color:new THREE.Color(r,g,b),transparent:true,opacity:1});
+    const m=new THREE.Mesh(particleGeo,mat);
+    const sc=.6+Math.random()*1.2;m.scale.set(sc,sc,sc);
+    m.position.set(x+(Math.random()-.5)*.6,y+(Math.random()-.5)*.6,z+(Math.random()-.5)*.6);
+    scene.add(m);
+    particles.push({mesh:m,mat,vx:(Math.random()-.5)*6,vy:Math.random()*4.5+2,vz:(Math.random()-.5)*6,life:.5+Math.random()*.35});
+  }
+}
 function spawnLavaParticles(x,y,z){for(let i=0;i<3;i++){const mat=new THREE.MeshBasicMaterial({color:Math.random()<.5?0xff4400:0xff8800,transparent:true,opacity:1});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x,y,z);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*2,vy:Math.random()*3+2,vz:(Math.random()-.5)*2,life:.6+Math.random()*.4});}}
 function spawnSnowParticles(x,y,z){for(let i=0;i<2;i++){const mat=new THREE.MeshBasicMaterial({color:0xddeeff,transparent:true,opacity:.8});const m=new THREE.Mesh(particleGeo,mat);m.position.set(x+Math.random()-.5,y+Math.random()*2+1,z+Math.random()-.5);scene.add(m);particles.push({mesh:m,mat,vx:(Math.random()-.5)*.5,vy:-Math.random()*1.5-.5,vz:(Math.random()-.5)*.5,life:1.5+Math.random()});}}
 function updateParticles(dt){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;if(p.life<=0){scene.remove(p.mesh);p.mat.dispose();particles.splice(i,1);continue;}p.vy-=12*dt;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.mesh.rotation.x+=dt*4;p.mat.opacity=Math.max(0,p.life/.4);}}
@@ -2268,6 +2286,35 @@ function _refreshHeld(){
 }
 let handT=0,walkPhase=0,swingT=0,_lastStep=0;
 function triggerHandSwing(){swingT=1;}
+// ─── OFFHAND: selected hotbar block shown in the left hand ───
+const offhandGroup=new THREE.Group();
+offhandGroup.visible=false;
+camera.add(offhandGroup);
+const _offGeo=new THREE.BoxGeometry(.34,.34,.34);
+_offGeo.setAttribute('color',boxGeo.getAttribute('color')); // reuse face shading (same 24-vert layout)
+const _offMatCache={};
+function _offMatsFor(ti){
+  if(_offMatCache[ti])return _offMatCache[ti];
+  // clone world materials so depthTest can be disabled without affecting blocks
+  const mk=m=>{const c=m.clone();c.depthTest=false;return c;};
+  const src=blockMats[ti];
+  const mats=Array.isArray(src)?src.map(mk):mk(src);
+  _offMatCache[ti]=mats;return mats;
+}
+let _offMesh=null,_offType=-1;
+function _refreshOffhand(){
+  if(_offType===curType&&_offMesh)return;
+  _offType=curType;
+  if(_offMesh)offhandGroup.remove(_offMesh); // geometry/materials are cached, don't dispose
+  const ti=SLOT_TI[curType];
+  _offMesh=new THREE.Mesh(ti===TORCH_BLOCK?torchGeo:_offGeo,_offMatsFor(ti));
+  _offMesh.renderOrder=1000;_offMesh.frustumCulled=false;
+  _offMesh.rotation.set(ti===TORCH_BLOCK?.15:.35,.75,ti===TORCH_BLOCK?-.2:0);
+  _offMesh.scale.setScalar(ti===TORCH_BLOCK?.55:1); // torch is a tall stick; shrink to hand size
+  offhandGroup.add(_offMesh);
+}
+let placeSwingT=0;
+function triggerPlaceSwing(){placeSwingT=1;}
 // per-material footsteps: soft grass, dull sand/snow, knocky wood, clicky stone
 const FOOT_TONE={0:[150,'triangle'],5:[150,'triangle'],2:[105,'triangle'],[SNOW_BLOCK]:[95,'triangle'],3:[190,'square'],[CAVE_DIRT]:[130,'triangle']};
 function playFootstep(){
@@ -2297,6 +2344,16 @@ function updateHand(dt,moving,sprinting){
   handGroup.rotation.set(-s*.7,s*.3,0);
   handGroup.position.z=-.7-s*.12;
   handGroup.position.y-=s*.04;
+  // offhand block: mirrored on the left, bobs in antiphase, swings on place
+  offhandGroup.visible=gs.running;
+  _refreshOffhand();
+  if(placeSwingT>0)placeSwingT=Math.max(0,placeSwingT-dt*4.5);
+  const ps=placeSwingT>0?Math.sin((1-placeSwingT)*Math.PI):0;
+  offhandGroup.position.set(
+    -hx+Math.sin(walkPhase+Math.PI)*.024*wb,
+    -.42+sway*.8-Math.abs(Math.cos(walkPhase+Math.PI))*.026*wb-ps*.04,
+    -.68-ps*.15);
+  offhandGroup.rotation.set(-ps*.8,-ps*.3,0);
   if(wb){const step=Math.floor(walkPhase/Math.PI);if(step!==_lastStep){_lastStep=step;playFootstep();}}
 }
 function updateViewBob(moving,sprinting){
@@ -2376,7 +2433,7 @@ function breakBlock(bh){
   const k=vKey(d.x,d.y,d.z);
   const v=voxels[k];
   if(v){
-    spawnParticles(bh.object.position.x,bh.object.position.y,bh.object.position.z,BLOCK_COLORS[v.ti],4);
+    spawnBlockDebris(bh.object.position.x,bh.object.position.y,bh.object.position.z,v.ti);
     addMaterial(v.ti);
     if(v.ti===TORCH_BLOCK){inv.torch++;updateInvHUD();}
     if(v.ti===DIAMOND_ORE&&dragon===null&&!dragonWarnPending&&P.y<-12&&Math.random()<0.2){dragonWarnPending=true;showAlert('⚠ ダイヤを掘った…何かが目覚めた…');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}
@@ -2389,7 +2446,7 @@ function breakBlock(bh){
 // ─── ENEMY BLOCK BREAKING ───
 function enemyBreakBlockAt(x,y,z){
   const k=vKey(x,y,z);const v=voxels[k];if(!v||!v.active||v.ti===WATER_BLOCK)return false;
-  spawnParticles(x+.5,y+.5,z+.5,BLOCK_COLORS[v.ti],4);
+  spawnBlockDebris(x+.5,y+.5,z+.5,v.ti);
   if(Math.hypot(x-P.x,z-P.z)<20)sfxBreak();
   if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
   removeBlock(x,y,z);return true;
@@ -2477,7 +2534,7 @@ function doPlace(e){
   inv[mat]--;updateInvHUD();
   addBlock(px,py,pz,ti,true,true);
   const pk=vKey(px,py,pz);worldEdits.placed[pk]=ti;delete worldEdits.removed[pk];
-  sfxPlace();triggerHandSwing();
+  sfxPlace();triggerPlaceSwing();
 }
 
 // ═══ BUTTONS ═══
