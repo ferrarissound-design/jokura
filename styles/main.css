@@ -13,18 +13,21 @@ canvas#c{display:block;touch-action:none}
 #hpLabel{font-size:8px;color:#fff9;letter-spacing:1.5px;margin-bottom:2px}
 #hpBar{width:min(150px,35vw);height:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
 #hpFill{height:100%;width:100%;background:linear-gradient(90deg,#43a047,#a5d6a7);transition:width .25s,background .4s}
-#biomeLabel{position:absolute;top:calc(78px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#fff8;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#weaponLabel{position:absolute;top:calc(92px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f9d342cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#goalLabel{position:absolute;top:calc(108px + var(--safeT));left:calc(10px + var(--safeL));max-width:min(430px,72vw);padding:4px 7px;border:1px solid rgba(249,211,66,.3);border-radius:7px;background:rgba(0,0,0,.45);font-size:9px;color:#fff8c6;text-shadow:1px 1px 0 #000;z-index:10;font-weight:800;line-height:1.35;letter-spacing:.2px}
-#meatLabel{position:absolute;top:calc(144px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f4a9a8cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#eatBtn{position:absolute;top:calc(158px + var(--safeT));left:calc(10px + var(--safeL));padding:4px 10px;border-radius:7px;border:1.5px solid #f4a9a866;background:rgba(244,169,168,.22);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
+#fdArea{position:absolute;top:calc(80px + var(--safeT));left:calc(10px + var(--safeL));z-index:10}
+#fdBar{width:min(150px,35vw);height:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+#fdFill{height:100%;width:100%;background:linear-gradient(90deg,#e07f1f,#ffcf7f);transition:width .25s,background .4s}
+#biomeLabel{position:absolute;top:calc(92px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#fff8;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
+#weaponLabel{position:absolute;top:calc(106px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f9d342cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
+#goalLabel{position:absolute;top:calc(122px + var(--safeT));left:calc(10px + var(--safeL));max-width:min(430px,72vw);padding:4px 7px;border:1px solid rgba(249,211,66,.3);border-radius:7px;background:rgba(0,0,0,.45);font-size:9px;color:#fff8c6;text-shadow:1px 1px 0 #000;z-index:10;font-weight:800;line-height:1.35;letter-spacing:.2px}
+#meatLabel{position:absolute;top:calc(158px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f4a9a8cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
+#eatBtn{position:absolute;top:calc(172px + var(--safeT));left:calc(10px + var(--safeL));padding:4px 10px;border-radius:7px;border:1.5px solid #f4a9a866;background:rgba(244,169,168,.22);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #eatBtn:active{transform:scale(.92)}
 #eatBtn.disabled{opacity:.3;pointer-events:none}
-#invPanel{position:absolute;top:calc(183px + var(--safeT));left:calc(10px + var(--safeL));z-index:10;pointer-events:none}
+#invPanel{position:absolute;top:calc(197px + var(--safeT));left:calc(10px + var(--safeL));z-index:10;pointer-events:none}
 .invRow{font-size:8px;color:#cccddda0;letter-spacing:.8px;text-shadow:1px 1px 0 #000;line-height:1.55}
-#craftBtn{position:absolute;top:calc(293px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
+#craftBtn{position:absolute;top:calc(307px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #craftBtn:active{transform:scale(.92)}
-#craftPanel{position:absolute;top:calc(319px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 348px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#craftPanel{position:absolute;top:calc(333px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 362px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #craftPanel.open{display:block}
 .citem{padding:0 10px;height:32px;font-size:11px;font-weight:700;color:#ddd;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;touch-action:manipulation;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;letter-spacing:.3px}
 .citem:last-child{border-bottom:none}
