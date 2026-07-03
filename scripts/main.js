@@ -241,9 +241,11 @@ function resetWorldEdits(){
   for(const k in worldEdits.removed)delete worldEdits.removed[k];
 }
 function applyWorldEdits(){
+  _deferDirty=true; // batch chunk rebuilds: one per touched chunk, not per edit
   for(const k in worldEdits.removed){
     if(voxels[k]&&voxels[k].active){
-      const v=voxels[k];removeBlock(v.mesh.userData.x,v.mesh.userData.y,v.mesh.userData.z);
+      const[x,y,z]=k.split('|').map(Number);
+      removeBlock(x,y,z);
     }
   }
   for(const k in worldEdits.placed){
@@ -252,6 +254,7 @@ function applyWorldEdits(){
       addBlock(x,y,z,worldEdits.placed[k],true,true);
     }
   }
+  _deferDirty=false;flushDirtyChunks();
 }
 
 // ═══ SAVE ═══
@@ -733,77 +736,120 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
   for(let f=0;f<6;f++){const s=FACE_SHADE[f];for(let v=0;v<4;v++){const o=(f*4+v)*3;cols[o]=cols[o+1]=cols[o+2]=s;}}
   boxGeo.setAttribute('color',new THREE.BufferAttribute(cols,3));
 })();
-// ─── VERTEX AO (Minecraft-style smooth lighting) ───
-// Each visible block corner is darkened by how many solid neighbours surround
-// it (classic side1/side2/corner rule). AO is baked into a per-block vertex
-// color attribute; geometries are cached by AO pattern and share
-// position/normal/uv/index with boxGeo, so flat terrain reuses a handful of
-// geometries and memory stays low. Recomputed locally when blocks change.
+// ─── MERGED CHUNK MESHES (greedy chunk meshing foundation) ───
+// All opaque cube blocks of a chunk are baked into ONE mesh: only exposed
+// faces are emitted, per-corner vertex AO (classic side1/side2/corner rule)
+// and the directional face shading are baked into vertex colors, and faces
+// are grouped by material so a chunk renders in a handful of draw calls
+// instead of one per block. Water and torches stay as individual meshes
+// (custom geometry/shader). Editing a block rebuilds only the touched chunks.
 const AO_LEVEL=[1,.76,.58,.45];
 boxGeo.computeBoundingSphere();boxGeo.computeBoundingBox();
-const _aoCache=new Map();
-const _aoTmp=new Uint8Array(24);
-const _occ27=new Uint8Array(27);
 function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK)?1:0;}
-// fills _aoTmp with per-vertex occlusion levels (0-3); returns false if the
-// block is fully buried (no exposed face → keep the plain shared geometry)
-function _computeBlockAO(x,y,z){
-  let i=0;
-  for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)_occ27[i++]=_aoOccluder(x+dx,y+dy,z+dz);
-  const at=(dx,dy,dz)=>_occ27[(dy+1)*9+(dz+1)*3+(dx+1)];
-  if(at(1,0,0)&&at(-1,0,0)&&at(0,1,0)&&at(0,-1,0)&&at(0,0,1)&&at(0,0,-1))return false;
-  const pos=boxGeo.getAttribute('position'),norm=boxGeo.getAttribute('normal');
-  for(let v=0;v<24;v++){
-    const nx=norm.getX(v),ny=norm.getY(v),nz=norm.getZ(v);
-    const px=pos.getX(v)>0?1:-1,py=pos.getY(v)>0?1:-1,pz=pos.getZ(v)>0?1:-1;
-    let s1,s2,c;
-    if(nx!==0){s1=at(nx,py,0);s2=at(nx,0,pz);c=at(nx,py,pz);}
-    else if(ny!==0){s1=at(px,ny,0);s2=at(0,ny,pz);c=at(px,ny,pz);}
-    else{s1=at(px,0,nz);s2=at(0,py,nz);c=at(px,py,nz);}
-    _aoTmp[v]=(s1&&s2)?3:s1+s2+c;
+const _FACE_UV=[[0,0],[1,0],[1,1],[0,1]];
+// face order matches blockMats material arrays: +x,-x,+y(top),-y(bottom),+z,-z
+const FACE_DEF=(()=>{
+  const defs=[
+    {n:[1,0,0], c:[[1,0,1],[1,0,0],[1,1,0],[1,1,1]],shade:.72},
+    {n:[-1,0,0],c:[[0,0,0],[0,0,1],[0,1,1],[0,1,0]],shade:.72},
+    {n:[0,1,0], c:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]],shade:1},
+    {n:[0,-1,0],c:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]],shade:.55},
+    {n:[0,0,1], c:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]],shade:.86},
+    {n:[0,0,-1],c:[[1,0,0],[0,0,0],[0,1,0],[1,1,0]],shade:.86},
+  ];
+  for(const d of defs){
+    const a=d.n[0]!==0?0:d.n[1]!==0?1:2;
+    const t=[0,1,2].filter(i=>i!==a);
+    // per corner: offsets of the side1/side2/corner AO probes
+    d.ao=d.c.map(c=>{
+      const du=c[t[0]]===1?1:-1,dv=c[t[1]]===1?1:-1;
+      const s1=[...d.n];s1[t[0]]+=du;
+      const s2=[...d.n];s2[t[1]]+=dv;
+      const cc=[...d.n];cc[t[0]]+=du;cc[t[1]]+=dv;
+      return[s1,s2,cc];
+    });
   }
-  return true;
+  return defs;
+})();
+function makeChunkRec(isUnder){
+  const mesh=new THREE.Mesh(new THREE.BufferGeometry(),[]);
+  mesh.castShadow=!isUnder;mesh.receiveShadow=true;
+  mesh.userData.isChunk=true;
+  return{keys:new Set(),specials:new Set(),solidMesh:mesh,built:false,loaded:true,under:isUnder};
 }
-function _aoGeometryFor(x,y,z){
-  if(!_computeBlockAO(x,y,z))return boxGeo;
-  let key='',any=false;
-  for(let v=0;v<24;v++){key+=_aoTmp[v];if(_aoTmp[v])any=true;}
-  if(!any)return boxGeo;
-  let g=_aoCache.get(key);
-  if(!g){
-    if(_aoCache.size>20000)_aoCache.clear(); // safety valve; in-use geometries stay referenced by meshes
-    g=new THREE.BufferGeometry();
-    g.setIndex(boxGeo.getIndex());
-    g.setAttribute('position',boxGeo.getAttribute('position'));
-    g.setAttribute('normal',boxGeo.getAttribute('normal'));
-    g.setAttribute('uv',boxGeo.getAttribute('uv'));
-    const base=boxGeo.getAttribute('color'),cols=new Float32Array(72);
-    for(let v=0;v<24;v++){const f=base.getX(v)*AO_LEVEL[_aoTmp[v]];cols[v*3]=cols[v*3+1]=cols[v*3+2]=f;}
-    g.setAttribute('color',new THREE.BufferAttribute(cols,3));
-    for(const gr of boxGeo.groups)g.addGroup(gr.start,gr.count,gr.materialIndex);
-    g.boundingSphere=boxGeo.boundingSphere;g.boundingBox=boxGeo.boundingBox;
-    _aoCache.set(key,g);
+function buildChunkMesh(rec){
+  const buckets=new Map();
+  for(const k of rec.keys){
+    const v=voxels[k];if(!v)continue;
+    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK)continue;
+    const p=k.split('|');const x=+p[0],y=+p[1],z=+p[2];
+    const bm=blockMats[ti];
+    for(let f=0;f<6;f++){
+      const fd=FACE_DEF[f];
+      if(_aoOccluder(x+fd.n[0],y+fd.n[1],z+fd.n[2]))continue; // hidden face
+      const mat=Array.isArray(bm)?bm[f]:bm;
+      let b=buckets.get(mat);
+      if(!b){b={pos:[],nrm:[],uv:[],col:[],idx:[]};buckets.set(mat,b);}
+      const vi=b.pos.length/3;
+      for(let ci=0;ci<4;ci++){
+        const c=fd.c[ci];
+        b.pos.push(x+c[0],y+c[1],z+c[2]);
+        b.nrm.push(fd.n[0],fd.n[1],fd.n[2]);
+        b.uv.push(_FACE_UV[ci][0],_FACE_UV[ci][1]);
+        const A=fd.ao[ci];
+        const s1=_aoOccluder(x+A[0][0],y+A[0][1],z+A[0][2]);
+        const s2=_aoOccluder(x+A[1][0],y+A[1][1],z+A[1][2]);
+        const cc=_aoOccluder(x+A[2][0],y+A[2][1],z+A[2][2]);
+        const sh=fd.shade*AO_LEVEL[(s1&&s2)?3:s1+s2+cc];
+        b.col.push(sh,sh,sh);
+      }
+      b.idx.push(vi,vi+1,vi+2,vi,vi+2,vi+3);
+    }
   }
-  return g;
+  let vTotal=0,iTotal=0;
+  for(const b of buckets.values()){vTotal+=b.pos.length/3;iTotal+=b.idx.length;}
+  const pos=new Float32Array(vTotal*3),nrm=new Float32Array(vTotal*3),uv=new Float32Array(vTotal*2),col=new Float32Array(vTotal*3);
+  const idx=vTotal>65535?new Uint32Array(iTotal):new Uint16Array(iTotal);
+  const geo=new THREE.BufferGeometry(),mats=[];
+  let vo=0,io=0;
+  for(const[mat,b]of buckets){
+    pos.set(b.pos,vo*3);nrm.set(b.nrm,vo*3);uv.set(b.uv,vo*2);col.set(b.col,vo*3);
+    for(let i=0;i<b.idx.length;i++)idx[io+i]=b.idx[i]+vo;
+    geo.addGroup(io,b.idx.length,mats.length);
+    mats.push(mat);
+    vo+=b.pos.length/3;io+=b.idx.length;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('normal',new THREE.BufferAttribute(nrm,3));
+  geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  geo.setIndex(new THREE.BufferAttribute(idx,1));
+  geo.computeBoundingSphere();geo.computeBoundingBox();
+  rec.solidMesh.geometry.dispose();
+  rec.solidMesh.geometry=geo;
+  rec.solidMesh.material=mats;
+  rec.built=true;
 }
-function refreshBlockAO(x,y,z){
-  const v=voxels[vKey(x,y,z)];if(!v)return;
-  if(v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK||v.ti===TORCH_BLOCK)return; // untinted / glowing / non-cube blocks keep flat shading
-  v.mesh.geometry=_aoGeometryFor(x,y,z);
+// chunk record owning given world coordinates (may be null if not generated)
+function recAt(x,y,z){
+  const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
+  if(y<0){const cy=Math.floor(y/CHUNK_Y);return underChunks[ucKey(cx,cy,cz)]||null;}
+  return chunks[cKey(cx,cz)]||null;
 }
-function refreshAOAround(x,y,z,includeSelf){
+// mark every chunk whose faces/AO can change when (x,y,z) changes
+const _dirtyRecs=new Set();
+let _deferDirty=false;
+function markDirtyAround(x,y,z){
   for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
-    if(!includeSelf&&dx===0&&dy===0&&dz===0)continue;
-    refreshBlockAO(x+dx,y+dy,z+dz);
+    const v=voxels[vKey(x+dx,y+dy,z+dz)];
+    if(v&&v.rec)_dirtyRecs.add(v.rec);
+    else{const r=recAt(x+dx,y+dy,z+dz);if(r)_dirtyRecs.add(r);}
   }
 }
-function _applyAOToMeshes(meshes){
-  for(const m of meshes){const d=m.userData;refreshBlockAO(d.x,d.y,d.z);}
-}
-// re-shade one boundary plane of an already-generated neighbour chunk after a
-// new chunk appears next to it (its border AO was computed without us)
-function _refreshPlaneAO(meshes,axis,value){
-  for(const m of meshes){const d=m.userData;if((axis==='x'?d.x:axis==='z'?d.z:d.y)===value)refreshBlockAO(d.x,d.y,d.z);}
+function flushDirtyChunks(){
+  if(_deferDirty||!_dirtyRecs.size)return;
+  for(const rec of _dirtyRecs){if(rec.built)buildChunkMesh(rec);}
+  _dirtyRecs.clear();
 }
 // ─── PIXEL-ART BLOCK TEXTURES (Minecraft style) ───
 // 16x16 procedural textures rendered to canvas, sampled with NearestFilter for
@@ -959,7 +1005,7 @@ blockMats[WATER_BLOCK].onBeforeCompile=(sh)=>{
     dot.style.backgroundSize='cover';dot.style.imageRendering='pixelated';
   });
 })();
-let voxels={},blockMeshes=new Set(),lavaBlocks=new Set(),torchBlocks=new Set();
+let voxels={},lavaBlocks=new Set(),torchBlocks=new Set();
 const vKey=(x,y,z)=>x+'|'+y+'|'+z;const cKey=(cx,cz)=>cx+','+cz;const ucKey=(cx,cy,cz)=>cx+','+cy+','+cz;
 let chunks={},activeChunks={};
 let underChunks={},activeUnderChunks={};
@@ -976,24 +1022,39 @@ function getBiomeName(b){return['🌿 PLAINS','🏜 DESERT','🌲 FOREST','🪨 
 function getGroundType(biome){return[0,2,5,1,7,SNOW_BLOCK][biome];}
 function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,4);if(biome===BIOMES.MOUNTAIN)h=h*4+2;else if(biome===BIOMES.FOREST)h=h*1.5+0.3;else if(biome===BIOMES.DESERT)h=h*0.8;else if(biome===BIOMES.VOLCANO)h=h*3.5+1.5;else if(biome===BIOMES.SNOW)h=h*2.5+0.5;else h=h*1.2;return Math.max(0,Math.floor(h+1));}
 
+// Registers a voxel. Cube blocks live in the merged chunk mesh; only water
+// and torches get an individual mesh (custom geometry / shader).
+// Returns the voxel key (generation collects the keys into its chunk record).
 function addBlock(x,y,z,ti,addToScene,playerPlaced){
   const k=vKey(x,y,z);if(voxels[k])return;
-  const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:boxGeo,blockMats[ti]);
-  m.position.set(x+.5,y+.5,z+.5);
-  m.castShadow=y>=0&&ti!==WATER_BLOCK&&ti!==TORCH_BLOCK;m.receiveShadow=ti!==TORCH_BLOCK;
-  m.userData={x,y,z,isBlock:true,ti,playerPlaced:!!playerPlaced};
-  if(addToScene)scene.add(m);
-  voxels[k]={mesh:m,ti,active:!!addToScene,playerPlaced:!!playerPlaced};
-  if(addToScene){
-    blockMeshes.add(m);if(ti===LAVA_BLOCK)lavaBlocks.add(k);if(ti===TORCH_BLOCK)torchBlocks.add(k);
-    const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
-    if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.add(m);}
-    else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.add(m);}
-    refreshAOAround(x,y,z,true); // placed live: shade self + re-shade neighbours
+  const v={ti,active:!!addToScene,playerPlaced:!!playerPlaced,rec:null,mesh:null};
+  if(ti===WATER_BLOCK||ti===TORCH_BLOCK){
+    const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:torchGeo,blockMats[ti]);
+    m.position.set(x+.5,y+.5,z+.5);
+    m.castShadow=false;m.receiveShadow=ti!==TORCH_BLOCK;
+    m.userData={x,y,z,isBlock:true,ti};
+    v.mesh=m;
   }
-  return m;
+  voxels[k]=v;
+  if(addToScene){ // live placement (player / world-edit replay)
+    const rec=recAt(x,y,z);
+    if(rec){v.rec=rec;rec.keys.add(k);if(v.mesh)rec.specials.add(v.mesh);}
+    if(v.mesh)scene.add(v.mesh);
+    if(ti===LAVA_BLOCK)lavaBlocks.add(k);if(ti===TORCH_BLOCK)torchBlocks.add(k);
+    markDirtyAround(x,y,z);
+    flushDirtyChunks();
+  }
+  return k;
 }
-function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);torchBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];refreshAOAround(x,y,z,false);}
+function removeBlock(x,y,z){
+  const k=vKey(x,y,z);const v=voxels[k];if(!v)return;
+  if(v.mesh){scene.remove(v.mesh);if(v.rec)v.rec.specials.delete(v.mesh);}
+  if(v.rec)v.rec.keys.delete(k);
+  lavaBlocks.delete(k);torchBlocks.delete(k);
+  delete voxels[k];
+  markDirtyAround(x,y,z);
+  flushDirtyChunks();
+}
 
 // ─── 3D SURFACE CARVING (cliffs, overhangs, cave mouths) ───
 // cave mouths: rare, wide low-frequency blobs that drill from the surface
@@ -1069,39 +1130,62 @@ function generateChunk(cx,cz){
     if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.add(mr);}}
     if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms)meshes.add(ms);}}
   }
-  chunks[key]={meshes,loaded:true};
-  // vertex AO: shade this chunk, then re-shade the facing border of any
-  // already-generated neighbour (its edge AO was computed before we existed)
-  _applyAOToMeshes(meshes);
-  const west=chunks[cKey(cx-1,cz)],east=chunks[cKey(cx+1,cz)],north=chunks[cKey(cx,cz-1)],south=chunks[cKey(cx,cz+1)];
-  if(west)_refreshPlaneAO(west.meshes,'x',ox-1);
-  if(east)_refreshPlaneAO(east.meshes,'x',ox+CHUNK);
-  if(north)_refreshPlaneAO(north.meshes,'z',oz-1);
-  if(south)_refreshPlaneAO(south.meshes,'z',oz+CHUNK);
-  const below=underChunks[ucKey(cx,-1,cz)];
-  if(below)_refreshPlaneAO(below.meshes,'y',-1);
+  const rec=makeChunkRec(false);
+  for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
+  chunks[key]=rec;
+  // a new chunk changes visible faces/AO along its borders: rebuild any
+  // neighbour whose merged mesh was already built
+  const nb=[chunks[cKey(cx-1,cz)],chunks[cKey(cx+1,cz)],chunks[cKey(cx,cz-1)],chunks[cKey(cx,cz+1)],underChunks[ucKey(cx,-1,cz)]];
+  for(const r of nb)if(r&&r.built)buildChunkMesh(r);
 }
-function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;for(const m of chunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);if(voxels[k].ti===TORCH_BLOCK)torchBlocks.add(k);}blockMeshes.add(m);}activeChunks[key]=true;}
-function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;for(const m of chunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);torchBlocks.delete(k);}blockMeshes.delete(m);}delete activeChunks[key];}
-function showUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!underChunks[key]||activeUnderChunks[key])return;for(const m of underChunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);if(voxels[k].ti===TORCH_BLOCK)torchBlocks.add(k);}blockMeshes.add(m);}activeUnderChunks[key]=true;}
-function hideUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!activeUnderChunks[key]||!underChunks[key])return;for(const m of underChunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);torchBlocks.delete(k);}blockMeshes.delete(m);}delete activeUnderChunks[key];}
+function _showRec(rec){
+  if(!rec.built)buildChunkMesh(rec);
+  scene.add(rec.solidMesh);
+  for(const m of rec.specials)scene.add(m);
+  for(const k of rec.keys){const v=voxels[k];if(!v)continue;v.active=true;if(v.ti===LAVA_BLOCK)lavaBlocks.add(k);if(v.ti===TORCH_BLOCK)torchBlocks.add(k);}
+}
+function _hideRec(rec){
+  scene.remove(rec.solidMesh);
+  for(const m of rec.specials)scene.remove(m);
+  for(const k of rec.keys){const v=voxels[k];if(!v)continue;v.active=false;lavaBlocks.delete(k);torchBlocks.delete(k);}
+}
+function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;_showRec(chunks[key]);activeChunks[key]=true;}
+function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;_hideRec(chunks[key]);delete activeChunks[key];}
+function showUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!underChunks[key]||activeUnderChunks[key])return;_showRec(underChunks[key]);activeUnderChunks[key]=true;}
+function hideUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!activeUnderChunks[key]||!underChunks[key])return;_hideRec(underChunks[key]);delete activeUnderChunks[key];}
 let lastPCX=null,lastPCZ=null,lastPCY=null;
 function updateChunks(force){
   const pcx=Math.floor(P.x/CHUNK),pcz=Math.floor(P.z/CHUNK),pcy=Math.floor(P.y/CHUNK_Y);
   if(!force&&pcx===lastPCX&&pcz===lastPCZ&&pcy===lastPCY)return;
   lastPCX=pcx;lastPCZ=pcz;lastPCY=pcy;
-  const needed={},neededU={};
+  const needed={},neededU={},list=[];
   for(let dx=-DRAW_R;dx<=DRAW_R;dx++)for(let dz=-DRAW_R;dz<=DRAW_R;dz++){
     const cx=pcx+dx,cz=pcz+dz;
     if(cx<-WORLD_R||cx>=WORLD_R||cz<-WORLD_R||cz>=WORLD_R)continue;
-    const sk=cKey(cx,cz);needed[sk]=true;if(!chunks[sk])generateChunk(cx,cz);showChunk(cx,cz);
-    const uk1=ucKey(cx,-1,cz);neededU[uk1]=true;if(!underChunks[uk1])generateUnderChunk(cx,-1,cz);showUnderChunk(cx,-1,cz);
-    if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;const uk=ucKey(cx,cy,cz);neededU[uk]=true;if(!underChunks[uk])generateUnderChunk(cx,cy,cz);showUnderChunk(cx,cy,cz);}}
+    list.push([cx,cz]);
+  }
+  // pass 1: generate all needed chunks (voxels only). Doing this before any
+  // mesh build means fresh chunks see all their neighbours → no rebuild storm
+  for(const[cx,cz]of list){
+    if(!chunks[cKey(cx,cz)])generateChunk(cx,cz);
+    if(!underChunks[ucKey(cx,-1,cz)])generateUnderChunk(cx,-1,cz);
+    if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;if(!underChunks[ucKey(cx,cy,cz)])generateUnderChunk(cx,cy,cz);}}
+  }
+  // pass 2: build (lazily inside show) + show
+  for(const[cx,cz]of list){
+    needed[cKey(cx,cz)]=true;showChunk(cx,cz);
+    neededU[ucKey(cx,-1,cz)]=true;showUnderChunk(cx,-1,cz);
+    if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;neededU[ucKey(cx,cy,cz)]=true;showUnderChunk(cx,cy,cz);}}
   }
   for(const key in activeChunks){if(!needed[key]){const[cx,cz]=key.split(',').map(Number);hideChunk(cx,cz);}}
   for(const key in activeUnderChunks){if(!neededU[key]){const[cx,cy,cz]=key.split(',').map(Number);hideUnderChunk(cx,cy,cz);}}
 }
-function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)scene.remove(m);for(const key in underChunks)for(const m of underChunks[key].meshes)scene.remove(m);chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};blockMeshes=new Set();lavaBlocks.clear();torchBlocks.clear();lastPCX=null;lastPCZ=null;lastPCY=null;}
+function clearWorld(){
+  const drop=(rec)=>{scene.remove(rec.solidMesh);rec.solidMesh.geometry.dispose();for(const m of rec.specials)scene.remove(m);};
+  for(const key in chunks)drop(chunks[key]);
+  for(const key in underChunks)drop(underChunks[key]);
+  chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};lavaBlocks.clear();torchBlocks.clear();_dirtyRecs.clear();lastPCX=null;lastPCZ=null;lastPCY=null;
+}
 
 // ─── UNDERGROUND GENERATION ───
 function _underRoomType(rx,ry,rz){
@@ -1178,19 +1262,17 @@ function generateUnderChunk(cx,cy,cz){
     const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
   }
   _spawnRoomContent(cx,cy,cz,meshes);
-  underChunks[key]={meshes,loaded:true};
-  // vertex AO for cave surfaces + re-shade borders of existing neighbours
-  _applyAOToMeshes(meshes);
-  const uw=underChunks[ucKey(cx-1,cy,cz)],ue=underChunks[ucKey(cx+1,cy,cz)];
-  const un=underChunks[ucKey(cx,cy,cz-1)],us=underChunks[ucKey(cx,cy,cz+1)];
-  const ud=underChunks[ucKey(cx,cy-1,cz)],uu=underChunks[ucKey(cx,cy+1,cz)];
-  if(uw)_refreshPlaneAO(uw.meshes,'x',ox-1);
-  if(ue)_refreshPlaneAO(ue.meshes,'x',ox+CHUNK);
-  if(un)_refreshPlaneAO(un.meshes,'z',oz-1);
-  if(us)_refreshPlaneAO(us.meshes,'z',oz+CHUNK);
-  if(ud)_refreshPlaneAO(ud.meshes,'y',oy-1);
-  if(uu)_refreshPlaneAO(uu.meshes,'y',oy+CHUNK_Y);
-  if(cy===-1){const surf=chunks[cKey(cx,cz)];if(surf)_refreshPlaneAO(surf.meshes,'y',0);}
+  const rec=makeChunkRec(true);
+  for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
+  underChunks[key]=rec;
+  // rebuild built neighbours whose border faces/AO change now that we exist
+  const nb=[
+    underChunks[ucKey(cx-1,cy,cz)],underChunks[ucKey(cx+1,cy,cz)],
+    underChunks[ucKey(cx,cy,cz-1)],underChunks[ucKey(cx,cy,cz+1)],
+    underChunks[ucKey(cx,cy-1,cz)],underChunks[ucKey(cx,cy+1,cz)],
+    cy===-1?chunks[cKey(cx,cz)]:null,
+  ];
+  for(const r of nb)if(r&&r.built)buildChunkMesh(r);
 }
 
 // ─── UNDERGROUND ROOMS ───
@@ -1859,7 +1941,7 @@ function makeChestMesh(){
 function placeChest(){
   if(!gs.running)return;if(chestCount<=0){showBonus('チェストがない！');return;}
   const bh=castVoxel();if(!bh)return;
-  const n=bh.face.normal,d=bh.object.userData;
+  const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   for(const c of chests){if(Math.floor(c.x)===px&&Math.floor(c.y)===py&&Math.floor(c.z)===pz)return;}
   if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1>P.z-.45)return;
@@ -1914,7 +1996,7 @@ function makeBedMesh(){
 function placeBed(){
   if(!gs.running)return;if(bedCount<=0){showBonus('ベッドがない！');return;}
   const bh=castVoxel();if(!bh)return;
-  const n=bh.face.normal,d=bh.object.userData;
+  const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   for(const b of beds){if(Math.floor(b.x)===px&&Math.floor(b.y)===py&&Math.floor(b.z)===pz)return;}
   if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1.8>P.z-.45)return;
@@ -1978,7 +2060,7 @@ function makeTrophyMesh(){
 function placeTrophy(){
   if(!gs.running)return;if(trophyCount<=0){showBonus('ドラゴン像がない！クラフトしよう');return;}
   const bh=castVoxel();if(!bh)return;
-  const n=bh.face.normal,d=bh.object.userData;
+  const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   for(const t of trophies){if(Math.floor(t.x)===px&&Math.floor(t.y)===py&&Math.floor(t.z)===pz)return;}
   if(px<P.x+.4&&px+1>P.x-.4&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.4&&pz+1>P.z-.4)return;
@@ -2229,7 +2311,7 @@ function resetMining(){miningKey='';miningProgress=0;crackMesh.visible=false;}
 // hammer is the pickaxe (fast miner); diamond hammer faster; sword/magic middling
 function weaponMinePower(){if(weaponIdx===2)return hasDiamondHammer?6:4;if(weaponIdx===1)return 1.5;if(weaponIdx===4)return 2;return 1;}
 function mineBlock(bh){
-  const d=bh.object.userData;if(d.ti===WATER_BLOCK)return;
+  const d=bh;if(d.ti===WATER_BLOCK)return;
   const hard=BLOCK_HARDNESS[d.ti]!==undefined?BLOCK_HARDNESS[d.ti]:99;
   const now=performance.now()/1000;
   if(hard>=99){playTone(90,.06,.05,'square');resetMining();return;} // unbreakable: dull thud
@@ -2241,8 +2323,8 @@ function mineBlock(bh){
   else{
     const stage=Math.min(CRACK_STAGES-1,Math.floor(miningProgress*CRACK_STAGES));
     crackMat.map=crackTex[stage];crackMat.needsUpdate=true;
-    crackMesh.position.copy(bh.object.position);crackMesh.visible=true;
-    spawnParticles(bh.object.position.x,bh.object.position.y,bh.object.position.z,BLOCK_COLORS[d.ti],1);
+    crackMesh.position.set(d.x+.5,d.y+.5,d.z+.5);crackMesh.visible=true;
+    spawnParticles(d.x+.5,d.y+.5,d.z+.5,BLOCK_COLORS[d.ti],1);
     playTone(150+miningProgress*130,.05,.03,'square');
   }
 }
@@ -2409,10 +2491,33 @@ function updateViewBob(moving,sprinting){
 
 // ═══ RAYCAST ═══
 const RC=new THREE.Raycaster();const _rd=new THREE.Vector3();
-function castVoxel(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=7;const h=RC.intersectObjects([...blockMeshes],false);return h.length?h[0]:null;}
+// castVoxel: voxel-grid DDA instead of raycasting thousands of meshes.
+// Returns {x,y,z,ti,nx,ny,nz} — block coords plus the face normal entered.
+function castVoxel(){
+  camera.getWorldDirection(_rd);
+  const ox=camera.position.x,oy=camera.position.y,oz=camera.position.z;
+  let x=Math.floor(ox),y=Math.floor(oy),z=Math.floor(oz);
+  const stepX=_rd.x>0?1:-1,stepY=_rd.y>0?1:-1,stepZ=_rd.z>0?1:-1;
+  const tDx=Math.abs(1/(_rd.x||1e-9)),tDy=Math.abs(1/(_rd.y||1e-9)),tDz=Math.abs(1/(_rd.z||1e-9));
+  let tMx=(_rd.x>0?(x+1-ox):(ox-x))*tDx;
+  let tMy=(_rd.y>0?(y+1-oy):(oy-y))*tDy;
+  let tMz=(_rd.z>0?(z+1-oz):(oz-z))*tDz;
+  let t=0,nx=0,ny=0,nz=0;
+  while(t<=7){
+    const v=voxels[vKey(x,y,z)];
+    if(v&&v.active&&v.ti!==WATER_BLOCK)return{x,y,z,ti:v.ti,nx,ny,nz};
+    if(tMx<tMy&&tMx<tMz){t=tMx;tMx+=tDx;x+=stepX;nx=-stepX;ny=0;nz=0;}
+    else if(tMy<tMz){t=tMy;tMy+=tDy;y+=stepY;nx=0;ny=-stepY;nz=0;}
+    else{t=tMz;tMz+=tDz;z+=stepZ;nx=0;ny=0;nz=-stepZ;}
+  }
+  return null;
+}
 function getEnemyMeshes(){const ms=[];for(const e of enemies)ms.push(e.body,e.head);if(boss)ms.push(boss.body,boss.head);return ms;}
-function castEnemies(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=10;const h=RC.intersectObjects([...getEnemyMeshes(),...blockMeshes],false);if(!h.length)return null;if(h[0].object.userData.isBlock)return null;return h[0];}
-function castEnemiesFar(range){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=range;const h=RC.intersectObjects([...getEnemyMeshes(),...blockMeshes],false);if(!h.length)return null;if(h[0].object.userData.isBlock)return null;return h[0];}
+// enemy shots: raycast only enemy meshes, then confirm line-of-sight through
+// the voxel grid (blocks no longer participate in mesh raycasts)
+function _losToPoint(p){return hasLOS(camera.position.x,camera.position.y,camera.position.z,p.x,p.y,p.z);}
+function castEnemies(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=10;const h=RC.intersectObjects(getEnemyMeshes(),false);if(!h.length)return null;if(!_losToPoint(h[0].point))return null;return h[0];}
+function castEnemiesFar(range){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=range;const h=RC.intersectObjects(getEnemyMeshes(),false);if(!h.length)return null;if(!_losToPoint(h[0].point))return null;return h[0];}
 function findEnemyByMesh(obj){for(const e of enemies){if(obj===e.body||obj===e.head)return{enemy:e,isBoss:false};}if(boss&&(obj===boss.body||obj===boss.head))return{enemy:boss,isBoss:true};return null;}
 function hasLOS(x1,y1,z1,x2,y2,z2){
   const dx=x2-x1,dy=y2-y1,dz=z2-z1;
@@ -2473,16 +2578,16 @@ function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0
 
 // ブロック破壊共通処理
 function breakBlock(bh){
-  const d=bh.object.userData;
+  const d=bh; // castVoxel hit record: {x,y,z,ti,nx,ny,nz}
   if(d.ti===WATER_BLOCK)return;
   const k=vKey(d.x,d.y,d.z);
   const v=voxels[k];
   if(v){
-    spawnBlockDebris(bh.object.position.x,bh.object.position.y,bh.object.position.z,v.ti);
+    spawnBlockDebris(d.x+.5,d.y+.5,d.z+.5,v.ti);
     addMaterial(v.ti);
     if(v.ti===TORCH_BLOCK){inv.torch++;updateInvHUD();}
     if(v.ti===DIAMOND_ORE&&dragon===null&&!dragonWarnPending&&P.y<-12&&Math.random()<0.2){dragonWarnPending=true;showAlert('⚠ ダイヤを掘った…何かが目覚めた…');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}
-    if(!d.playerPlaced){gs.score+=2;worldEdits.removed[k]=true;}
+    if(!v.playerPlaced){gs.score+=2;worldEdits.removed[k]=true;}
     else{delete worldEdits.placed[k];}
   }
   removeBlock(d.x,d.y,d.z);
@@ -2570,7 +2675,7 @@ function doAttack(e){
 function doPlace(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();
   const bh=castVoxel();if(!bh)return;
-  const n=bh.face.normal,d=bh.object.userData;
+  const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   if(px<P.x+.35&&px+1>P.x-.35&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.35&&pz+1>P.z-.35)return;
   for(const en of enemies){const ep=en.root.position,fy=ep.y-.85;if(px<ep.x+.5&&px+1>ep.x-.5&&py<fy+1.7&&py+1>fy&&pz<ep.z+.5&&pz+1>ep.z-.5)return;}
