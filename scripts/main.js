@@ -1989,6 +1989,54 @@ const cursorBox=new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.002,1.002,1.002)),
   new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:.55}));
 cursorBox.visible=false;scene.add(cursorBox);
+// ─── BLOCK DAMAGE / CRACK OVERLAY (Minecraft destroy-stages) ───
+const CRACK_STAGES=6;
+function makeCrackTextures(){
+  const S=16,texs=[];const rng=_rng(4242);
+  // pre-generate a few jagged crack polylines; each appears at a threshold
+  const lines=[];
+  for(let b=0;b<7;b++){
+    let px=2+rng()*(S-4),py=2+rng()*(S-4);const pts=[[px,py]];
+    const segN=3+Math.floor(rng()*4);let ang=rng()*Math.PI*2;
+    for(let s=0;s<segN;s++){ang+=rng()*1.4-.7;px+=Math.cos(ang)*(2+rng()*2);py+=Math.sin(ang)*(2+rng()*2);pts.push([px,py]);}
+    lines.push({pts,order:b/7});
+  }
+  for(let st=0;st<CRACK_STAGES;st++){
+    const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+    const frac=(st+1)/CRACK_STAGES;
+    x.strokeStyle='rgba(0,0,0,.62)';x.lineWidth=1;x.lineCap='round';
+    for(const ln of lines){if(ln.order>frac)continue;x.beginPath();x.moveTo(ln.pts[0][0],ln.pts[0][1]);for(let i=1;i<ln.pts.length;i++)x.lineTo(ln.pts[i][0],ln.pts[i][1]);x.stroke();}
+    if(st>=3){x.fillStyle='rgba(0,0,0,.32)';for(let i=0;i<st*3;i++)x.fillRect((rng()*S)|0,(rng()*S)|0,1,1);}
+    const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;texs.push(t);
+  }
+  return texs;
+}
+const crackTex=makeCrackTextures();
+const crackMat=new THREE.MeshBasicMaterial({map:crackTex[0],transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2,fog:false});
+const crackMesh=new THREE.Mesh(new THREE.BoxGeometry(1.012,1.012,1.012),crackMat);
+crackMesh.visible=false;crackMesh.renderOrder=3;scene.add(crackMesh);
+let miningKey='',miningProgress=0,miningLastT=0;
+function resetMining(){miningKey='';miningProgress=0;crackMesh.visible=false;}
+// hammer is the pickaxe (fast miner); diamond hammer faster; sword/magic middling
+function weaponMinePower(){if(weaponIdx===2)return hasDiamondHammer?6:4;if(weaponIdx===1)return 1.5;if(weaponIdx===4)return 2;return 1;}
+function mineBlock(bh){
+  const d=bh.object.userData;if(d.ti===WATER_BLOCK)return;
+  const hard=BLOCK_HARDNESS[d.ti]!==undefined?BLOCK_HARDNESS[d.ti]:99;
+  const now=performance.now()/1000;
+  if(hard>=99){playTone(90,.06,.05,'square');resetMining();return;} // unbreakable: dull thud
+  const key=vKey(d.x,d.y,d.z);
+  if(miningKey!==key){miningKey=key;miningProgress=0;}
+  miningProgress+=weaponMinePower()/hard;
+  miningLastT=now;
+  if(miningProgress>=0.999){breakBlock(bh);sfxBreak();resetMining();}
+  else{
+    const stage=Math.min(CRACK_STAGES-1,Math.floor(miningProgress*CRACK_STAGES));
+    crackMat.map=crackTex[stage];crackMat.needsUpdate=true;
+    crackMesh.position.copy(bh.object.position);crackMesh.visible=true;
+    spawnParticles(bh.object.position.x,bh.object.position.y,bh.object.position.z,BLOCK_COLORS[d.ti],1);
+    playTone(150+miningProgress*130,.05,.03,'square');
+  }
+}
 const _cd=new THREE.Vector3();
 // grid walk (DDA) through the voxel map — much cheaper than raycasting every mesh
 function ddaTargetVoxel(maxD){
@@ -2160,7 +2208,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='Escape'||e.code==='KeyP'){if(gs.running)togglePause();}
 });
 document.addEventListener('keyup',(e)=>{keys[e.code]=false;});
-if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.();initAudio();});document.addEventListener('mousemove',(e)=>{if(document.pointerLockElement!==canvas)return;yaw-=e.movementX*.003;pitch-=e.movementY*.003;pitch=Math.max(-1.5,Math.min(1.5,pitch));});canvas.addEventListener('mousedown',(e)=>{if(document.pointerLockElement!==canvas)return;if(e.button===0)doAttack();if(e.button===2)doPlace();});canvas.addEventListener('contextmenu',(e)=>e.preventDefault());}
+if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.();initAudio();});document.addEventListener('mousemove',(e)=>{if(document.pointerLockElement!==canvas)return;yaw-=e.movementX*.003;pitch-=e.movementY*.003;pitch=Math.max(-1.5,Math.min(1.5,pitch));});canvas.addEventListener('mousedown',(e)=>{if(document.pointerLockElement!==canvas)return;if(e.button===0){attackHeld=true;doAttack();}if(e.button===2)doPlace();});document.addEventListener('mouseup',(e)=>{if(e.button===0)attackHeld=false;});canvas.addEventListener('contextmenu',(e)=>e.preventDefault());}
 
 // ═══ HOTBAR ═══
 let curType=0;const slots=[...document.querySelectorAll('.hslot')];
@@ -2252,7 +2300,7 @@ function doAttack(e){
     if(dragon){const dp=dragon.root.position;if(Math.hypot(dp.x-P.x,dp.z-P.z)<w.range){hitDragon(w.dmg,true);anyHit=true;}}
     for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(ep.x-P.x,ep.z-P.z)<w.range){hitEnemy(en,w.dmg);anyHit=true;}}
     attackMobs(w);
-    if(!anyHit){const bh=castVoxel();if(bh){breakBlock(bh);}}
+    if(!anyHit){const bh=castVoxel();if(bh){mineBlock(bh);}}
     return;
   }
   if(w.type==='aoe'){
@@ -2261,13 +2309,13 @@ function doAttack(e){
     if(dragon){const dp=dragon.root.position,dx=dp.x-P.x,dy=dp.y-P.y,dz=dp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitDragon(w.dmg,false);anyHit=true;}}
     for(const en of[...enemies]){const ep=en.root.position,dx=ep.x-P.x,dy=ep.y-P.y,dz=ep.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitEnemy(en,w.dmg);anyHit=true;}}
     attackMobs(w);
-    if(!anyHit){const bh=castVoxel();if(bh){breakBlock(bh);}}
+    if(!anyHit){const bh=castVoxel();if(bh){mineBlock(bh);}}
     return;
   }
   const eh=castEnemies();if(eh&&eh.distance<=w.range){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
   if(dragon){const dp=dragon.root.position;if((dp.x-P.x)**2+(dp.y-(P.y+1.5))**2+(dp.z-P.z)**2<w.range*w.range){hitDragon(w.dmg,weaponIdx===1&&hasDiamondSword);return;}}
   attackMobs(w);
-  const bh=castVoxel();if(bh){breakBlock(bh);sfxBreak();}
+  const bh=castVoxel();if(bh){mineBlock(bh);}
 }
 
 function doPlace(e){
@@ -2287,8 +2335,17 @@ function doPlace(e){
 
 // ═══ BUTTONS ═══
 const breakBtn=document.getElementById('breakBtn'),placeBtn=document.getElementById('placeBtn'),jumpBtn=document.getElementById('jumpBtn'),weaponBtn=document.getElementById('weaponBtn'),saveFloatBtn=document.getElementById('saveFloatBtn');
-breakBtn.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);});
-breakBtn.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();doAttack(e);},{passive:false});
+// hold ATTACK to keep mining/attacking (auto-repeats at the weapon cooldown in tick)
+let attackHeld=false;
+function _attackDown(e){e.preventDefault();e.stopPropagation();attackHeld=true;doAttack(e);}
+function _attackUp(){attackHeld=false;}
+breakBtn.addEventListener('pointerdown',_attackDown);
+breakBtn.addEventListener('touchstart',_attackDown,{passive:false});
+breakBtn.addEventListener('pointerup',_attackUp);
+breakBtn.addEventListener('pointercancel',_attackUp);
+breakBtn.addEventListener('pointerleave',_attackUp);
+breakBtn.addEventListener('touchend',_attackUp);
+breakBtn.addEventListener('touchcancel',_attackUp);
 let _jumpBtnLastT=0;
 function _onJumpBtnTap(){const now=Date.now();if(now-_jumpBtnLastT<100)return;_jumpBtnLastT=now;doJump();}
 bindTapSafe(jumpBtn,_onJumpBtnTap);
@@ -2489,6 +2546,10 @@ function tick(now){
   else{scene.fog.near=DRAW_R*CHUNK*0.7;scene.fog.far=DRAW_R*CHUNK*0.98;skyMesh.visible=true;}
   updateCelestial(gs.time,dt);
   updateBlockCursor();
+  // hold-to-mine: auto-repeat attack at the weapon cadence (skip bow to spare arrows)
+  if(attackHeld){const w=WEAPONS[weaponIdx];if(w.type!=='ranged'&&attackCD<=0)doAttack();}
+  // cracks heal if you stop mining a block (Minecraft-style)
+  if(miningKey&&performance.now()/1000-miningLastT>0.7)resetMining();
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0)P.hp=Math.min(P.maxHp,P.hp+2.5*dt);
   gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
