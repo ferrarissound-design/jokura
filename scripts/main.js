@@ -711,6 +711,78 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
   for(let f=0;f<6;f++){const s=FACE_SHADE[f];for(let v=0;v<4;v++){const o=(f*4+v)*3;cols[o]=cols[o+1]=cols[o+2]=s;}}
   boxGeo.setAttribute('color',new THREE.BufferAttribute(cols,3));
 })();
+// ─── VERTEX AO (Minecraft-style smooth lighting) ───
+// Each visible block corner is darkened by how many solid neighbours surround
+// it (classic side1/side2/corner rule). AO is baked into a per-block vertex
+// color attribute; geometries are cached by AO pattern and share
+// position/normal/uv/index with boxGeo, so flat terrain reuses a handful of
+// geometries and memory stays low. Recomputed locally when blocks change.
+const AO_LEVEL=[1,.76,.58,.45];
+boxGeo.computeBoundingSphere();boxGeo.computeBoundingBox();
+const _aoCache=new Map();
+const _aoTmp=new Uint8Array(24);
+const _occ27=new Uint8Array(27);
+function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK)?1:0;}
+// fills _aoTmp with per-vertex occlusion levels (0-3); returns false if the
+// block is fully buried (no exposed face → keep the plain shared geometry)
+function _computeBlockAO(x,y,z){
+  let i=0;
+  for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)_occ27[i++]=_aoOccluder(x+dx,y+dy,z+dz);
+  const at=(dx,dy,dz)=>_occ27[(dy+1)*9+(dz+1)*3+(dx+1)];
+  if(at(1,0,0)&&at(-1,0,0)&&at(0,1,0)&&at(0,-1,0)&&at(0,0,1)&&at(0,0,-1))return false;
+  const pos=boxGeo.getAttribute('position'),norm=boxGeo.getAttribute('normal');
+  for(let v=0;v<24;v++){
+    const nx=norm.getX(v),ny=norm.getY(v),nz=norm.getZ(v);
+    const px=pos.getX(v)>0?1:-1,py=pos.getY(v)>0?1:-1,pz=pos.getZ(v)>0?1:-1;
+    let s1,s2,c;
+    if(nx!==0){s1=at(nx,py,0);s2=at(nx,0,pz);c=at(nx,py,pz);}
+    else if(ny!==0){s1=at(px,ny,0);s2=at(0,ny,pz);c=at(px,ny,pz);}
+    else{s1=at(px,0,nz);s2=at(0,py,nz);c=at(px,py,nz);}
+    _aoTmp[v]=(s1&&s2)?3:s1+s2+c;
+  }
+  return true;
+}
+function _aoGeometryFor(x,y,z){
+  if(!_computeBlockAO(x,y,z))return boxGeo;
+  let key='',any=false;
+  for(let v=0;v<24;v++){key+=_aoTmp[v];if(_aoTmp[v])any=true;}
+  if(!any)return boxGeo;
+  let g=_aoCache.get(key);
+  if(!g){
+    if(_aoCache.size>20000)_aoCache.clear(); // safety valve; in-use geometries stay referenced by meshes
+    g=new THREE.BufferGeometry();
+    g.setIndex(boxGeo.getIndex());
+    g.setAttribute('position',boxGeo.getAttribute('position'));
+    g.setAttribute('normal',boxGeo.getAttribute('normal'));
+    g.setAttribute('uv',boxGeo.getAttribute('uv'));
+    const base=boxGeo.getAttribute('color'),cols=new Float32Array(72);
+    for(let v=0;v<24;v++){const f=base.getX(v)*AO_LEVEL[_aoTmp[v]];cols[v*3]=cols[v*3+1]=cols[v*3+2]=f;}
+    g.setAttribute('color',new THREE.BufferAttribute(cols,3));
+    for(const gr of boxGeo.groups)g.addGroup(gr.start,gr.count,gr.materialIndex);
+    g.boundingSphere=boxGeo.boundingSphere;g.boundingBox=boxGeo.boundingBox;
+    _aoCache.set(key,g);
+  }
+  return g;
+}
+function refreshBlockAO(x,y,z){
+  const v=voxels[vKey(x,y,z)];if(!v)return;
+  if(v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK)return; // untinted / glowing blocks keep flat shading
+  v.mesh.geometry=_aoGeometryFor(x,y,z);
+}
+function refreshAOAround(x,y,z,includeSelf){
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+    if(!includeSelf&&dx===0&&dy===0&&dz===0)continue;
+    refreshBlockAO(x+dx,y+dy,z+dz);
+  }
+}
+function _applyAOToMeshes(meshes){
+  for(const m of meshes){const d=m.userData;refreshBlockAO(d.x,d.y,d.z);}
+}
+// re-shade one boundary plane of an already-generated neighbour chunk after a
+// new chunk appears next to it (its border AO was computed without us)
+function _refreshPlaneAO(meshes,axis,value){
+  for(const m of meshes){const d=m.userData;if((axis==='x'?d.x:axis==='z'?d.z:d.y)===value)refreshBlockAO(d.x,d.y,d.z);}
+}
 // ─── PIXEL-ART BLOCK TEXTURES (Minecraft style) ───
 // 16x16 procedural textures rendered to canvas, sampled with NearestFilter for
 // crisp blocky pixels instead of flat solid colours.
@@ -871,10 +943,11 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced){
     const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
     if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.add(m);}
     else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.add(m);}
+    refreshAOAround(x,y,z,true); // placed live: shade self + re-shade neighbours
   }
   return m;
 }
-function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];}
+function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];refreshAOAround(x,y,z,false);}
 
 function generateChunk(cx,cz){
   const key=cKey(cx,cz);if(chunks[key])return;
@@ -903,6 +976,16 @@ function generateChunk(cx,cz){
     if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms)meshes.add(ms);}}
   }
   chunks[key]={meshes,loaded:true};
+  // vertex AO: shade this chunk, then re-shade the facing border of any
+  // already-generated neighbour (its edge AO was computed before we existed)
+  _applyAOToMeshes(meshes);
+  const west=chunks[cKey(cx-1,cz)],east=chunks[cKey(cx+1,cz)],north=chunks[cKey(cx,cz-1)],south=chunks[cKey(cx,cz+1)];
+  if(west)_refreshPlaneAO(west.meshes,'x',ox-1);
+  if(east)_refreshPlaneAO(east.meshes,'x',ox+CHUNK);
+  if(north)_refreshPlaneAO(north.meshes,'z',oz-1);
+  if(south)_refreshPlaneAO(south.meshes,'z',oz+CHUNK);
+  const below=underChunks[ucKey(cx,-1,cz)];
+  if(below)_refreshPlaneAO(below.meshes,'y',-1);
 }
 function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;for(const m of chunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);}blockMeshes.add(m);}activeChunks[key]=true;}
 function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;for(const m of chunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);}blockMeshes.delete(m);}delete activeChunks[key];}
@@ -1000,6 +1083,18 @@ function generateUnderChunk(cx,cy,cz){
   }
   _spawnRoomContent(cx,cy,cz,meshes);
   underChunks[key]={meshes,loaded:true};
+  // vertex AO for cave surfaces + re-shade borders of existing neighbours
+  _applyAOToMeshes(meshes);
+  const uw=underChunks[ucKey(cx-1,cy,cz)],ue=underChunks[ucKey(cx+1,cy,cz)];
+  const un=underChunks[ucKey(cx,cy,cz-1)],us=underChunks[ucKey(cx,cy,cz+1)];
+  const ud=underChunks[ucKey(cx,cy-1,cz)],uu=underChunks[ucKey(cx,cy+1,cz)];
+  if(uw)_refreshPlaneAO(uw.meshes,'x',ox-1);
+  if(ue)_refreshPlaneAO(ue.meshes,'x',ox+CHUNK);
+  if(un)_refreshPlaneAO(un.meshes,'z',oz-1);
+  if(us)_refreshPlaneAO(us.meshes,'z',oz+CHUNK);
+  if(ud)_refreshPlaneAO(ud.meshes,'y',oy-1);
+  if(uu)_refreshPlaneAO(uu.meshes,'y',oy+CHUNK_Y);
+  if(cy===-1){const surf=chunks[cKey(cx,cz)];if(surf)_refreshPlaneAO(surf.meshes,'y',0);}
 }
 
 // ─── UNDERGROUND ROOMS ───
