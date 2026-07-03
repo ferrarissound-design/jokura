@@ -995,23 +995,66 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced){
 }
 function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);torchBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];refreshAOAround(x,y,z,false);}
 
+// ─── 3D SURFACE CARVING (cliffs, overhangs, cave mouths) ───
+// cave mouths: rare, wide low-frequency blobs that drill from the surface
+// down into the underground cave field (isUnderSolid carves the same shaft)
+function _caveMouth(x,y,z){return noise(x*0.035+777,z*0.035+y*0.02)<-0.34;}
+// cliff erosion: notches cut into mountain/volcano flanks; the surviving
+// top blocks become ledges and overhangs
+function _cliffCarve(x,y,z){return noiseB(x*0.07,z*0.07+y*0.11)>0.34;}
 function generateChunk(cx,cz){
   const key=cKey(cx,cz);if(chunks[key])return;
   const meshes=new Set(),ox=cx*CHUNK,oz=cz*CHUNK;
+  // per-generation caches: neighbour exposure tests hit the same cells often
+  const colCache=new Map(),solidCache=new Map();
+  const colAt=(x,z)=>{
+    const k=x+'|'+z;let c=colCache.get(k);
+    if(!c){
+      const h=getHeight(x,z),biome=getBiome(x,z);
+      const lakeN=noise(x*.05+777,z*.05+777);
+      const lake=(biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45);
+      c={h,biome,lake};colCache.set(k,c);
+    }
+    return c;
+  };
+  // is a surface cell solid? (lakes keep their bed and are never carved)
+  const solidAt=(x,y,z)=>{
+    if(y<0)return isUnderSolid(x,y,z);
+    const k=x+'|'+y+'|'+z;const hit=solidCache.get(k);
+    if(hit!==undefined)return hit;
+    const c=colAt(x,z);let s;
+    if(c.lake)s=y<=c.h-1;
+    else if(y>c.h)s=false;
+    else if(_caveMouth(x,y,z))s=false;
+    else if((c.biome===BIOMES.MOUNTAIN||c.biome===BIOMES.VOLCANO)&&y>=1&&y<c.h&&_cliffCarve(x,y,z))s=false;
+    else s=true;
+    solidCache.set(k,s);return s;
+  };
   for(let lx=0;lx<CHUNK;lx++)for(let lz=0;lz<CHUNK;lz++){
-    const wx=ox+lx,wz=oz+lz,h=getHeight(wx,wz),biome=getBiome(wx,wz);
-    const lakeN=noise(wx*.05+777,wz*.05+777);
-    const isLake=(biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45);
+    const wx=ox+lx,wz=oz+lz;
+    const ci=colAt(wx,wz),h=ci.h,biome=ci.biome;
     // lakes carve one block down: sandy bed below, water in the ground cell,
     // so the surface sits lower than the surrounding land (Minecraft-style)
-    if(isLake){
+    if(ci.lake){
       const mb=addBlock(wx,h-1,wz,2,false);if(mb)meshes.add(mb);
       const mw=addBlock(wx,h,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);
-    }else{
-      const m=addBlock(wx,h,wz,getGroundType(biome),false);if(m)meshes.add(m);
+      continue;
     }
     const sub=biome===BIOMES.VOLCANO?7:biome===BIOMES.SNOW?SNOW_BLOCK:1;
-    if(h>0){const m2=addBlock(wx,h-1,wz,sub,false);if(m2)meshes.add(m2);}
+    const deepTi=biome===BIOMES.MOUNTAIN?6:biome===BIOMES.VOLCANO?7:1;
+    // full-column pass: only exposed solid cells become meshes, so cliff
+    // faces, overhang undersides and cave-mouth walls all get real blocks
+    for(let y=0;y<=h;y++){
+      if(!solidAt(wx,y,wz))continue;
+      const exposed=
+        !solidAt(wx+1,y,wz)||!solidAt(wx-1,y,wz)||
+        !solidAt(wx,y,wz+1)||!solidAt(wx,y,wz-1)||
+        !solidAt(wx,y+1,wz)||!solidAt(wx,y-1,wz);
+      if(!exposed)continue;
+      const ti=y===h?getGroundType(biome):y===h-1?sub:deepTi;
+      const m=addBlock(wx,y,wz,ti,false);if(m)meshes.add(m);
+    }
+    if(!solidAt(wx,h,wz))continue; // top carved away: no features over the hole
     if(biome===BIOMES.VOLCANO){
       if(rand2(wx,wz,30)<0.06){const lm=addBlock(wx,h,wz,LAVA_BLOCK,false);if(lm)meshes.add(lm);if(rand2(wx,wz,31)<0.5){const lm2=addBlock(wx,h+1,wz,LAVA_BLOCK,false);if(lm2)meshes.add(lm2);}}
       if(rand2(wx,wz,32)<0.05){const topH=2+Math.floor(rand2(wx,wz,33)*5);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,7,false);if(mr)meshes.add(mr);}}
@@ -1021,8 +1064,8 @@ function generateChunk(cx,cz){
       if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,1,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.add(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.add(top);}
       if(rand2(wx,wz,41)<0.03){const topH=1+Math.floor(rand2(wx,wz,42)*3);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,SNOW_BLOCK,false);if(mr)meshes.add(mr);}}
     }
-    if(biome===BIOMES.FOREST&&!isLake&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml)meshes.add(ml);}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml)meshes.add(ml);}}}
-    if(biome===BIOMES.PLAINS&&!isLake&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml)meshes.add(ml);[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2)meshes.add(ml2);});}
+    if(biome===BIOMES.FOREST&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml)meshes.add(ml);}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml)meshes.add(ml);}}}
+    if(biome===BIOMES.PLAINS&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml)meshes.add(ml);[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2)meshes.add(ml2);});}
     if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.add(mr);}}
     if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms)meshes.add(ms);}}
   }
@@ -1079,6 +1122,8 @@ function _isRoomVoid(wx,wy,wz){
 function isUnderSolid(wx,wy,wz){
   if(_isRoomVoid(wx,wy,wz))return false;
   const depth=-wy;
+  // surface cave mouths continue straight down so entrances always connect
+  if(depth<=22&&_caveMouth(wx,wy,wz))return false;
   const n1=noiseB(wx*0.09+wy*0.13,wz*0.09);
   const n2=noiseV(wx*0.09,wz*0.09+wy*0.13);
   const base=(n1+n2)*0.5;
@@ -2661,7 +2706,15 @@ async function startGame(){
   commonReset();resetInv();resetAchievements();resetWorldEdits();
   P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.invT=0;
   weaponIdx=0;curType=0;setType(0);
-  updateChunks(true);const sh=getHeight(0,0);P.y=sh+1.01;P.onGround=true;
+  updateChunks(true);
+  // spawn on the actual generated surface: 3D carving (cave mouths / cliffs)
+  // can differ from the raw heightmap at (0,0)
+  {
+    let sy=getHeight(0,0);
+    for(let y=getHeight(0,0)+3;y>=-6;y--){const v=voxels[vKey(0,y,0)];if(v&&v.ti!==WATER_BLOCK&&v.ti!==LAVA_BLOCK){sy=y;break;}}
+    P.y=sy+1.01;
+  }
+  P.onGround=true;
   gs.score=0;gs.kills=0;gs.wave=0;gs.day=1;gs.time=0;gs.nextWave=18;gs.running=true;
   $pauseBtn.style.display='flex';
   spawnPigs(8);updateInvHUD();resize();
