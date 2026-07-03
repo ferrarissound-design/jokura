@@ -904,6 +904,26 @@ function applyShadowSetting(){
   scene.traverse(o=>{if(o.isMesh){if(Array.isArray(o.material))o.material.forEach(bump);else bump(o.material);}});
 }
 applyShadowSetting();
+// ─── WATER: recessed surface + shader waves ───
+// Water blocks use a shorter box (top at 14/16 like Minecraft) so the surface
+// sits below the neighbouring land, and the top vertices bob on a world-space
+// sine field injected into the shared material — adjacent water blocks form
+// one continuous wave with zero per-frame JS cost.
+const waterGeo=new THREE.BoxGeometry(1,.875,1);
+waterGeo.translate(0,-.0625,0); // top at +0.375 (block-top −0.125), bottom flush
+waterGeo.setAttribute('color',boxGeo.getAttribute('color')); // reuse face shading
+waterGeo.computeBoundingSphere();waterGeo.computeBoundingBox();
+let _waterUniforms=null;
+blockMats[WATER_BLOCK].onBeforeCompile=(sh)=>{
+  sh.uniforms.uTime={value:0};
+  _waterUniforms=sh.uniforms;
+  sh.vertexShader='uniform float uTime;\n'+sh.vertexShader.replace(
+    '#include <begin_vertex>',
+    ['#include <begin_vertex>',
+     'vec4 jkW=modelMatrix*vec4(position,1.0);',
+     'if(position.y>0.3){transformed.y+=sin(jkW.x*1.9+uTime*1.8)*.05+cos(jkW.z*1.6+uTime*2.2)*.04;}'
+    ].join('\n'));
+};
 // give the hotbar swatches the matching pixel-art look
 (function(){
   const swatch=[_T.grassTop,_T.stone,_T.sand,_T.logSide,_T.brick];
@@ -932,7 +952,7 @@ function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,
 
 function addBlock(x,y,z,ti,addToScene,playerPlaced){
   const k=vKey(x,y,z);if(voxels[k])return;
-  const m=new THREE.Mesh(boxGeo,blockMats[ti]);
+  const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:boxGeo,blockMats[ti]);
   m.position.set(x+.5,y+.5,z+.5);
   m.castShadow=y>=0&&ti!==WATER_BLOCK;m.receiveShadow=true;
   m.userData={x,y,z,isBlock:true,ti,playerPlaced:!!playerPlaced};
@@ -956,9 +976,14 @@ function generateChunk(cx,cz){
     const wx=ox+lx,wz=oz+lz,h=getHeight(wx,wz),biome=getBiome(wx,wz);
     const lakeN=noise(wx*.05+777,wz*.05+777);
     const isLake=(biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45);
-    const gt=isLake?2:getGroundType(biome);
-    const m=addBlock(wx,h,wz,gt,false);if(m)meshes.add(m);
-    if(isLake){const mw=addBlock(wx,h+1,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);}
+    // lakes carve one block down: sandy bed below, water in the ground cell,
+    // so the surface sits lower than the surrounding land (Minecraft-style)
+    if(isLake){
+      const mb=addBlock(wx,h-1,wz,2,false);if(mb)meshes.add(mb);
+      const mw=addBlock(wx,h,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);
+    }else{
+      const m=addBlock(wx,h,wz,getGroundType(biome),false);if(m)meshes.add(m);
+    }
     const sub=biome===BIOMES.VOLCANO?7:biome===BIOMES.SNOW?SNOW_BLOCK:1;
     if(h>0){const m2=addBlock(wx,h-1,wz,sub,false);if(m2)meshes.add(m2);}
     if(biome===BIOMES.VOLCANO){
@@ -2641,6 +2666,7 @@ function tick(now){
   else{scene.fog.near=DRAW_R*CHUNK*0.7;scene.fog.far=DRAW_R*CHUNK*0.98;skyMesh.visible=true;}
   updateCelestial(gs.time,dt);
   updateBlockCursor();
+  if(_waterUniforms)_waterUniforms.uTime.value=now/1000;
   // hold-to-mine: auto-repeat attack at the weapon cadence (skip bow to spare arrows)
   if(attackHeld){const w=WEAPONS[weaponIdx];if(w.type!=='ranged'&&attackCD<=0)doAttack();}
   // cracks heal if you stop mining a block (Minecraft-style)
