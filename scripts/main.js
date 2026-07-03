@@ -20,17 +20,18 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0};
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 const unlockedWeapons=[true,false,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond'];
-const SLOT_MAT=['grass','stone','sand','wood','brick'];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null];
+const SLOT_MAT=['grass','stone','sand','wood','brick','torch'];
 
 const CRAFT_RECIPES=[
   {name:'⚔ Sword',  wi:1,  needs:{wood:5},          desc:'🪵×5'},
   {name:'🔨 Hammer', wi:2,  needs:{wood:4,stone:10}, desc:'🪵×4+🪨×10'},
   {name:'🏹 Bow',    wi:3,  needs:{wood:3,stone:3},  desc:'🪵×3+🪨×3'},
   {name:'🪄 Magic',  wi:4,  needs:{brick:5,stone:5}, desc:'🧱×5+🪨×5'},
+  {name:'🔥 Torch×4',wi:-11,needs:{wood:1,stone:1},  desc:'🪵×1+🪨×1'},
   {name:'📦 Chest',  wi:-1, needs:{wood:10},         desc:'🪵×10'},
   {name:'🛏 Bed',    wi:-2, needs:{wood:6,grass:4},  desc:'🪵×6+🌿×4'},
   {name:'🧱 Brick×3',wi:-3, needs:{stone:5},         desc:'🪨×5'},
@@ -88,6 +89,7 @@ function updateInvHUD(){
   $invArrow.textContent='🏹 ARROW: '+inv.arrow;
   $invDiamond.textContent='💎 DIAMOND: '+inv.diamond;
   $invDragonCore.textContent='💠 DRAGON CORE: '+inv.dragonCore;
+  const tc=document.getElementById('torchCount');if(tc)tc.textContent=inv.torch>0?inv.torch:'';
 }
 
 function addMaterial(ti){
@@ -160,6 +162,7 @@ function doCraft(idx){
   else if(r.wi===-3){inv.brick+=3;showBonus('🧱 レンガ×3 CRAFTED!');}
   else if(r.wi===-4){P.hp=Math.min(P.maxHp,P.hp+30);showBonus('💊 HP+30 HEALED!');}
   else if(r.wi===-5){inv.arrow+=10;showBonus('🏹 矢×10 CRAFTED!');}
+  else if(r.wi===-11){inv.torch+=4;showBonus('🔥 トーチ×4 CRAFTED!');}
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
@@ -219,7 +222,7 @@ bindTapSafe($craftBtn,_onCraftBtnTap);
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;
   hasDiamondSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
@@ -635,7 +638,25 @@ sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;
 sun.shadow.camera.left=-SHADOW_R;sun.shadow.camera.right=SHADOW_R;sun.shadow.camera.top=SHADOW_R;sun.shadow.camera.bottom=-SHADOW_R;
 sun.shadow.camera.near=1;sun.shadow.camera.far=150;
 sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.05;
-scene.add(new THREE.AmbientLight(0x112233,.4));
+scene.add(new THREE.AmbientLight(0x112233,.28)); // dimmer base so night/caves read dark and torches matter
+// ─── TORCH LIGHTS: a small pool of point lights that snap to the nearest
+// placed torches each frame — real illumination without unbounded light cost.
+// Lazily added to the scene on first torch so day-time shaders stay cheap. ───
+const TORCH_LIGHT_N=isTouch?2:4;
+const torchLights=[];let torchLightsAdded=false;
+for(let i=0;i<TORCH_LIGHT_N;i++){const l=new THREE.PointLight(0xffa542,0,9,1.6);l.castShadow=false;torchLights.push(l);}
+function updateTorchLights(){
+  if(!torchBlocks.size){if(torchLightsAdded)for(const l of torchLights)l.intensity=0;return;}
+  if(!torchLightsAdded){for(const l of torchLights)scene.add(l);torchLightsAdded=true;}
+  const cx=camera.position.x,cy=camera.position.y,cz=camera.position.z,near=[];
+  for(const k of torchBlocks){
+    const p=k.split('|'),x=+p[0]+.5,y=+p[1]+.55,z=+p[2]+.5,d2=(x-cx)*(x-cx)+(y-cy)*(y-cy)+(z-cz)*(z-cz);
+    if(d2>484)continue; // ignore torches >22 blocks away
+    if(near.length<TORCH_LIGHT_N)near.push({d2,x,y,z});
+    else{let mi=0;for(let i=1;i<near.length;i++)if(near[i].d2>near[mi].d2)mi=i;if(d2<near[mi].d2)near[mi]={d2,x,y,z};}
+  }
+  for(let i=0;i<torchLights.length;i++){const l=torchLights[i];if(i<near.length){l.position.set(near[i].x,near[i].y,near[i].z);l.intensity=1.8;}else l.intensity=0;}
+}
 // ─── SKY: gradient dome + square sun/moon + drifting clouds ───
 function _skyGradTex(){
   const c=document.createElement('canvas');c.width=1;c.height=64;const x=c.getContext('2d');
@@ -697,10 +718,11 @@ function rand3(x,y,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.im
 const CHUNK=16,CHUNK_Y=8,WORLD_R=48;
 const WORLD_CY_MIN=-4,WORLD_CY_MAX=2; // underground (-32) to mountain tops (+16)
 const DRAW_RY=isTouch?1:2;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6];
-const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15;
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1];
+const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16;
+const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK];
 const boxGeo=new THREE.BoxGeometry(1,1,1);
 // Minecraft-style face shading baked into the shared geometry's vertex colors:
 // top bright, N/S sides mid, E/W darker, bottom darkest.
@@ -722,7 +744,7 @@ boxGeo.computeBoundingSphere();boxGeo.computeBoundingBox();
 const _aoCache=new Map();
 const _aoTmp=new Uint8Array(24);
 const _occ27=new Uint8Array(27);
-function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK)?1:0;}
+function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK)?1:0;}
 // fills _aoTmp with per-vertex occlusion levels (0-3); returns false if the
 // block is fully buried (no exposed face → keep the plain shared geometry)
 function _computeBlockAO(x,y,z){
@@ -766,7 +788,7 @@ function _aoGeometryFor(x,y,z){
 }
 function refreshBlockAO(x,y,z){
   const v=voxels[vKey(x,y,z)];if(!v)return;
-  if(v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK)return; // untinted / glowing blocks keep flat shading
+  if(v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK||v.ti===TORCH_BLOCK)return; // untinted / glowing / non-cube blocks keep flat shading
   v.mesh.geometry=_aoGeometryFor(x,y,z);
 }
 function refreshAOAround(x,y,z,includeSelf){
@@ -892,6 +914,7 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case DEEP_STONE: return smat(_T.deepStone,{roughness:.8,metalness:.15,emissive:0x0a0d1a,emissiveIntensity:.1});
     case IRON_ORE: return smat(_T.iron,{roughness:.7,metalness:.35,emissive:0x3a1500,emissiveIntensity:.08});
     case DIAMOND_ORE: return smat(_T.diamond,{roughness:.15,metalness:.7,emissive:0x00aaff,emissiveIntensity:.45,transparent:true,opacity:.95});
+    case TORCH_BLOCK: return new THREE.MeshStandardMaterial({color:0x3a2410,roughness:.6,metalness:0,emissive:0xff8a1e,emissiveIntensity:1.15,vertexColors:false});
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
@@ -913,6 +936,9 @@ const waterGeo=new THREE.BoxGeometry(1,.875,1);
 waterGeo.translate(0,-.0625,0); // top at +0.375 (block-top −0.125), bottom flush
 waterGeo.setAttribute('color',boxGeo.getAttribute('color')); // reuse face shading
 waterGeo.computeBoundingSphere();waterGeo.computeBoundingBox();
+// slim torch post that rests on the cell floor (non-solid, glows + casts light)
+const torchGeo=new THREE.BoxGeometry(.16,.62,.16);torchGeo.translate(0,-.19,0);
+torchGeo.computeBoundingSphere();torchGeo.computeBoundingBox();
 let _waterUniforms=null;
 blockMats[WATER_BLOCK].onBeforeCompile=(sh)=>{
   sh.uniforms.uTime={value:0};
@@ -933,7 +959,7 @@ blockMats[WATER_BLOCK].onBeforeCompile=(sh)=>{
     dot.style.backgroundSize='cover';dot.style.imageRendering='pixelated';
   });
 })();
-let voxels={},blockMeshes=new Set(),lavaBlocks=new Set();
+let voxels={},blockMeshes=new Set(),lavaBlocks=new Set(),torchBlocks=new Set();
 const vKey=(x,y,z)=>x+'|'+y+'|'+z;const cKey=(cx,cz)=>cx+','+cz;const ucKey=(cx,cy,cz)=>cx+','+cy+','+cz;
 let chunks={},activeChunks={};
 let underChunks={},activeUnderChunks={};
@@ -952,14 +978,14 @@ function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,
 
 function addBlock(x,y,z,ti,addToScene,playerPlaced){
   const k=vKey(x,y,z);if(voxels[k])return;
-  const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:boxGeo,blockMats[ti]);
+  const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:boxGeo,blockMats[ti]);
   m.position.set(x+.5,y+.5,z+.5);
-  m.castShadow=y>=0&&ti!==WATER_BLOCK;m.receiveShadow=true;
+  m.castShadow=y>=0&&ti!==WATER_BLOCK&&ti!==TORCH_BLOCK;m.receiveShadow=ti!==TORCH_BLOCK;
   m.userData={x,y,z,isBlock:true,ti,playerPlaced:!!playerPlaced};
   if(addToScene)scene.add(m);
   voxels[k]={mesh:m,ti,active:!!addToScene,playerPlaced:!!playerPlaced};
   if(addToScene){
-    blockMeshes.add(m);if(ti===LAVA_BLOCK)lavaBlocks.add(k);
+    blockMeshes.add(m);if(ti===LAVA_BLOCK)lavaBlocks.add(k);if(ti===TORCH_BLOCK)torchBlocks.add(k);
     const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
     if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.add(m);}
     else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.add(m);}
@@ -967,7 +993,7 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced){
   }
   return m;
 }
-function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];refreshAOAround(x,y,z,false);}
+function removeBlock(x,y,z){const k=vKey(x,y,z);const v=voxels[k];if(!v)return;scene.remove(v.mesh);blockMeshes.delete(v.mesh);lavaBlocks.delete(k);torchBlocks.delete(k);const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);if(y<0){const cy=Math.floor(y/CHUNK_Y),ck=ucKey(cx,cy,cz);if(underChunks[ck])underChunks[ck].meshes.delete(v.mesh);}else{const ck=cKey(cx,cz);if(chunks[ck])chunks[ck].meshes.delete(v.mesh);}delete voxels[k];refreshAOAround(x,y,z,false);}
 
 function generateChunk(cx,cz){
   const key=cKey(cx,cz);if(chunks[key])return;
@@ -1012,10 +1038,10 @@ function generateChunk(cx,cz){
   const below=underChunks[ucKey(cx,-1,cz)];
   if(below)_refreshPlaneAO(below.meshes,'y',-1);
 }
-function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;for(const m of chunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);}blockMeshes.add(m);}activeChunks[key]=true;}
-function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;for(const m of chunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);}blockMeshes.delete(m);}delete activeChunks[key];}
-function showUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!underChunks[key]||activeUnderChunks[key])return;for(const m of underChunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);}blockMeshes.add(m);}activeUnderChunks[key]=true;}
-function hideUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!activeUnderChunks[key]||!underChunks[key])return;for(const m of underChunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);}blockMeshes.delete(m);}delete activeUnderChunks[key];}
+function showChunk(cx,cz){const key=cKey(cx,cz);if(!chunks[key]||activeChunks[key])return;for(const m of chunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);if(voxels[k].ti===TORCH_BLOCK)torchBlocks.add(k);}blockMeshes.add(m);}activeChunks[key]=true;}
+function hideChunk(cx,cz){const key=cKey(cx,cz);if(!activeChunks[key]||!chunks[key])return;for(const m of chunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);torchBlocks.delete(k);}blockMeshes.delete(m);}delete activeChunks[key];}
+function showUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!underChunks[key]||activeUnderChunks[key])return;for(const m of underChunks[key].meshes){if(!m.parent)scene.add(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=true;if(voxels[k].ti===LAVA_BLOCK)lavaBlocks.add(k);if(voxels[k].ti===TORCH_BLOCK)torchBlocks.add(k);}blockMeshes.add(m);}activeUnderChunks[key]=true;}
+function hideUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!activeUnderChunks[key]||!underChunks[key])return;for(const m of underChunks[key].meshes){scene.remove(m);const k=vKey(m.userData.x,m.userData.y,m.userData.z);if(voxels[k]){voxels[k].active=false;lavaBlocks.delete(k);torchBlocks.delete(k);}blockMeshes.delete(m);}delete activeUnderChunks[key];}
 let lastPCX=null,lastPCZ=null,lastPCY=null;
 function updateChunks(force){
   const pcx=Math.floor(P.x/CHUNK),pcz=Math.floor(P.z/CHUNK),pcy=Math.floor(P.y/CHUNK_Y);
@@ -1032,7 +1058,7 @@ function updateChunks(force){
   for(const key in activeChunks){if(!needed[key]){const[cx,cz]=key.split(',').map(Number);hideChunk(cx,cz);}}
   for(const key in activeUnderChunks){if(!neededU[key]){const[cx,cy,cz]=key.split(',').map(Number);hideUnderChunk(cx,cy,cz);}}
 }
-function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)scene.remove(m);for(const key in underChunks)for(const m of underChunks[key].meshes)scene.remove(m);chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};blockMeshes=new Set();lavaBlocks.clear();lastPCX=null;lastPCZ=null;lastPCY=null;}
+function clearWorld(){for(const key in chunks)for(const m of chunks[key].meshes)scene.remove(m);for(const key in underChunks)for(const m of underChunks[key].meshes)scene.remove(m);chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};blockMeshes=new Set();lavaBlocks.clear();torchBlocks.clear();lastPCX=null;lastPCZ=null;lastPCY=null;}
 
 // ─── UNDERGROUND GENERATION ───
 function _underRoomType(rx,ry,rz){
@@ -1205,7 +1231,7 @@ function overlaps(px,py,pz,hw,hh){
   hw=hw||.35;hh=hh||1.75;
   const mnX=Math.floor(px-hw),mxX=Math.floor(px+hw),mnY=Math.floor(py),mxY=Math.floor(py+hh),mnZ=Math.floor(pz-hw),mxZ=Math.floor(pz+hw);
   for(let bx=mnX;bx<=mxX;bx++)for(let by=mnY;by<=mxY;by++)for(let bz=mnZ;bz<=mxZ;bz++){
-    const v=voxels[vKey(bx,by,bz)];if(!v||!v.active||v.ti===WATER_BLOCK)continue;
+    const v=voxels[vKey(bx,by,bz)];if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===TORCH_BLOCK)continue;
     if(px-hw<bx+1&&px+hw>bx&&py<by+1&&py+hh>by&&pz-hw<bz+1&&pz+hw>bz)return true;
   }
   const CHW=0.45,CHH=0.7;
@@ -2307,7 +2333,7 @@ const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
   if(e.code==='Space'&&gs.running){e.preventDefault();doJump();}
-  if(e.code>='Digit1'&&e.code<='Digit5')setType(parseInt(e.code[5])-1);
+  if(e.code>='Digit1'&&e.code<='Digit6')setType(parseInt(e.code[5])-1);
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
@@ -2332,7 +2358,7 @@ if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.()
 
 // ═══ HOTBAR ═══
 let curType=0;const slots=[...document.querySelectorAll('.hslot')];
-function setType(idx){if(idx<0||idx>4)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');}
+function setType(idx){if(idx<0||idx>5)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');}
 slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();initAudio();setType(parseInt(s.dataset.i,10));});});
 function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
@@ -2352,6 +2378,7 @@ function breakBlock(bh){
   if(v){
     spawnParticles(bh.object.position.x,bh.object.position.y,bh.object.position.z,BLOCK_COLORS[v.ti],4);
     addMaterial(v.ti);
+    if(v.ti===TORCH_BLOCK){inv.torch++;updateInvHUD();}
     if(v.ti===DIAMOND_ORE&&dragon===null&&!dragonWarnPending&&P.y<-12&&Math.random()<0.2){dragonWarnPending=true;showAlert('⚠ ダイヤを掘った…何かが目覚めた…');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}
     if(!d.playerPlaced){gs.score+=2;worldEdits.removed[k]=true;}
     else{delete worldEdits.placed[k];}
@@ -2445,11 +2472,11 @@ function doPlace(e){
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   if(px<P.x+.35&&px+1>P.x-.35&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.35&&pz+1>P.z-.35)return;
   for(const en of enemies){const ep=en.root.position,fy=ep.y-.85;if(px<ep.x+.5&&px+1>ep.x-.5&&py<fy+1.7&&py+1>fy&&pz<ep.z+.5&&pz+1>ep.z-.5)return;}
-  const mat=SLOT_MAT[curType];
-  if(inv[mat]<=0){showBonus('素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
+  const mat=SLOT_MAT[curType],ti=SLOT_TI[curType];
+  if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
   inv[mat]--;updateInvHUD();
-  addBlock(px,py,pz,curType,true,true);
-  const pk=vKey(px,py,pz);worldEdits.placed[pk]=curType;delete worldEdits.removed[pk];
+  addBlock(px,py,pz,ti,true,true);
+  const pk=vKey(px,py,pz);worldEdits.placed[pk]=ti;delete worldEdits.removed[pk];
   sfxPlace();triggerHandSwing();
 }
 
@@ -2591,7 +2618,7 @@ async function continueGame(){
   finalBossPending=!!d.finalBossPending;
   P.hp=d.hp||100;P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
-  curType=Math.max(0,Math.min(4,d.curType||0));setType(curType);
+  curType=Math.max(0,Math.min(5,d.curType||0));setType(curType);
   yaw=d.yaw||0;pitch=d.pitch||0;
   if(d.inv)Object.assign(inv,d.inv);
   if(d.unlockedWeapons)d.unlockedWeapons.forEach((v,i)=>{if(i<unlockedWeapons.length)unlockedWeapons[i]=v;});
@@ -2665,6 +2692,7 @@ function tick(now){
   if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
   else{scene.fog.near=DRAW_R*CHUNK*0.7;scene.fog.far=DRAW_R*CHUNK*0.98;skyMesh.visible=true;}
   updateCelestial(gs.time,dt);
+  updateTorchLights();
   updateBlockCursor();
   if(_waterUniforms)_waterUniforms.uTime.value=now/1000;
   // hold-to-mine: auto-repeat attack at the weapon cadence (skip bow to spare arrows)
