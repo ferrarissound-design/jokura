@@ -1772,9 +1772,9 @@ function spawnUnderEnemy(){
       if(!vf||!vf.active||vf.ti===WATER_BLOCK||vf.ti===LAVA_BLOCK)continue;
       const depth=-sy;
       let et;
-      if(depth>=22){et=Math.random()<.3?ENEMY_TYPES[7]:ENEMY_TYPES[8];}
-      else if(depth>=12){const r=Math.random();et=r<.25?ENEMY_TYPES[6]:r<.65?ENEMY_TYPES[7]:ENEMY_TYPES[8];}
-      else et=Math.random()<.6?ENEMY_TYPES[6]:ENEMY_TYPES[7];
+      if(depth>=22){et=ENEMY_TYPES[8];}
+      else if(depth>=12){et=Math.random()<.4?ENEMY_TYPES[6]:ENEMY_TYPES[8];}
+      else et=ENEMY_TYPES[6];
       const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
       const built=et.builder(mat);
       built.root.position.set(sx+.5,sy+.85,sz+.5);markShadowCaster(built.root);scene.add(built.root);
