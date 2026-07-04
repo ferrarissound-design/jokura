@@ -21,6 +21,11 @@ if(isDesktop){document.getElementById('joyWrap').style.display='none';document.g
 
 // ═══ INVENTORY ═══
 const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0};
+
+// ═══ GAME MODE (survival / creative) ═══
+// creative: 無敵・ブロック無限・即時破壊・飛行・敵WAVEなし（本家クリエイティブ準拠）
+let gameMode='survival';
+const isCreative=()=>gameMode==='creative';
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 const unlockedWeapons=[true,false,false,false,false,false];
 const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null,'slab','stair'];
@@ -62,6 +67,7 @@ const achievements={};
 function resetAchievements(){for(const key of Object.keys(ACHIEVEMENT_DEFS))achievements[key]=false;}
 function loadAchievements(saved){resetAchievements();if(saved&&typeof saved==='object'){for(const key of Object.keys(ACHIEVEMENT_DEFS))achievements[key]=!!saved[key];}}
 function unlockAchievement(key){
+  if(isCreative())return; // achievements are survival-only
   const def=ACHIEVEMENT_DEFS[key];if(!def||achievements[key])return;
   achievements[key]=true;
   if(def.apply)def.apply();
@@ -83,17 +89,18 @@ const $treasureInfo=document.getElementById('treasureInfo');
 const $craftPanel=document.getElementById('craftPanel');
 
 function updateInvHUD(){
-  $invWood.textContent='🪵 WOOD: '+inv.wood;
-  $invStone.textContent='🪨 STONE: '+inv.stone;
-  $invSand.textContent='🏖 SAND: '+inv.sand;
-  $invGrass.textContent='🌿 GRASS: '+inv.grass;
-  $invBrick.textContent='🧱 BRICK: '+inv.brick;
-  $invArrow.textContent='🏹 ARROW: '+inv.arrow;
-  $invDiamond.textContent='💎 DIAMOND: '+inv.diamond;
-  $invDragonCore.textContent='💠 DRAGON CORE: '+inv.dragonCore;
-  const tc=document.getElementById('torchCount');if(tc)tc.textContent=inv.torch>0?inv.torch:'';
-  const slc=document.getElementById('slabCount');if(slc)slc.textContent=inv.slab>0?inv.slab:'';
-  const stc=document.getElementById('stairCount');if(stc)stc.textContent=inv.stair>0?inv.stair:'';
+  const q=v=>isCreative()?'∞':v; // creative: everything is infinite
+  $invWood.textContent='🪵 WOOD: '+q(inv.wood);
+  $invStone.textContent='🪨 STONE: '+q(inv.stone);
+  $invSand.textContent='🏖 SAND: '+q(inv.sand);
+  $invGrass.textContent='🌿 GRASS: '+q(inv.grass);
+  $invBrick.textContent='🧱 BRICK: '+q(inv.brick);
+  $invArrow.textContent='🏹 ARROW: '+q(inv.arrow);
+  $invDiamond.textContent='💎 DIAMOND: '+q(inv.diamond);
+  $invDragonCore.textContent='💠 DRAGON CORE: '+q(inv.dragonCore);
+  const tc=document.getElementById('torchCount');if(tc)tc.textContent=isCreative()?'∞':(inv.torch>0?inv.torch:'');
+  const slc=document.getElementById('slabCount');if(slc)slc.textContent=isCreative()?'∞':(inv.slab>0?inv.slab:'');
+  const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'∞':(inv.stair>0?inv.stair:'');
 }
 
 function addMaterial(ti){
@@ -104,6 +111,7 @@ function addMaterial(ti){
 }
 
 function canCraft(recipe){
+  if(isCreative())return true; // creative: no materials needed
   for(const[k,v] of Object.entries(recipe.needs)){if(inv[k]<v)return false;}
   return true;
 }
@@ -160,9 +168,9 @@ function doCraft(idx){
   if(r.wi===-7&&hasDiamondBow)return;
   if(r.wi===-8&&hasDiamondStaff)return;
   if(r.wi===-10&&hasDiamondHammer)return;
-  if(r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に'+WEAPONS[r.req].name+'を入手しよう');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
+  if(!isCreative()&&r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に'+WEAPONS[r.req].name+'を入手しよう');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
-  for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
+  if(!isCreative())for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
   if(r.wi===-1){chestCount++;updateChestHUD();showBonus('📦 チェスト×'+chestCount);}
   else if(r.wi===-2){bedCount++;updateBedHUD();showBonus('🛏 ベッド×'+bedCount);}
   else if(r.wi===-3){inv.brick+=3;showBonus('🧱 レンガ×3 CRAFTED!');}
@@ -330,6 +338,7 @@ async function deleteSave(slot=activeSaveSlot){
 async function saveGame(){
   const data={
     version:SAVE_VERSION,saveSlot:activeSaveSlot,
+    gameMode,flying:!!P.flying,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
@@ -356,7 +365,8 @@ const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=docu
 function formatSaveMeta(d){
   if(!d)return 'EMPTY';
   const dt=new Date(d.savedAt||Date.now());
-  return `DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
+  const mode=d.gameMode==='creative'?'🪄CREATIVE ':'';
+  return `${mode}DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
 }
 async function updateOverlaySaveInfo(options={}){
   const rows=await getAllSaveSlots();
@@ -405,6 +415,7 @@ function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(M
 rotateSplash();
 const SCORE_KEY='jokura_scores';
 function saveScore(cleared){
+  if(isCreative())return; // creative runs don't enter the ranking
   try{
     const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
     const now=new Date();
@@ -433,7 +444,7 @@ function showSaveToast(msg){$saveToast.textContent=msg;$saveToast.classList.add(
 // ═══ HELP / SETTINGS ═══
 const SETTINGS_KEY='jokura-settings-v1';
 // difficulty: player-damage multiplier; lookSens: touch look multiplier; flash: hit/lava screen flashes; autoSave: periodic save
-const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true};
+const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival'};
 const DIFF_MULT={easy:.6,normal:1,hard:1.5};
 function difficultyMult(){return DIFF_MULT[settings.difficulty]||1;}
 function loadSettings(){
@@ -499,6 +510,18 @@ function toggleAutoSave(){settings.autoSave=!settings.autoSave;saveSettings();up
 function toggleShadows(){settings.shadows=!settings.shadows;saveSettings();updateSettingsUI();applyShadowSetting();showSaveToast(settings.shadows?'🌤 影 ON':'影 OFF');}
 function toggleBob(){settings.bob=!settings.bob;saveSettings();updateSettingsUI();showSaveToast(settings.bob?'画面の揺れ ON':'画面の揺れ OFF');}
 loadSettings();updateSettingsUI();
+// ─── MODE SELECT (title screen): NEW GAME starts in the selected mode ───
+if(settings.gameMode!=='creative')settings.gameMode='survival';
+const $modeBtn=document.getElementById('modeBtn');
+function updateModeBtn(){if($modeBtn)$modeBtn.textContent=settings.gameMode==='creative'?'🎮 MODE: 🪄 CREATIVE':'🎮 MODE: ⚔ SURVIVAL';}
+function toggleModeSelect(){
+  settings.gameMode=settings.gameMode==='creative'?'survival':'creative';
+  saveSettings();updateModeBtn();
+  showSaveToast(settings.gameMode==='creative'?'🪄 クリエイティブモード':'⚔ サバイバルモード');
+  playTone(settings.gameMode==='creative'?1000:600,.08,.08,'sine');
+}
+updateModeBtn();
+if($modeBtn)bindTapSafe($modeBtn,toggleModeSelect);
 if($helpBtn)bindTapSafe($helpBtn,openHelp);
 if($helpCloseBtn)bindTapSafe($helpCloseBtn,closeHelp);
 if($achievementsBtn)bindTapSafe($achievementsBtn,openAchievements);
@@ -1658,13 +1681,50 @@ const bossArrowGeo=new THREE.BoxGeometry(.2,.2,.7);
 function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-bz,l=Math.hypot(dx,dy,dz)||1;const m=new THREE.Mesh(bossArrowGeo,new THREE.MeshBasicMaterial({color:0xff3300}));m.position.set(bx,by,bz);scene.add(m);projectiles.push({mesh:m,x:bx,y:by,z:bz,dx:(dx/l)*22,dy:(dy/l)*22,dz:(dz/l)*22,life:2.5,dmg:dmgVal,isBossArrow:true});}
 
 // ═══ PLAYER ═══
-const P={x:0,y:20,z:0,velY:0,onGround:false,hp:100,maxHp:100,invT:0,food:100};
+const P={x:0,y:20,z:0,velY:0,onGround:false,hp:100,maxHp:100,invT:0,food:100,flying:false};
 let yaw=0,pitch=0;
 const SPEED=6,SPRINT_SPEED=10,GRAV=18,JV=7.5,EYE=1.55;
+const FLY_SPEED=12,FLY_VSPEED=8; // creative flight: fast horizontal + vertical
 let coyoteTime=0,jumpBuffer=0;
 const COYOTE=0.15,JBUF=0.12;
-function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
-function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}}
+let jumpBtnHeld=false,flyDownHeld=false; // touch hold state for creative flight
+function flyMove(vx,vz,dt){
+  // creative flight: no gravity; ascend/descend by held input, collide with blocks
+  const up=(isDesktop&&keys['Space'])||jumpBtnHeld;
+  const down=(isDesktop&&(keys['ShiftLeft']||keys['ShiftRight']))||flyDownHeld;
+  const vy=((up?1:0)-(down?1:0))*FLY_VSPEED;
+  const steps=3,sdt=dt/steps;
+  for(let s=0;s<steps;s++){
+    const nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;
+    const nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;
+    const ny=P.y+vy*sdt;
+    if(!overlaps(P.x,ny,P.z))P.y=ny;
+    else if(vy<0){setFlying(false);break;} // touched down: land like Minecraft
+  }
+  P.velY=0;P.onGround=false;coyoteTime=0;jumpBuffer=0;
+  if(P.y<-40){P.y=20;P.velY=0;}
+}
+function movePlayer(vx,vz,dt){if(P.flying){flyMove(vx,vz,dt);return;}P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
+let _flyTapT=0;
+function setFlying(on){
+  if(!isCreative()&&on)return;
+  if(P.flying===!!on)return;
+  P.flying=!!on;
+  if(P.flying){P.velY=0;P.onGround=false;showBonus('🕊 飛行ON');playTone(900,.08,.08,'sine');setTimeout(()=>playTone(1200,.06,.06,'sine'),80);}
+  else{showBonus('🛬 飛行OFF');playTone(500,.08,.06,'sine');}
+  updateFlyBtns();
+}
+function toggleFly(){if(!gs.running||!isCreative())return;initAudio();setFlying(!P.flying);}
+function doJump(){
+  if(!gs.running)return;initAudio();
+  if(isCreative()){
+    const now=performance.now();
+    if(now-_flyTapT<350){_flyTapT=0;toggleFly();return;} // double-tap: toggle flight
+    _flyTapT=now;
+    if(P.flying)return; // while flying, holding jump ascends (see flyMove)
+  }
+  if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;if(!isCreative())P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}
+}
 
 // ═══ ENEMY BUILDERS ═══
 function makeMat(color,emissive,emissiveIntensity,roughness){return new THREE.MeshStandardMaterial({color,emissive:emissive||0,emissiveIntensity:emissiveIntensity||0,roughness:roughness||.7});}
@@ -2367,7 +2427,7 @@ bindTapSafe($eatBtn,_onEatBtnTap);
 // ═══ GAME STATE ═══
 const gs={running:false,score:0,kills:0,day:1,time:0,wave:0,nextWave:15,paused:false};
 const DAY_DUR=90;
-function startWave(){gs.wave++;if(gs.wave>=5)unlockAchievement('wave5');if(gs.wave>=20)unlockAchievement('finalChallenge');const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
+function startWave(){if(isCreative())return;gs.wave++;if(gs.wave>=5)unlockAchievement('wave5');if(gs.wave>=20)unlockAchievement('finalChallenge');const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
 
 // ═══ HUD ═══
 const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer'),$goalLabel=document.getElementById('goalLabel'),$ff=document.getElementById('fdFill');
@@ -2388,12 +2448,13 @@ function togglePause(){
 let waTimer=0,bpTimer=0;
 const showAlert=t=>{$wa.textContent=t;$wa.classList.add('show');waTimer=2.5;};
 const showBonus=t=>{$bp.textContent=t;$bp.classList.add('show');bpTimer=1.5;};
-function dmgPlayer(v){if(P.invT>0)return;P.hp=Math.max(0,P.hp-v*difficultyMult());P.invT=.8;if(settings.flash){$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);}sfxDmg();if(P.hp<=0)gameOver();}
-function dmgLava(){P.hp=Math.max(0,P.hp-8);if(settings.flash){$lavaFlash.classList.add('on');setTimeout(()=>$lavaFlash.classList.remove('on'),200);}sfxLava();if(P.hp<=0)gameOver();}
-function dmgSnow(){P.hp=Math.max(0,P.hp-3);if(settings.flash){$snowFlash.classList.add('on');setTimeout(()=>$snowFlash.classList.remove('on'),200);}sfxSnow();if(P.hp<=0)gameOver();}
+function dmgPlayer(v){if(isCreative())return;if(P.invT>0)return;P.hp=Math.max(0,P.hp-v*difficultyMult());P.invT=.8;if(settings.flash){$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);}sfxDmg();if(P.hp<=0)gameOver();}
+function dmgLava(){if(isCreative())return;P.hp=Math.max(0,P.hp-8);if(settings.flash){$lavaFlash.classList.add('on');setTimeout(()=>$lavaFlash.classList.remove('on'),200);}sfxLava();if(P.hp<=0)gameOver();}
+function dmgSnow(){if(isCreative())return;P.hp=Math.max(0,P.hp-3);if(settings.flash){$snowFlash.classList.add('on');setTimeout(()=>$snowFlash.classList.remove('on'),200);}sfxSnow();if(P.hp<=0)gameOver();}
 function matProgress(mat,need){return (inv[mat]||0)+'/'+need;}
 function getCurrentGoal(){
   if(!gs.running)return '🎯 NEW GAMEで冒険開始';
+  if(isCreative())return isDesktop?'🪄 クリエイティブ：自由に建築！Space2回で飛行':'🪄 クリエイティブ：自由に建築！FLYで飛行';
   if(P.hp<=35&&meat>0)return '🍖 HPが低い！肉で回復しよう';
   if(!unlockedWeapons[1])return '🪵 木を集めて剣を作ろう WOOD '+matProgress('wood',5);
   if(!unlockedWeapons[2])return '🪨 石を集めてハンマー作成 STONE '+matProgress('stone',10)+' / WOOD '+matProgress('wood',4);
@@ -2613,6 +2674,7 @@ function resetMining(){miningKey='';miningProgress=0;crackMesh.visible=false;}
 function weaponMinePower(){if(weaponIdx===2)return hasDiamondHammer?6:4;if(weaponIdx===1)return 1.5;if(weaponIdx===4)return 2;return 1;}
 function mineBlock(bh){
   const d=bh;if(d.ti===WATER_BLOCK)return;
+  if(isCreative()){breakBlock(bh);sfxBreak();resetMining();return;} // creative: instant break (even lava rock)
   const hard=BLOCK_HARDNESS[d.ti]!==undefined?BLOCK_HARDNESS[d.ti]:99;
   const now=performance.now()/1000;
   if(hard>=99){playTone(90,.06,.05,'square');resetMining();return;} // unbreakable: dull thud
@@ -2855,7 +2917,7 @@ if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window
 const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
-  if(e.code==='Space'&&gs.running){e.preventDefault();doJump();}
+  if(e.code==='Space'&&gs.running){e.preventDefault();if(!e.repeat)doJump();}
   if(e.code>='Digit1'&&e.code<='Digit8')setType(parseInt(e.code[5])-1);
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
@@ -2903,8 +2965,8 @@ function breakBlock(bh){
     spawnBlockDebris(d.x+.5,d.y+.5,d.z+.5,v.ti);
     addMaterial(v.ti);
     if(v.ti===TORCH_BLOCK){inv.torch++;updateInvHUD();}
-    if(v.ti===DIAMOND_ORE&&dragon===null&&!dragonWarnPending&&P.y<-12&&Math.random()<0.2){dragonWarnPending=true;showAlert('⚠ ダイヤを掘った…何かが目覚めた…');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}
-    if(!v.playerPlaced){gs.score+=2;worldEdits.removed[k]=true;}
+    if(v.ti===DIAMOND_ORE&&!isCreative()&&dragon===null&&!dragonWarnPending&&P.y<-12&&Math.random()<0.2){dragonWarnPending=true;showAlert('⚠ ダイヤを掘った…何かが目覚めた…');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}
+    if(!v.playerPlaced){if(!isCreative())gs.score+=2;worldEdits.removed[k]=true;}
     else{delete worldEdits.placed[k];}
   }
   removeBlock(d.x,d.y,d.z);
@@ -2955,11 +3017,11 @@ function doAttack(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();if(attackCD>0)return;
   if(!unlockedWeapons[weaponIdx]){showBonus('🔒 武器未解放！クラフトしよう');playTone(200,.08,.08,'sawtooth');return;}
   const w=WEAPONS[weaponIdx];
-  if(w.type==='ranged'&&inv.arrow<=0){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
+  if(w.type==='ranged'&&inv.arrow<=0&&!isCreative()){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
   attackCD=w.cd;w.sfx();triggerHandSwing();
   if(w.type==='staff'){fireStaff();return;}
   if(w.type==='ranged'){
-    inv.arrow--;updateInvHUD();
+    if(!isCreative()){inv.arrow--;updateInvHUD();}
     const eh=castEnemiesFar(w.range);if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
     fireArrow();return;
   }
@@ -2997,8 +3059,10 @@ function doPlace(e){
   if(px<P.x+.35&&px+1>P.x-.35&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.35&&pz+1>P.z-.35)return;
   for(const en of enemies){const ep=en.root.position,fy=ep.y-.85;if(px<ep.x+.5&&px+1>ep.x-.5&&py<fy+1.7&&py+1>fy&&pz<ep.z+.5&&pz+1>ep.z-.5)return;}
   const mat=SLOT_MAT[curType],ti=SLOT_TI[curType];
-  if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':mat==='slab'?'⬜ ハーフブロックがない！クラフトしよう':mat==='stair'?'🪜 階段がない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
-  inv[mat]--;updateInvHUD();
+  if(!isCreative()){ // creative: infinite blocks, nothing consumed
+    if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':mat==='slab'?'⬜ ハーフブロックがない！クラフトしよう':mat==='stair'?'🪜 階段がない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
+    inv[mat]--;updateInvHUD();
+  }
   let meta=0;
   if(ti===SLAB_BLOCK){
     // top face → bottom slab, bottom face → top slab, side face → by hit height
@@ -3038,6 +3102,34 @@ if(HAS_POINTER_EVENTS){
 let _jumpBtnLastT=0;
 function _onJumpBtnTap(){const now=Date.now();if(now-_jumpBtnLastT<100)return;_jumpBtnLastT=now;doJump();}
 bindTapSafe(jumpBtn,_onJumpBtnTap);
+// ─── CREATIVE FLIGHT BUTTONS (touch) ───
+// FLY toggles flight; while flying, hold JUMP to ascend and ⬇ to descend
+const $flyBtn=document.getElementById('flyBtn'),$flyDownBtn=document.getElementById('flyDownBtn');
+function _bindHold(el,set){
+  if(!el)return;
+  const dn=(e)=>{e.preventDefault();set(true);};
+  const up=()=>set(false);
+  if(HAS_POINTER_EVENTS){el.addEventListener('pointerdown',dn);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up);}
+  else{el.addEventListener('touchstart',dn,{passive:false});el.addEventListener('touchend',up);el.addEventListener('touchcancel',up);}
+}
+_bindHold(jumpBtn,v=>{jumpBtnHeld=v;});
+_bindHold($flyDownBtn,v=>{flyDownHeld=v;});
+if($flyBtn)bindTapSafe($flyBtn,toggleFly);
+function updateFlyBtns(){
+  const show=isCreative()&&!isDesktop&&gs.running;
+  if($flyBtn){$flyBtn.style.display=show?'':'none';$flyBtn.textContent=P.flying?'🛬 LAND':'🕊 FLY';}
+  if($flyDownBtn)$flyDownBtn.style.display=show&&P.flying?'':'none';
+}
+// creative hides survival-only HUD (HP/満腹度/EAT/MEAT), like Minecraft creative
+function applyModeUI(){
+  const cr=isCreative();
+  const hp=document.getElementById('hpArea'),fd=document.getElementById('fdArea');
+  if(hp)hp.style.display=cr?'none':'';
+  if(fd)fd.style.display=cr?'none':'';
+  if($eatBtn)$eatBtn.style.display=cr?'none':'';
+  if($meatLabel)$meatLabel.style.display=cr?'none':'';
+  updateFlyBtns();
+}
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
 bindTapSafe(weaponBtn,_onWeaponBtnTap);
@@ -3156,9 +3248,11 @@ async function startGame(){
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';
   ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();
+  gameMode=settings.gameMode==='creative'?'creative':'survival';
   initWorldNoise(Math.floor(Math.random()*999999));
   commonReset();resetInv();resetAchievements();resetWorldEdits();
-  P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.food=100;P.invT=0;
+  P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.food=100;P.invT=0;P.flying=false;
+  if(isCreative())for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=true; // creative: all weapons
   weaponIdx=0;curType=0;setType(0);
   updateChunks(true);
   // spawn on the actual generated surface: 3D carving (cave mouths / cliffs)
@@ -3169,9 +3263,11 @@ async function startGame(){
     P.y=sy+1.01;
   }
   P.onGround=true;
-  gs.score=0;gs.kills=0;gs.wave=0;gs.day=1;gs.time=0;gs.nextWave=18;gs.running=true;
+  gs.score=0;gs.kills=0;gs.wave=0;gs.day=1;gs.time=0;gs.nextWave=isCreative()?999999:18;gs.running=true;
   resetWeather();
   $pauseBtn.style.display='flex';
+  applyModeUI();
+  if(isCreative())showAlert('🪄 CREATIVE MODE：自由に建築しよう！');
   spawnPigs(8);updateInvHUD();resize();
 }
 async function continueGame(){
@@ -3179,17 +3275,20 @@ async function continueGame(){
   $contDeathBtn.style.display='none';
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
+  gameMode=d.gameMode==='creative'?'creative':'survival';
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
   resetWeather();
-  finalBossPending=!!d.finalBossPending;
-  if(!finalBossPending&&gs.wave>=20&&!achievements.dragonSlayer)finalBossPending=true;
+  finalBossPending=!isCreative()&&!!d.finalBossPending;
+  if(!isCreative()&&!finalBossPending&&gs.wave>=20&&!achievements.dragonSlayer)finalBossPending=true;
   P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
+  P.flying=isCreative()&&!!d.flying;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
   curType=Math.max(0,Math.min(SLOT_TI.length-1,d.curType||0));setType(curType);
   yaw=d.yaw||0;pitch=d.pitch||0;
   if(d.inv)Object.assign(inv,d.inv);
   if(d.unlockedWeapons)d.unlockedWeapons.forEach((v,i)=>{if(i<unlockedWeapons.length)unlockedWeapons[i]=v;});
   else unlockedWeapons[0]=true;
+  if(isCreative())for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=true;
   meat=d.meat||0;updateMeatHUD();
   if(d.hasDiamondSword)applyDiamondSword();
   if(d.hasDiamondBow)applyDiamondBow();
@@ -3215,6 +3314,7 @@ async function continueGame(){
   if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   $pauseBtn.style.display='flex';
+  applyModeUI();
   spawnPigs(8);updateInvHUD();resize();
 }
 // アイテムピックアップ（武器ドロップで解放）
@@ -3267,15 +3367,16 @@ function tick(now){
   if(attackHeld){const w=WEAPONS[weaponIdx];if(w.type!=='ranged'&&attackCD<=0)doAttack();}
   // cracks heal if you stop mining a block (Minecraft-style)
   if(miningKey&&performance.now()/1000-miningLastT>0.7)resetMining();
+  if(isCreative()){P.hp=P.maxHp;P.food=100;} // creative: always full
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0&&P.food>60){P.hp=Math.min(P.maxHp,P.hp+2.5*dt);P.food=Math.max(0,P.food-.5*dt);}
-  gs.nextWave-=dt;if(gs.nextWave<=0)startWave();
+  if(!isCreative()){gs.nextWave-=dt;if(gs.nextWave<=0)startWave();}
   if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,chestCount,bedCount,trophyCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
-  if(!_isUnder&&finalBossPending&&!boss){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
-  if(_isUnder){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
-  if(_isUnder&&P.y<-12&&dragon===null&&!dragonWarnPending){dragonSpawnT-=dt;if(dragonSpawnT<=0){dragonSpawnT=60+Math.random()*30;if(Math.random()<0.09){dragonWarnPending=true;showAlert('⚠ 地下の底から咆哮が響く…💎');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}}}
+  if(!_isUnder&&finalBossPending&&!boss&&!isCreative()){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
+  if(_isUnder&&!isCreative()){const uc=enemies.filter(e=>e.root.position.y<0).length;underSpawnT=Math.max(0,underSpawnT-dt);if(underSpawnT<=0&&uc<UNDER_MAX){spawnUnderEnemy();underSpawnT=UNDER_SPAWN_CD;}}
+  if(_isUnder&&P.y<-12&&dragon===null&&!dragonWarnPending&&!isCreative()){dragonSpawnT-=dt;if(dragonSpawnT<=0){dragonSpawnT=60+Math.random()*30;if(Math.random()<0.09){dragonWarnPending=true;showAlert('⚠ 地下の底から咆哮が響く…💎');playTone(80,.2,.4,'sawtooth');setTimeout(()=>{if(gs.running)spawnDiamondDragon();},3000);}}}
 
   if(waTimer>0){waTimer-=dt;if(waTimer<=0)$wa.classList.remove('show');}
   if(bpTimer>0){bpTimer-=dt;if(bpTimer<=0)$bp.classList.remove('show');}
@@ -3287,8 +3388,8 @@ function tick(now){
   let fw=joy.y,sr=joy.x;
   if(isDesktop){fw=0;sr=0;if(keys['KeyW']||keys['ArrowUp'])fw=1;if(keys['KeyS']||keys['ArrowDown'])fw=-1;if(keys['KeyA']||keys['ArrowLeft'])sr=-1;if(keys['KeyD']||keys['ArrowRight'])sr=1;if(fw&&sr){const inv2=1/Math.SQRT2;fw*=inv2;sr*=inv2;}}
   const _wantSprint=isDesktop?(!!keys['ShiftLeft']||!!keys['ShiftRight']):Math.hypot(joy.x,joy.y)>.92;
-  const sprinting=_wantSprint&&P.food>20; // too hungry to sprint
-  const curSpeed=sprinting?SPRINT_SPEED:SPEED;
+  const sprinting=_wantSprint&&P.food>20&&!P.flying; // too hungry to sprint / shift descends while flying
+  const curSpeed=P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED);
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE,P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
@@ -3297,7 +3398,7 @@ function tick(now){
   updateHand(dt,_moving,sprinting);
   // hunger: drains over time, faster while sprinting; at 0 you slowly starve
   // (HP never drops below 10 from hunger, like Minecraft's gentler modes)
-  P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving?0.35:0))*dt);
+  if(!isCreative())P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving?0.35:0))*dt);
   if(P.food<=0){starveT+=dt;if(starveT>=3){starveT=0;if(P.hp>10){P.hp=Math.max(10,P.hp-2*difficultyMult());playTone(160,.12,.06,'sawtooth');}}}
   else starveT=0;
   // sprint FOV kick (Minecraft-style)
