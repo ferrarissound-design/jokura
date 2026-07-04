@@ -527,42 +527,83 @@ document.querySelectorAll('.menuPanel').forEach((panel)=>{
   panel.appendChild(x);
   panel.addEventListener('pointerdown',(e)=>{if(e.target===panel){e.preventDefault();e.stopPropagation();panel.classList.remove('show');}});
 });
-// ─── CODEX / QUEST LOG ───
+// ─── GUIDE / QUEST LOG ───
+const $questPanel=document.getElementById('questPanel'),$questBody=document.getElementById('questBody');
+const $questBtn=document.getElementById('questBtn'),$questCloseBtn=document.getElementById('questCloseBtn');
 const $codexPanel=document.getElementById('codexPanel'),$codexBody=document.getElementById('codexBody');
 const $codexCloseBtn=document.getElementById('codexCloseBtn'),$codexBtn=document.getElementById('codexBtn'),$pauseCodexBtn=document.getElementById('pauseCodexBtn');
-function renderCodex(){
-  if(!$codexBody)return;
-  const done=v=>v?'✅':'⬜';
-  const hasBase=(typeof bedCount!=='undefined'&&bedCount>0)||(beds&&beds.length>0)||(typeof chestCount!=='undefined'&&chestCount>0)||(chests&&chests.length>0);
+function isBaseReady(){return (typeof bedCount!=='undefined'&&bedCount>0)||(beds&&beds.length>0)||(typeof chestCount!=='undefined'&&chestCount>0)||(chests&&chests.length>0);}
+function recipeStatusText(r){
+  if(r.wi>=0&&unlockedWeapons[r.wi])return '作成済み';
+  if(r.wi===-6&&hasDiamondSword)return '作成済み';
+  if(r.wi===-7&&hasDiamondBow)return '作成済み';
+  if(r.wi===-8&&hasDiamondStaff)return '作成済み';
+  if(r.wi===-10&&hasDiamondHammer)return '作成済み';
+  if(r.wi===-9&&trophyCount>0)return '作成済み×'+trophyCount;
+  if(r.req!=null&&!unlockedWeapons[r.req])return '要: '+WEAPONS[r.req].name;
+  return canCraft(r)?'作成可能':'不足: '+(getMissingMaterialsText(r)||r.desc);
+}
+function renderQuestLog(){
   const gotDiamond=(inv.diamond>0)||hasDiamondSword||hasDiamondBow||hasDiamondStaff||hasDiamondHammer;
-  const quests=[
-    ['⚔ 剣をクラフト',unlockedWeapons[1]],
-    ['🔨 ハンマーをクラフト',unlockedWeapons[2]],
-    ['🏹 弓をクラフト',unlockedWeapons[3]],
-    ['🏠 拠点(チェスト/ベッド)を設置',hasBase],
-    ['💎 ダイヤを入手',gotDiamond],
-    ['💎 ダイヤ剣をクラフト',hasDiamondSword],
-    ['🌊 WAVE5に到達',gs.wave>=5],
-    ['🌊 WAVE20に到達',gs.wave>=20],
-    ['🏆 キングダイヤモンドドラゴン撃破',!!achievements.dragonSlayer],
+  const questGroups=[
+    {title:'序盤の準備',items:[
+      ['⚔ 剣をクラフト',unlockedWeapons[1],'現在の目標: '+getCurrentGoal()],
+      ['🔨 ハンマーをクラフト',unlockedWeapons[2],'石を掘る速度と近接火力を確保'],
+      ['🛏 ベッド/📦チェストで拠点準備',isBaseReady(),'夜スキップと素材保管で長期戦に備える'],
+      ['🏹 弓をクラフト',unlockedWeapons[3],'空中やボス相手の安全な攻撃手段']
+    ]},
+    {title:'地下探索とダイヤ装備',items:[
+      ['💎 ダイヤを入手',gotDiamond,'深く掘るほど貴重素材と危険が増える'],
+      ['💎 Diamond Swordを作成',hasDiamondSword,'WAVE中盤以降の主力武器'],
+      ['🔮 Diamond Staff / Bow / Hammerを強化',hasDiamondStaff||hasDiamondBow||hasDiamondHammer,'戦い方に合わせてダイヤ装備を追加']
+    ]},
+    {title:'WAVE進行',items:[
+      ['🌊 WAVE5に到達',gs.wave>=5,'スケルトンキングが出現'],
+      ['🌊 WAVE10に到達',gs.wave>=10,'炎のゴーレムが出現'],
+      ['🌊 WAVE15に到達',gs.wave>=15,'ダークアイが出現'],
+      ['🌊 WAVE20に到達',gs.wave>=20,'最終決戦: 地上でキングドラゴンを迎え撃つ'],
+      ['🏆 キングダイヤモンドドラゴン撃破',!!achievements.dragonSlayer,'ゲームクリア実績']
+    ]}
   ];
-  let h='<div class="codexSection"><div class="codexHd">🎯 今の目標</div><div class="codexGoal">'+getCurrentGoal()+'</div></div>';
-  h+='<div class="codexSection"><div class="codexHd">📋 クエスト進行</div>';
-  for(const [t,d] of quests)h+='<div class="questItem'+(d?' done':'')+'">'+done(d)+' '+t+'</div>';
+  let h='<div class="codexSection"><div class="codexHd">🎯 現在の目標</div><div class="codexGoal">'+getCurrentGoal()+'</div></div>';
+  const done=v=>v?'✅':'⬜';
+  for(const group of questGroups){
+    h+='<div class="codexSection"><div class="codexHd">📋 '+group.title+'</div>';
+    for(const [name,ok,note] of group.items)h+='<div class="questItem'+(ok?' done':'')+'">'+done(ok)+' '+name+'</div><div class="codexNote">'+note+'</div>';
+    h+='</div>';
+  }
+  return h;
+}
+function renderRecipeGuide(){
+  let h='<div class="codexSection"><div class="codexHd">🛠 クラフト図鑑</div>';
+  for(const r of CRAFT_RECIPES)h+='<div class="codexRow"><span>'+r.name+'</span><span class="codexCost">'+r.desc+' / '+recipeStatusText(r)+'</span></div>';
   h+='</div>';
-  h+='<div class="codexSection"><div class="codexHd">🛠 クラフトレシピ</div>';
-  for(const r of CRAFT_RECIPES)h+='<div class="codexRow"><span>'+r.name+'</span><span class="codexCost">'+r.desc+'</span></div>';
+  return h;
+}
+function renderWorldGuide(){
+  const waveText=BOSS_DEFS.filter(b=>[5,10,15,20].includes(b.wave)).map(b=>'WAVE'+b.wave+': '+b.name+(b.finalBoss?'（最終ボス）':'')).join('<br>');
+  return '<div class="codexSection"><div class="codexHd">🌍 バイオーム / 地下 / WAVE</div>'+
+    '<div class="codexSub">バイオーム</div><div class="codexNote">🌿草原: 基本素材集め / 🏜砂漠: 砂と開けた地形 / 🌲森林: 木材集め / 🪨岩山: 石と鉱石向き / 🌋火山: 溶岩と強敵に注意 / ❄雪原: 寒冷ダメージに注意。</div>'+
+    '<div class="codexSub">地下</div><div class="codexNote">深く掘るとダイヤ、古い宝箱、地下ドラゴンに遭遇する。危険なら階段やブロックで地上へ戻ろう。</div>'+
+    '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
+}
+function renderCodex(){
+  const body=renderQuestLog()+renderRecipeGuide()+renderWorldGuide()+'<div class="codexSection"><div class="codexHd">🏅 実績ヒント</div>';
+  let h=body;
+  for(const def of Object.values(ACHIEVEMENT_DEFS))h+='<div class="codexRow"><span>'+def.title+'</span><span class="codexCost">'+def.desc+'</span></div>';
   h+='</div>';
-  h+='<div class="codexSection"><div class="codexHd">⚔ 武器</div>';
-  for(const w of WEAPONS)h+='<div class="codexRow"><span>'+w.name+'</span><span class="codexCost">DMG '+w.dmg+' / '+w.type+'</span></div>';
-  h+='</div>';
-  $codexBody.innerHTML=h;
+  if($codexBody)$codexBody.innerHTML=h;
+  if($questBody)$questBody.innerHTML=renderQuestLog()+renderRecipeGuide()+renderWorldGuide();
 }
 function openCodex(){renderCodex();setPanel($codexPanel,true);}
 function closeCodex(){setPanel($codexPanel,false);}
+function openQuest(){renderCodex();setPanel($questPanel,true);}
+function closeQuest(){setPanel($questPanel,false);}
 if($codexBtn)bindTapSafe($codexBtn,openCodex);
 if($pauseCodexBtn)bindTapSafe($pauseCodexBtn,openCodex);
 if($codexCloseBtn)bindTapSafe($codexCloseBtn,closeCodex);
+if($questBtn)bindTapSafe($questBtn,openQuest);
+if($questCloseBtn)bindTapSafe($questCloseBtn,closeQuest);
 
 // ═══ AUDIO ═══
 let audioCtx=null;
@@ -2810,7 +2851,7 @@ if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAu
 
 // ═══ INPUT ═══
 let lActive=false,lId=null,lX=0,lY=0;const LS_BASE=.006;let LS=LS_BASE*(settings.lookSens||1);const uiPointers=new Set();
-if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
+if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='questBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay')||el.closest('.menuPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
 const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
@@ -2819,6 +2860,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
+  if(e.code==='KeyQ'||e.code==='KeyG')openQuest();
   if(e.code==='KeyX'){
     if(!gs.running)return;
     if(_bedNearby())           sleepBed();
