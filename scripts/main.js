@@ -357,11 +357,14 @@ function formatSaveMeta(d){
   const dt=new Date(d.savedAt||Date.now());
   return `DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
 }
-async function updateOverlaySaveInfo(keepContState){
+async function updateOverlaySaveInfo(options={}){
   const rows=await getAllSaveSlots();
   const filled=rows.filter(r=>r.data);
+  const keepContState=options===true||options.enableContinueButton===false;
+  const isEndOverlay=!gs.running&&!overlay.classList.contains('hide')&&(ovTitle.textContent==='GAME OVER'||ovTitle.textContent==='GAME CLEAR!!');
   // game-over / clear screens disable the continue button on purpose; don't override that
-  if(!keepContState)$contBtn.classList.remove('disabled');
+  // even when save-slot actions refresh this info while the end overlay is visible.
+  if(!keepContState&&!isEndOverlay)$contBtn.classList.remove('disabled');
   if(filled.length){$saveInfo.textContent=`💾 SLOT ${activeSaveSlot}: ${formatSaveMeta(rows[activeSaveSlot-1].data)}　(${filled.length}/${SAVE_SLOT_COUNT})`;}
   else{$saveInfo.textContent='セーブデータなし / セーブスロットから空スロットを選べます';}
 }
@@ -3061,13 +3064,13 @@ function gameComplete(){
   ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日';
   ovBtn.textContent='もう一度';
   $contDeathBtn.style.display='none';$contBtn.classList.add('disabled');
-  renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo(true);
+  renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo({enableContinueButton:false});
   [1200,1500,1800,2200,2600,3000].forEach((f,i)=>setTimeout(()=>playTone(f,.25,.35,'sine'),i*160));
 }
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
   saveScore(false);
-  gs.running=false;ovTitle.style.color='#ff4444';ovTitle.style.textShadow='3px 3px 0 #880000,6px 6px 0 #330000';ovTitle.textContent='GAME OVER';if($ovSplash)$ovSplash.textContent='また挑戦しよう！';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='RETRY';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo(true);
+  gs.running=false;ovTitle.style.color='#ff4444';ovTitle.style.textShadow='3px 3px 0 #880000,6px 6px 0 #330000';ovTitle.textContent='GAME OVER';if($ovSplash)$ovSplash.textContent='また挑戦しよう！';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='RETRY';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo({enableContinueButton:false});
 }
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
