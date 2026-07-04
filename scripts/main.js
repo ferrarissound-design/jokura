@@ -2028,7 +2028,7 @@ function moveEnemy(e,vx,vz,dt){const p=e.root.position,fy=p.y-.85;e.velY-=GRAV*d
 // ═══ BOSS ═══
 const BOSS_DEFS=[
   {wave:5, name:'💀 スケルトンキング',color:0xaaaaee,emissive:0x3333aa,baseHp:60, dmg:18,score:800, scale:2.2,patterns:['multishot','charge','stomp'],   deathColor:0x8888ff},
-  {wave:10,name:'🔥 炎のゴーレム',  color:0xff4400,emissive:0x881100,baseHp:110,dmg:28,score:1500,scale:2.8,patterns:['charge','aoeBlast','multishot'], deathColor:0xff6600},
+  {wave:10,name:'🔥 炎のゴーレム',  color:0x3a2415,emissive:0xbb2200,baseHp:110,dmg:28,score:1500,scale:2.8,patterns:['charge','aoeBlast','multishot'], deathColor:0xff6600},
   {wave:13,name:'🦴 スケルトンウォーロード',color:0xbbccee,emissive:0x2244aa,baseHp:95,dmg:22,score:1200,scale:1.8,patterns:['multishot','charge','stomp'],deathColor:0x8899ff,miniBoss:true,diamondDrop:2},
   {wave:15,name:'👁 ダークアイ',    color:0x220044,emissive:0x550088,baseHp:175,dmg:35,score:2500,scale:3.2,patterns:['omnishot','charge','aoeBlast'],  deathColor:0xaa00ff},
   {wave:17,name:'🔮 ダークウィザード',color:0x1a0030,emissive:0x7700bb,baseHp:145,dmg:30,score:1800,scale:2.0,patterns:['omnishot','aoeBlast','charge'],deathColor:0xbb44ff,miniBoss:true,diamondDrop:3},
@@ -2093,12 +2093,109 @@ function buildBoss(def,sc){
   const mat=new THREE.MeshStandardMaterial({color:def.color,roughness:.5,emissive:def.emissive,emissiveIntensity:.35});
   const body=new THREE.Mesh(new THREE.BoxGeometry(.85*sc,1.7*sc,.85*sc),mat.clone());
   const head=new THREE.Mesh(new THREE.BoxGeometry(.7*sc,.7*sc,.7*sc),mat.clone());head.position.y=1.15*sc;
-  const eyeM=new THREE.MeshBasicMaterial({color:0xff0000});const eyeG=new THREE.BoxGeometry(.2*sc,.2*sc,.08*sc);
-  head.add(new THREE.Mesh(eyeG,eyeM).translateX(-.2*sc).translateY(.08*sc).translateZ(.36*sc));
-  head.add(new THREE.Mesh(eyeG,eyeM.clone()).translateX(.2*sc).translateY(.08*sc).translateZ(.36*sc));
-  if(def.wave===5){const crownM=new THREE.MeshStandardMaterial({color:0xffd700,emissive:0x886600,emissiveIntensity:.4});for(let i=0;i<5;i++){const spike=new THREE.Mesh(new THREE.BoxGeometry(.12*sc,.3*sc,.12*sc),crownM);spike.position.set((-0.28+i*.14)*sc,.4*sc,.0);head.add(spike);}const aL=new THREE.Mesh(new THREE.BoxGeometry(.22*sc,1.2*sc,.22*sc),mat.clone());aL.position.set(-.58*sc,-.1*sc,0);root.add(aL);const aR=new THREE.Mesh(new THREE.BoxGeometry(.22*sc,1.2*sc,.22*sc),mat.clone());aR.position.set(.58*sc,-.1*sc,0);root.add(aR);}
-  else if(def.wave===10){body.scale.x=1.3;body.scale.z=1.2;const lavaM=new THREE.MeshBasicMaterial({color:0xff4400});for(let i=0;i<4;i++){const crack=new THREE.Mesh(new THREE.BoxGeometry(.08*sc,.5*sc,.06*sc),lavaM);crack.position.set((Math.random()-.5)*.6*sc,(Math.random()-.5)*.5*sc,.44*sc);body.add(crack);}const aL=new THREE.Mesh(new THREE.BoxGeometry(.5*sc,1.0*sc,.5*sc),mat.clone());aL.position.set(-.9*sc,-.2*sc,0);root.add(aL);const aR=new THREE.Mesh(new THREE.BoxGeometry(.5*sc,1.0*sc,.5*sc),mat.clone());aR.position.set(.9*sc,-.2*sc,0);root.add(aR);}
-  else if(def.wave===15){const pupilM=new THREE.MeshBasicMaterial({color:0xcc00ff});const pupil=new THREE.Mesh(new THREE.BoxGeometry(.35*sc,.35*sc,.1*sc),pupilM);pupil.position.set(0,.05*sc,.36*sc);head.add(pupil);for(let i=0;i<4;i++){const angle=i*(Math.PI/2);const tent=new THREE.Mesh(new THREE.BoxGeometry(.18*sc,1.0*sc,.18*sc),mat.clone());tent.position.set(Math.cos(angle)*.7*sc,-.6*sc,Math.sin(angle)*.7*sc);tent.rotation.z=Math.cos(angle)*.4;tent.rotation.x=Math.sin(angle)*.4;root.add(tent);}}
+  const glow=(w,h,d,c)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:c}));
+  if(def.wave===5||def.wave===13){
+    // 骸骨共通: 眼窩＋光る瞳＋鼻孔＋歯＋肋骨＋背骨＋骨の腕
+    const boneM=()=>makeMat(0xe8e0cc,0x444455,.25,.55);
+    const sockL=glow(.2*sc,.22*sc,.06*sc,0x05050a);sockL.position.set(-.17*sc,.12*sc,.33*sc);head.add(sockL);
+    const sockR=sockL.clone();sockR.position.x=.17*sc;head.add(sockR);
+    const pupL=glow(.1*sc,.1*sc,.05*sc,def.wave===5?0xff2200:0x44ddff);pupL.position.set(-.17*sc,.12*sc,.36*sc);head.add(pupL);
+    const pupR=pupL.clone();pupR.position.x=.17*sc;head.add(pupR);
+    const nose=glow(.08*sc,.12*sc,.05*sc,0x05050a);nose.position.set(0,-.06*sc,.35*sc);head.add(nose);
+    const jaw=glow(.44*sc,.05*sc,.05*sc,0x05050a);jaw.position.set(0,-.21*sc,.35*sc);head.add(jaw);
+    for(let i=0;i<4;i++){const th=makeBox(.08*sc,.1*sc,.04*sc,boneM());th.position.set((-.15+i*.1)*sc,-.28*sc,.36*sc);head.add(th);}
+    for(let i=0;i<4;i++){const rib=makeBox(.62*sc,.08*sc,.05*sc,boneM());rib.position.set(0,(.6-.22*i)*sc,.43*sc);body.add(rib);}
+    const spine=makeBox(.1*sc,1.05*sc,.05*sc,boneM());spine.position.set(0,.1*sc,.43*sc);body.add(spine);
+    const pelvis=makeBox(.5*sc,.14*sc,.05*sc,boneM());pelvis.position.set(0,-.55*sc,.43*sc);body.add(pelvis);
+    const armG=new THREE.BoxGeometry(.15*sc,1.15*sc,.15*sc);
+    const aL=new THREE.Mesh(armG,boneM());aL.position.set(-.56*sc,-.08*sc,0);aL.rotation.z=.12;root.add(aL);
+    const aR=new THREE.Mesh(armG,boneM());aR.position.set(.56*sc,-.08*sc,0);aR.rotation.z=-.12;root.add(aR);
+    if(def.wave===5){
+      // 王: 黄金の王冠＋宝石＋真紅のマント
+      const crownM=new THREE.MeshStandardMaterial({color:0xffd700,emissive:0x886600,emissiveIntensity:.5});
+      const band=new THREE.Mesh(new THREE.BoxGeometry(.56*sc,.12*sc,.56*sc),crownM);band.position.y=.38*sc;head.add(band);
+      for(let i=0;i<5;i++){const spike=new THREE.Mesh(new THREE.BoxGeometry(.09*sc,(i===2?.34:.2)*sc,.09*sc),crownM.clone());spike.position.set((-.22+i*.11)*sc,(i===2?.58:.52)*sc,.2*sc);head.add(spike);}
+      const jewel=glow(.1*sc,.1*sc,.05*sc,0xff2266);jewel.position.set(0,.38*sc,.29*sc);head.add(jewel);
+      const capeM=()=>makeMat(0x8a0a1a,0x330000,.3,.8);
+      const mantle=makeBox(1.2*sc,.18*sc,.7*sc,capeM());mantle.position.set(0,.78*sc,-.12*sc);root.add(mantle);
+      const cape=makeBox(.95*sc,1.5*sc,.07*sc,capeM());cape.position.set(0,-.02*sc,-.48*sc);root.add(cape);
+    }else{
+      // 武将: 角付き兜＋トゲ肩鎧＋バトルアックス
+      const ironM=()=>makeMat(0x38404c,0x111820,.3,.45);
+      const helm=makeBox(.78*sc,.28*sc,.78*sc,ironM());helm.position.y=.32*sc;head.add(helm);
+      const hornL=makeBox(.12*sc,.44*sc,.12*sc,boneM());hornL.position.set(-.42*sc,.5*sc,0);hornL.rotation.z=.5;head.add(hornL);
+      const hornR=hornL.clone();hornR.rotation.z=-.5;hornR.position.x=.42*sc;head.add(hornR);
+      const pdL=makeBox(.42*sc,.22*sc,.52*sc,ironM());pdL.position.set(-.56*sc,.72*sc,0);root.add(pdL);
+      const pdR=pdL.clone();pdR.position.x=.56*sc;root.add(pdR);
+      const spkL=makeBox(.1*sc,.3*sc,.1*sc,ironM());spkL.position.set(-.6*sc,.95*sc,0);root.add(spkL);
+      const spkR=spkL.clone();spkR.position.x=.6*sc;root.add(spkR);
+      const haft=makeBox(.09*sc,1.55*sc,.09*sc,makeMat(0x5a3a1a,0,0,.85));haft.position.set(.76*sc,.3*sc,.22*sc);haft.rotation.x=.12;root.add(haft);
+      const bladeL=makeBox(.12*sc,.6*sc,.42*sc,ironM());bladeL.position.set(0,.52*sc,.27*sc);haft.add(bladeL);
+      const bladeR=bladeL.clone();bladeR.position.z=-.27*sc;haft.add(bladeR);
+      const edgeL=glow(.09*sc,.54*sc,.06*sc,0x66eeff);edgeL.position.set(0,.52*sc,.5*sc);haft.add(edgeL);
+      const edgeR=edgeL.clone();edgeR.position.z=-.5*sc;haft.add(edgeR);
+    }
+  }
+  else if(def.wave===10){
+    // ゴーレム: 岩の巨体＋溶岩の亀裂＋燃える頭と拳
+    body.scale.x=1.3;body.scale.z=1.2;head.scale.set(.85,.8,.85);head.position.y=1.08*sc;
+    const rockM=()=>makeMat(0x332112,0x441100,.3,.95);
+    const lavaC=[0xff4400,0xff7700,0xffbb00];
+    for(let i=0;i<6;i++){const crack=glow(.07*sc,(.3+(i%3)*.15)*sc,.05*sc,lavaC[i%3]);crack.position.set((-.3+i*.12)*sc,(.5-(i%4)*.28)*sc,.44*sc);crack.rotation.z=(i%2?.35:-.35);body.add(crack);}
+    const core=glow(.3*sc,.3*sc,.08*sc,0xffcc33);core.position.set(0,.28*sc,.45*sc);core.rotation.z=Math.PI/4;body.add(core);
+    const eL=glow(.16*sc,.12*sc,.06*sc,0xffcc00);eL.position.set(-.18*sc,.08*sc,.36*sc);head.add(eL);
+    const eR=eL.clone();eR.position.x=.18*sc;head.add(eR);
+    const brow=makeBox(.6*sc,.12*sc,.14*sc,rockM());brow.position.set(0,.24*sc,.32*sc);head.add(brow);
+    for(let i=0;i<3;i++){const f=glow((.32-.09*i)*sc,.15*sc,(.32-.09*i)*sc,lavaC[i]);f.position.y=(.44+i*.14)*sc;head.add(f);}
+    const shG=new THREE.BoxGeometry(.55*sc,.4*sc,.72*sc);
+    const shL=new THREE.Mesh(shG,rockM());shL.position.set(-.78*sc,.82*sc,0);root.add(shL);
+    const shR=new THREE.Mesh(shG,rockM());shR.position.set(.78*sc,.82*sc,0);root.add(shR);
+    for(const sx of[-.78,.78])for(let i=0;i<3;i++){const f=glow((.2-.06*i)*sc,.13*sc,(.2-.06*i)*sc,lavaC[i]);f.position.set(sx*sc,(1.08+i*.12)*sc,0);root.add(f);}
+    const armG=new THREE.BoxGeometry(.45*sc,.9*sc,.45*sc);
+    const aL=new THREE.Mesh(armG,mat.clone());aL.position.set(-.88*sc,.12*sc,0);root.add(aL);
+    const aR=new THREE.Mesh(armG,mat.clone());aR.position.set(.88*sc,.12*sc,0);root.add(aR);
+    const fG=new THREE.BoxGeometry(.56*sc,.46*sc,.56*sc);
+    const fL=new THREE.Mesh(fG,rockM());fL.position.set(-.92*sc,-.5*sc,.08*sc);root.add(fL);
+    const fR=new THREE.Mesh(fG,rockM());fR.position.set(.92*sc,-.5*sc,.08*sc);root.add(fR);
+    const kL=glow(.4*sc,.08*sc,.08*sc,0xff5500);kL.position.set(0,.05*sc,.29*sc);fL.add(kL);
+    const kR=kL.clone();fR.add(kR);
+  }
+  else if(def.wave===15){
+    // 巨大な単眼: 白目＋虹彩＋血管、影の胴体と8本の触手
+    body.scale.set(.7,1,.7);
+    head.scale.set(1.7,1.7,1.7);head.position.y=1.35*sc;
+    head.material.color.setHex(0xe8e4f2);
+    const iris=glow(.36*sc,.36*sc,.05*sc,0x7700cc);iris.position.set(0,0,.36*sc);head.add(iris);
+    const pupil=glow(.17*sc,.17*sc,.05*sc,0x000000);pupil.position.set(0,0,.38*sc);head.add(pupil);
+    const glint=glow(.05*sc,.05*sc,.04*sc,0xffffff);glint.position.set(.07*sc,.08*sc,.39*sc);head.add(glint);
+    for(let i=0;i<6;i++){const ang=i/6*Math.PI*2;const v=glow(.035*sc,.16*sc,.04*sc,0xaa1133);v.position.set(Math.cos(ang)*.27*sc,Math.sin(ang)*.27*sc,.355*sc);v.rotation.z=ang+Math.PI/2;head.add(v);}
+    const lid=makeBox(.74*sc,.16*sc,.74*sc,mat.clone());lid.position.y=.33*sc;head.add(lid);
+    for(let i=0;i<8;i++){const angle=i*(Math.PI/4);const tent=new THREE.Mesh(new THREE.BoxGeometry(.15*sc,(.8+(i%2)*.35)*sc,.15*sc),mat.clone());tent.position.set(Math.cos(angle)*.5*sc,-.68*sc,Math.sin(angle)*.5*sc);tent.rotation.z=Math.cos(angle)*.5;tent.rotation.x=Math.sin(angle)*.5;root.add(tent);}
+    const wL=glow(.08*sc,.08*sc,.05*sc,0xcc00ff);wL.position.set(-.15*sc,.35*sc,.31*sc);body.add(wL);
+    const wR=wL.clone();wR.position.x=.15*sc;body.add(wR);
+  }
+  else if(def.wave===17){
+    // 魔導士: とんがり帽子＋ローブ＋白髭＋魔法の杖
+    const robeM=()=>new THREE.MeshStandardMaterial({color:def.color,roughness:.6,emissive:def.emissive,emissiveIntensity:.25});
+    const brim=makeBox(1.0*sc,.09*sc,1.0*sc,robeM());brim.position.y=.38*sc;head.add(brim);
+    const h1=makeBox(.5*sc,.24*sc,.5*sc,robeM());h1.position.y=.53*sc;head.add(h1);
+    const h2=makeBox(.32*sc,.22*sc,.32*sc,robeM());h2.position.y=.72*sc;head.add(h2);
+    const h3=makeBox(.15*sc,.2*sc,.15*sc,robeM());h3.position.y=.88*sc;h3.rotation.y=.3;head.add(h3);
+    const band=glow(.52*sc,.06*sc,.52*sc,0xbb44ff);band.position.y=.44*sc;head.add(band);
+    const face=glow(.5*sc,.32*sc,.05*sc,0x08000d);face.position.set(0,.06*sc,.34*sc);head.add(face);
+    const eL=glow(.1*sc,.08*sc,.05*sc,0xdd66ff);eL.position.set(-.12*sc,.1*sc,.37*sc);head.add(eL);
+    const eR=eL.clone();eR.position.x=.12*sc;head.add(eR);
+    const beard=makeBox(.42*sc,.3*sc,.08*sc,makeMat(0xccccdd,0,0,.8));beard.position.set(0,-.28*sc,.36*sc);head.add(beard);
+    const beard2=makeBox(.3*sc,.45*sc,.07*sc,makeMat(0xccccdd,0,0,.8));beard2.position.set(0,.6*sc,.46*sc);body.add(beard2);
+    const belt=glow(.9*sc,.08*sc,.9*sc,0x9922ee);belt.position.y=-.1*sc;body.add(belt);
+    const skirt2=makeBox(.98*sc,.5*sc,.95*sc,robeM());skirt2.position.y=-.5*sc;body.add(skirt2);
+    const skirt=makeBox(1.1*sc,.55*sc,1.05*sc,robeM());skirt.position.y=-.72*sc;body.add(skirt);
+    const slL=makeBox(.24*sc,.9*sc,.24*sc,robeM());slL.position.set(-.55*sc,.08*sc,0);slL.rotation.z=.15;root.add(slL);
+    const slR=makeBox(.24*sc,.9*sc,.24*sc,robeM());slR.position.set(.55*sc,.2*sc,.18*sc);slR.rotation.x=-.6;root.add(slR);
+    const staff=makeBox(.07*sc,1.6*sc,.07*sc,makeMat(0x4a3018,0,0,.85));staff.position.set(.58*sc,.15*sc,.48*sc);root.add(staff);
+    const orb=glow(.2*sc,.2*sc,.2*sc,0xcc44ff);orb.position.y=.85*sc;orb.rotation.set(.6,.6,0);staff.add(orb);
+    const orbCore=glow(.12*sc,.12*sc,.12*sc,0xffffff);orbCore.position.y=.85*sc;staff.add(orbCore);
+  }
   const hpBg=new THREE.Mesh(new THREE.BoxGeometry(1.8*sc,.12,.06),new THREE.MeshBasicMaterial({color:0x330000}));hpBg.position.y=2.2*sc;
   const hpFg=new THREE.Mesh(new THREE.BoxGeometry(1.8*sc,.12,.07),new THREE.MeshBasicMaterial({color:0xff1744}));hpFg.position.y=2.2*sc;hpFg.position.z=.01;
   const lc=document.createElement('canvas');lc.width=256;lc.height=48;const lx=lc.getContext('2d');lx.fillStyle='rgba(0,0,0,.65)';lx.fillRect(0,0,256,48);lx.fillStyle='#ff4444';lx.font='bold 20px sans-serif';lx.textAlign='center';lx.fillText(def.name,128,34);
