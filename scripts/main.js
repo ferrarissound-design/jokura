@@ -212,6 +212,7 @@ function unlockWeaponByDrop(wi){
 const $craftBtn=document.getElementById('craftBtn');
 let _craftBtnLastT=0;
 function _onCraftBtnTap(){const now=Date.now();if(now-_craftBtnLastT<100)return;_craftBtnLastT=now;toggleCraftPanel();}
+const HAS_POINTER_EVENTS='PointerEvent' in window;
 function bindTapSafe(el,fn){
   let lockUntil=0;
   const run=(e)=>{
@@ -222,8 +223,8 @@ function bindTapSafe(el,fn){
     e.stopPropagation();
     fn(e);
   };
-  el.addEventListener('pointerdown',run);
-  el.addEventListener('touchstart',run,{passive:false});
+  if(HAS_POINTER_EVENTS)el.addEventListener('pointerdown',run);
+  else el.addEventListener('touchstart',run,{passive:false});
 }
 
 bindTapSafe($craftBtn,_onCraftBtnTap);
@@ -2974,15 +2975,24 @@ function doPlace(e){
 const breakBtn=document.getElementById('breakBtn'),placeBtn=document.getElementById('placeBtn'),jumpBtn=document.getElementById('jumpBtn'),weaponBtn=document.getElementById('weaponBtn'),saveFloatBtn=document.getElementById('saveFloatBtn');
 // hold ATTACK to keep mining/attacking (auto-repeats at the weapon cooldown in tick)
 let attackHeld=false;
-function _attackDown(e){e.preventDefault();e.stopPropagation();attackHeld=true;doAttack(e);}
+let _attackLockUntil=0;
+function _attackDown(e){
+  const now=performance.now();
+  if(now<_attackLockUntil)return;
+  _attackLockUntil=now+350;
+  e.preventDefault();e.stopPropagation();attackHeld=true;doAttack(e);
+}
 function _attackUp(){attackHeld=false;}
-breakBtn.addEventListener('pointerdown',_attackDown);
-breakBtn.addEventListener('touchstart',_attackDown,{passive:false});
-breakBtn.addEventListener('pointerup',_attackUp);
-breakBtn.addEventListener('pointercancel',_attackUp);
-breakBtn.addEventListener('pointerleave',_attackUp);
-breakBtn.addEventListener('touchend',_attackUp);
-breakBtn.addEventListener('touchcancel',_attackUp);
+if(HAS_POINTER_EVENTS){
+  breakBtn.addEventListener('pointerdown',_attackDown);
+  breakBtn.addEventListener('pointerup',_attackUp);
+  breakBtn.addEventListener('pointercancel',_attackUp);
+  breakBtn.addEventListener('pointerleave',_attackUp);
+}else{
+  breakBtn.addEventListener('touchstart',_attackDown,{passive:false});
+  breakBtn.addEventListener('touchend',_attackUp);
+  breakBtn.addEventListener('touchcancel',_attackUp);
+}
 let _jumpBtnLastT=0;
 function _onJumpBtnTap(){const now=Date.now();if(now-_jumpBtnLastT<100)return;_jumpBtnLastT=now;doJump();}
 bindTapSafe(jumpBtn,_onJumpBtnTap);
@@ -2995,10 +3005,15 @@ bindTapSafe(saveFloatBtn,_onSaveBtnTap);
 
 // PLACEボタン長押し：近くにベッド→睡眠、チェスト→操作、ベッド所持→設置、チェスト所持→設置
 let placeLongPressTimer=null;
+let placePressActive=false;
+let _placeLockUntil=0;
 function _bedNearby(){return beds.some(b=>{const dx=b.x+.5-P.x,dz=b.z+.9-P.z,dy=b.y+.3-(P.y+.8);return Math.hypot(dx,dy,dz)<2.5;});}
 function _chestNearby(){return chests.some(c=>{const dx=c.x+.5-P.x,dz=c.z+.5-P.z,dy=c.y+.35-(P.y+.8);return Math.hypot(dx,dy,dz)<2.2;});}
 function _startPlacePress(){
-  if(placeLongPressTimer!==null)return;
+  const now=performance.now();
+  if(now<_placeLockUntil||placePressActive)return;
+  _placeLockUntil=now+350;
+  placePressActive=true;
   initAudio();
   placeLongPressTimer=setTimeout(()=>{
     placeLongPressTimer=null;
@@ -3012,13 +3027,22 @@ function _startPlacePress(){
   },500);
 }
 function _endPlacePress(runShort){
+  if(!placePressActive)return;
+  placePressActive=false;
   if(placeLongPressTimer!==null){clearTimeout(placeLongPressTimer);placeLongPressTimer=null;if(runShort)doPlace();}
 }
-placeBtn.addEventListener('pointerdown', (e)=>{e.preventDefault();e.stopPropagation();_startPlacePress();});
-placeBtn.addEventListener('pointerup',   (e)=>{e.preventDefault();e.stopPropagation();_endPlacePress(true);});
-placeBtn.addEventListener('pointercancel',(e)=>{_endPlacePress(false);});
-placeBtn.addEventListener('touchstart',  (e)=>{e.preventDefault();e.stopPropagation();_startPlacePress();},{passive:false});
-placeBtn.addEventListener('touchend',    (e)=>{e.preventDefault();e.stopPropagation();_endPlacePress(true);},{passive:false});
+function _placeDown(e){e.preventDefault();e.stopPropagation();_startPlacePress();}
+function _placeUp(e){e.preventDefault();e.stopPropagation();_endPlacePress(true);}
+function _placeCancel(){_endPlacePress(false);}
+if(HAS_POINTER_EVENTS){
+  placeBtn.addEventListener('pointerdown',_placeDown);
+  placeBtn.addEventListener('pointerup',_placeUp);
+  placeBtn.addEventListener('pointercancel',_placeCancel);
+}else{
+  placeBtn.addEventListener('touchstart',_placeDown,{passive:false});
+  placeBtn.addEventListener('touchend',_placeUp,{passive:false});
+  placeBtn.addEventListener('touchcancel',_placeCancel);
+}
 
 // ═══ OVERLAY ═══
 const overlay=document.getElementById('overlay'),ovTitle=document.getElementById('ovTitle'),ovInfo=document.getElementById('ovInfo'),ovBtn=document.getElementById('ovBtn'),ovSub=document.getElementById('ovSub');
