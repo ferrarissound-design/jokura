@@ -158,3 +158,6 @@ canvas#c{display:block;touch-action:none}
 .achievementTitle{font-size:12px;font-weight:900;color:#f9d342;text-shadow:1px 1px 0 #000;margin-bottom:3px}
 .achievementDesc{font-size:10px;color:#ddd;line-height:1.55;text-shadow:1px 1px 0 #000}
 .achievementReward{font-size:10px;color:#7ecfff;margin-top:3px;text-shadow:1px 1px 0 #000}
+
+#lightning{position:absolute;inset:0;background:#eaf2ff;opacity:0;pointer-events:none;z-index:6;transition:opacity .06s}
+#lightning.on{opacity:.65}

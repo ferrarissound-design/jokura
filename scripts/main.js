@@ -707,6 +707,75 @@ const starMat=new THREE.PointsMaterial({color:0xffffff,size:1.0,sizeAttenuation:
   starPivot.add(stars);
 })();
 
+// ─── WEATHER: rain / snow precipitation fields (shader-animated, follow player) ───
+// A fixed column of streaks (rain) / flakes (snow) around the player; the fall
+// is done entirely in the vertex shader (mod of uTime), so there is no
+// per-particle JS cost. The whole group is re-centred on the player each frame.
+const PRECIP_R=16,PRECIP_H=22; // radius / column height
+const _precipCount=isTouch?360:900;
+function _makePrecipUniforms(){return{uTime:{value:0},uSpeed:{value:1},uH:{value:PRECIP_H}};}
+function _precipAttribs(){
+  const n=_precipCount,pos=new Float32Array(n*3),ph=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    pos[i*3]=(Math.random()*2-1)*PRECIP_R;
+    pos[i*3+1]=Math.random()*PRECIP_H;
+    pos[i*3+2]=(Math.random()*2-1)*PRECIP_R;
+    ph[i]=Math.random()*PRECIP_H;
+  }
+  return{pos,ph};
+}
+// preprocessor directives (#ifdef/#endif) must sit at the start of a line
+const _precipVert=[
+  'uniform float uTime;uniform float uSpeed;uniform float uH;attribute float aPhase;',
+  'void main(){',
+  '  vec3 p=position;',
+  '  float off=mod(uTime*uSpeed+aPhase,uH);',
+  '  p.y-=off;',
+  '  p.x+=off*0.16;',            // slight wind slant
+  '#ifdef IS_SNOW',
+  '  p.x+=sin(uTime*0.7+aPhase)*0.6;',
+  '  p.z+=cos(uTime*0.5+aPhase*1.3)*0.6;',
+  '#endif',
+  '  vec4 mv=modelViewMatrix*vec4(p,1.0);',
+  '#ifdef IS_SNOW',
+  '  gl_PointSize=2.6*(300.0/-mv.z);',
+  '#endif',
+  '  gl_Position=projectionMatrix*mv;',
+  '}'
+].join('\n');
+// rain: short vertical streaks as line segments
+const rainGroup=new THREE.Group();rainGroup.visible=false;scene.add(rainGroup);
+(function(){
+  const{pos,ph}=_precipAttribs();
+  const n=_precipCount,lp=new Float32Array(n*6),lph=new Float32Array(n*2);
+  for(let i=0;i<n;i++){
+    const x=pos[i*3],y=pos[i*3+1],z=pos[i*3+2];
+    lp[i*6]=x;lp[i*6+1]=y;lp[i*6+2]=z;         // top
+    lp[i*6+3]=x;lp[i*6+4]=y-0.7;lp[i*6+5]=z;   // bottom (streak length)
+    lph[i*2]=ph[i];lph[i*2+1]=ph[i];
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(lp,3));
+  g.setAttribute('aPhase',new THREE.BufferAttribute(lph,1));
+  g.setDrawRange(0,n*2);
+  const mat=new THREE.LineBasicMaterial({color:0x9fb8d8,transparent:true,opacity:.0,fog:false,depthWrite:false});
+  mat.onBeforeCompile=(sh)=>{Object.assign(sh.uniforms,_makePrecipUniforms());rainGroup.userData.u=sh.uniforms;sh.vertexShader=_precipVert;};
+  const lines=new THREE.LineSegments(g,mat);lines.frustumCulled=false;lines.renderOrder=2;
+  rainGroup.add(lines);rainGroup.userData.mat=mat;
+})();
+// snow: drifting flakes as points
+const snowGroup=new THREE.Group();snowGroup.visible=false;scene.add(snowGroup);
+(function(){
+  const{pos,ph}=_precipAttribs();
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.setAttribute('aPhase',new THREE.BufferAttribute(ph,1));
+  const mat=new THREE.PointsMaterial({color:0xeef4ff,size:2.6,sizeAttenuation:true,transparent:true,opacity:.0,fog:false,depthWrite:false});
+  mat.onBeforeCompile=(sh)=>{Object.assign(sh.uniforms,_makePrecipUniforms());sh.uniforms.uSpeed.value=.45;snowGroup.userData.u=sh.uniforms;sh.defines=Object.assign({IS_SNOW:''},sh.defines);sh.vertexShader=_precipVert;};
+  const pts=new THREE.Points(g,mat);pts.frustumCulled=false;pts.renderOrder=2;
+  snowGroup.add(pts);snowGroup.userData.mat=mat;
+})();
+
 // ═══ NOISE ═══
 function makeNoise(seed){const p=new Uint8Array(512);let s=seed||42;function r(){s=(s*16807+0)%2147483647;return(s&0x7fffffff)/2147483647;}const t=new Uint8Array(256);for(let i=0;i<256;i++)t[i]=i;for(let i=255;i>0;i--){const j=(r()*i)|0;const tmp=t[i];t[i]=t[j];t[j]=tmp;}for(let i=0;i<512;i++)p[i]=t[i&255];const g=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];function dot2(gi,x,y){const v=g[gi%8];return v[0]*x+v[1]*y;}function fade(t){return t*t*t*(t*(t*6-15)+10);}function lerp(a,b,t){return a+t*(b-a);}return function(x,y){const X=Math.floor(x)&255,Y=Math.floor(y)&255;x-=Math.floor(x);y-=Math.floor(y);const u=fade(x),v=fade(y);const a=p[X]+Y,b=p[X+1]+Y;return lerp(lerp(dot2(p[a],x,y),dot2(p[b],x-1,y),u),lerp(dot2(p[a+1],x,y-1),dot2(p[b+1],x-1,y-1),u),v);};}
 let WORLD_SEED=Math.floor(Math.random()*999999);
@@ -2183,7 +2252,7 @@ function updateHUD(){
   const pct=Math.max(0,Math.min(100,P.hp));$hf.style.width=pct+'%';
   $hf.style.background=pct>40?'linear-gradient(90deg,#43a047,#a5d6a7)':'linear-gradient(90deg,#e53935,#ff8a80)';
   const fpct=Math.max(0,Math.min(100,P.food));if($ff){$ff.style.width=fpct+'%';$ff.style.background=fpct>20?'linear-gradient(90deg,#e07f1f,#ffcf7f)':'linear-gradient(90deg,#b71c1c,#ff8a65)';}
-  $bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)));
+  {const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
   updateGoalHUD();
@@ -2220,6 +2289,7 @@ function updateUnderAtmosphere(py){
   scene.fog.near=depth>22?13:depth>10?16:19;
   scene.fog.far=depth>22?42:depth>10?52:58;
 }
+let WEATHER_DIM=0; // 0 clear .. ~0.5 storm; darkens sky/fog/light (visual only)
 function updateSky(t,inVolcano,inSnow){const b=.5-.5*Math.cos((t-.15)*Math.PI*2);
 // sunrise/sunset glow: peaks when the sun crosses the horizon (dayT 0 and 0.5)
 const _dT=(t+0.1)%1;const _edge=Math.min(_dT,Math.abs(_dT-.5),1-_dT);const glow=Math.max(0,1-_edge/0.07);
@@ -2232,7 +2302,16 @@ if(inVolcano){skyMesh.material.color.setRGB(.18+b*.05,.04,.02);scene.fog.color.s
   skyMesh.material.color.setRGB(sr,sg,sb);scene.fog.color.setRGB(fr,fg,fb);renderer.setClearColor(scene.fog.color);
   sun.color.setRGB(1,1-glow*.35,1-glow*.6);sun.intensity=Math.max(.05,1-.95*b);
   hemLight.color.setHex(0xbfdcff);hemLight.intensity=Math.max(.1,.95-.82*b);
-}$di.textContent=b>.5?'🌙':'☀️';}
+}
+// storm darkening (visual only): pull light down and desaturate sky/fog toward grey
+if(WEATHER_DIM>0.01&&!inVolcano){
+  const k=1-WEATHER_DIM*0.7;
+  sun.intensity*=1-WEATHER_DIM*0.85;
+  hemLight.intensity=Math.max(.12,hemLight.intensity*(1-WEATHER_DIM*0.5));
+  scene.fog.color.multiplyScalar(k);skyMesh.material.color.multiplyScalar(k);
+  renderer.setClearColor(scene.fog.color);
+}
+$di.textContent=b>.5?'🌙':'☀️';}
 
 // ─── CELESTIAL: sun/moon orbit, drifting clouds, sky follows player ───
 function updateCelestial(t,dt){
@@ -2274,6 +2353,65 @@ function updateCelestial(t,dt){
       else if(pz-cl.position.z>CLOUD_RANGE)cl.position.z+=CLOUD_RANGE*2;
     }
   }
+}
+
+// ─── WEATHER STATE (visual + audio only; no gameplay effect) ───
+let weather=0;              // 0 clear, 1 rain, 2 thunderstorm
+let weatherT=45+Math.random()*60;
+let LIGHTNING=0,lightningT=6;
+const $lightning=document.getElementById('lightning');
+function weatherIcon(){return weather===2?'⛈':weather===1?'🌧':'';}
+function setWeather(w){
+  weather=w;
+  weatherT=w===0?(55+Math.random()*70):w===1?(42+Math.random()*48):(26+Math.random()*30);
+}
+function resetWeather(){weather=0;weatherT=45+Math.random()*60;LIGHTNING=0;lightningT=6;WEATHER_DIM=0;
+  for(const grp of[rainGroup,snowGroup]){grp.visible=false;grp.userData.mat.opacity=0;}}
+function sfxThunder(){
+  if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
+  try{
+    const dur=1.1+Math.random()*0.9,t0=audioCtx.currentTime;
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*dur),audioCtx.sampleRate);
+    const data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+    const src=audioCtx.createBufferSource();src.buffer=buf;
+    const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.setValueAtTime(240,t0);lp.frequency.linearRampToValueAtTime(70,t0+dur);lp.Q.value=.6;
+    const g=audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(0.5,t0+0.05);
+    g.gain.exponentialRampToValueAtTime(0.16,t0+0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    src.connect(lp);lp.connect(g);g.connect(audioCtx.destination);src.start();src.stop(t0+dur);
+    playTone(85,.2,.22,'sawtooth'); // initial crack
+  }catch(e){}
+}
+function triggerLightning(){
+  LIGHTNING=2.0; // additive light flash, decays in updateWeather
+  if(settings.flash&&$lightning){$lightning.classList.add('on');setTimeout(()=>$lightning&&$lightning.classList.remove('on'),120);}
+  setTimeout(sfxThunder,300+Math.random()*1500); // thunder trails the flash
+}
+function _updatePrecip(grp,on,cx,cy,cz,nowSec,speed,maxOp,dt){
+  const mat=grp.userData.mat,u=grp.userData.u;
+  mat.opacity+=((on?maxOp:0)-mat.opacity)*Math.min(1,dt*2.2);
+  grp.visible=mat.opacity>0.01;
+  if(!grp.visible)return;
+  grp.position.set(cx,cy,cz);
+  if(u){u.uTime.value=nowSec;u.uSpeed.value=speed;}
+}
+function updateWeather(dt,inVolcano,inSnow,isUnder,nowSec){
+  weatherT-=dt;
+  if(weatherT<=0){
+    if(weather===0)setWeather(Math.random()<0.7?1:2);else setWeather(0);
+    if(weather===2)showAlert('⛈ 雷雨がやってきた');
+    else if(weather===1)showAlert('🌧 雨が降り出した');
+  }
+  const active=weather>=1&&!isUnder&&!inVolcano;
+  const dimTarget=isUnder||inVolcano?0:(weather===2?0.5:weather===1?0.2:0);
+  WEATHER_DIM+=(dimTarget-WEATHER_DIM)*Math.min(1,dt*1.4);
+  const gy=P.y-6;
+  _updatePrecip(rainGroup,active&&!inSnow,P.x,gy,P.z,nowSec,weather===2?17:13,weather===2?.6:.45,dt);
+  _updatePrecip(snowGroup,active&&inSnow,P.x,gy,P.z,nowSec,2.6,.85,dt);
+  if(weather===2&&!isUnder){lightningT-=dt;if(lightningT<=0){lightningT=4+Math.random()*9;triggerLightning();}}
+  if(LIGHTNING>0){LIGHTNING=Math.max(0,LIGHTNING-dt*5);hemLight.intensity+=LIGHTNING;} // applied after updateSky this frame
 }
 
 // ─── TARGET BLOCK OUTLINE (Minecraft-style block cursor) ───
@@ -2822,6 +2960,7 @@ async function startGame(){
   }
   P.onGround=true;
   gs.score=0;gs.kills=0;gs.wave=0;gs.day=1;gs.time=0;gs.nextWave=18;gs.running=true;
+  resetWeather();
   $pauseBtn.style.display='flex';
   spawnPigs(8);updateInvHUD();resize();
 }
@@ -2831,6 +2970,7 @@ async function continueGame(){
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
+  resetWeather();
   finalBossPending=!!d.finalBossPending;
   P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
@@ -2897,7 +3037,7 @@ function tick(now){
   if(isTouch&&now-lastT<FRAME_MIN){return;}
   const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
   if(saveToastTimer>0){saveToastTimer-=dt;if(saveToastTimer<=0)$saveToast.classList.remove('show');}
-  if(!gs.running){renderer.render(scene,camera);return;}
+  if(!gs.running){rainGroup.visible=false;snowGroup.visible=false;renderer.render(scene,camera);return;}
   if(gs.paused){renderer.render(scene,camera);return;}
   const prevTime=gs.time;gs.time=(gs.time+dt/DAY_DUR)%1;
   if(gs.time<prevTime){gs.day++;showAlert('🌅 DAY '+gs.day);}
@@ -2908,6 +3048,7 @@ function tick(now){
   if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
   else{scene.fog.near=DRAW_R*CHUNK*0.7;scene.fog.far=DRAW_R*CHUNK*0.98;skyMesh.visible=true;}
   updateCelestial(gs.time,dt);
+  updateWeather(dt,inVolcano,inSnow,_isUnder,now/1000);
   updateTorchLights();
   updateBlockCursor();
   if(_waterUniforms)_waterUniforms.uTime.value=now/1000;
