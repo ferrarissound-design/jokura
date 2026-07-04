@@ -40,6 +40,7 @@
     <div class="invRow" id="invTrophy" style="color:#aaf0ff">🏆 DRAGON STATUE: 0</div>
   </div>
   <button id="craftBtn">🛠 CRAFT</button>
+  <button id="questBtn">📋 QUEST</button>
   <div id="craftPanel"></div>
   <div id="coordsDisplay">X:0 Z:0</div>
   <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
@@ -143,8 +144,15 @@
     <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
   </div>
 </div>
+<div id="questPanel" class="menuPanel">
+  <div class="menuCard guideCard">
+    <div class="menuTitle">📋 GUIDE / QUEST</div>
+    <div id="questBody"></div>
+    <button class="pmBtn menuClose" id="questCloseBtn">CLOSE</button>
+  </div>
+</div>
 <div id="codexPanel" class="menuPanel">
-  <div class="menuCard">
+  <div class="menuCard guideCard">
     <div class="menuTitle">📖 ガイド</div>
     <div id="codexBody"></div>
     <button class="pmBtn menuClose" id="codexCloseBtn">CLOSE</button>

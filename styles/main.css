@@ -27,6 +27,8 @@ canvas#c{display:block;touch-action:none}
 .invRow{font-size:8px;color:#cccddda0;letter-spacing:.8px;text-shadow:1px 1px 0 #000;line-height:1.55}
 #craftBtn{position:absolute;top:calc(307px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #craftBtn:active{transform:scale(.92)}
+#questBtn{position:absolute;top:calc(307px + var(--safeT));left:calc(100px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#fff1a6;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
+#questBtn:active{transform:scale(.92)}
 #craftPanel{position:absolute;top:calc(333px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 362px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #craftPanel.open{display:block}
 .citem{padding:0 10px;height:32px;font-size:11px;font-weight:700;color:#ddd;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;touch-action:manipulation;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;letter-spacing:.3px}
@@ -133,10 +135,13 @@ canvas#c{display:block;touch-action:none}
 .segBtn{flex:1;padding:10px 4px;border:none;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;color:#cdd;background:linear-gradient(135deg,#39434d,#222a31);-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .12s}
 .segBtn:active{transform:scale(.94)}
 .segBtn.sel{color:#fff;background:linear-gradient(135deg,#26a69a,#00695c);box-shadow:0 0 16px #26a69a66}
-#codexBody{display:flex;flex-direction:column;gap:12px;margin:6px 0 14px;text-align:left}
+.guideCard{width:min(680px,94vw)}
+#codexBody,#questBody{display:flex;flex-direction:column;gap:12px;margin:6px 0 14px;text-align:left}
 .codexSection{border:1px solid rgba(126,207,255,.18);border-radius:10px;background:rgba(255,255,255,.04);padding:10px 12px}
 .codexHd{font-size:12px;font-weight:900;color:#f9d342;text-shadow:1px 1px 0 #000;margin-bottom:7px;letter-spacing:.5px}
 .codexGoal{font-size:13px;color:#bfe6ff;font-weight:700;line-height:1.5}
+.codexNote{font-size:11px;color:#ddd;line-height:1.7;text-shadow:1px 1px 0 #000;margin-top:5px}
+.codexSub{font-size:11px;font-weight:900;color:#9fc7e6;margin:8px 0 3px;text-shadow:1px 1px 0 #000}
 .questItem{font-size:12px;color:#bbb;line-height:1.95}
 .questItem.done{color:#9be29b}
 .codexRow{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#ddd;line-height:1.9;border-bottom:1px dashed rgba(255,255,255,.07);padding:1px 0}
