@@ -797,9 +797,14 @@ function rand2(x,z,seed){return hash2i(x|0,z|0,seed)/4294967296;}
 function rand3(x,y,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.imul(z,668265263)+Math.imul(y,1013904223))^seed;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296;}
 
 // ═══ WORLD ═══
-const CHUNK=16,CHUNK_Y=8,WORLD_R=48;
+const CHUNK=16,CHUNK_Y=8;
 const WORLD_CY_MIN=-4,WORLD_CY_MAX=2; // underground (-32) to mountain tops (+16)
 const DRAW_RY=isTouch?1:2;
+// world is unbounded horizontally; chunks beyond this radius (padding past the
+// view distance) are fully unloaded — voxels freed, geometry disposed — so
+// memory stays bounded no matter how far the player wanders (Minecraft-style
+// chunk loading/unloading rather than a hard world border)
+const UNLOAD_R=DRAW_R+4;
 const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98];
 // [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair]
 const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2];
@@ -1312,20 +1317,19 @@ function hideUnderChunk(cx,cy,cz){const key=ucKey(cx,cy,cz);if(!activeUnderChunk
 let lastPCX=null,lastPCZ=null,lastPCY=null;
 function updateChunks(force){
   const pcx=Math.floor(P.x/CHUNK),pcz=Math.floor(P.z/CHUNK),pcy=Math.floor(P.y/CHUNK_Y);
-  if(!force&&pcx===lastPCX&&pcz===lastPCZ&&pcy===lastPCY)return;
+  if(!force&&pcx===lastPCX&&pcz===lastPCZ&&pcy===lastPCY)return false;
   lastPCX=pcx;lastPCZ=pcz;lastPCY=pcy;
   const needed={},neededU={},list=[];
   for(let dx=-DRAW_R;dx<=DRAW_R;dx++)for(let dz=-DRAW_R;dz<=DRAW_R;dz++){
-    const cx=pcx+dx,cz=pcz+dz;
-    if(cx<-WORLD_R||cx>=WORLD_R||cz<-WORLD_R||cz>=WORLD_R)continue;
-    list.push([cx,cz]);
+    list.push([pcx+dx,pcz+dz]);
   }
   // pass 1: generate all needed chunks (voxels only). Doing this before any
   // mesh build means fresh chunks see all their neighbours → no rebuild storm
+  let grew=false;
   for(const[cx,cz]of list){
-    if(!chunks[cKey(cx,cz)])generateChunk(cx,cz);
-    if(!underChunks[ucKey(cx,-1,cz)])generateUnderChunk(cx,-1,cz);
-    if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;if(!underChunks[ucKey(cx,cy,cz)])generateUnderChunk(cx,cy,cz);}}
+    if(!chunks[cKey(cx,cz)]){generateChunk(cx,cz);grew=true;}
+    if(!underChunks[ucKey(cx,-1,cz)]){generateUnderChunk(cx,-1,cz);grew=true;}
+    if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;if(!underChunks[ucKey(cx,cy,cz)]){generateUnderChunk(cx,cy,cz);grew=true;}}}
   }
   // pass 2: build (lazily inside show) + show
   for(const[cx,cz]of list){
@@ -1335,6 +1339,31 @@ function updateChunks(force){
   }
   for(const key in activeChunks){if(!needed[key]){const[cx,cz]=key.split(',').map(Number);hideChunk(cx,cz);}}
   for(const key in activeUnderChunks){if(!neededU[key]){const[cx,cy,cz]=key.split(',').map(Number);hideUnderChunk(cx,cy,cz);}}
+  unloadFarChunks(pcx,pcz);
+  return grew;
+}
+// fully evict chunks well outside the view distance: dispose their merged
+// mesh geometry and drop their blocks from voxels{}, so a long walk in one
+// direction doesn't grow memory forever. Re-entering the area later just
+// regenerates it (deterministic from the seed) and worldEdits re-applies
+// any player changes there.
+function _disposeChunkRec(rec){
+  _dirtyRecs.delete(rec);
+  rec.solidMesh.geometry.dispose();
+  for(const k of rec.keys){lavaBlocks.delete(k);torchBlocks.delete(k);delete voxels[k];}
+  rec.keys.clear();rec.specials.clear();
+}
+function unloadFarChunks(pcx,pcz){
+  for(const key in chunks){
+    if(activeChunks[key])continue;
+    const[cx,cz]=key.split(',').map(Number);
+    if(Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz))>UNLOAD_R){_disposeChunkRec(chunks[key]);delete chunks[key];}
+  }
+  for(const key in underChunks){
+    if(activeUnderChunks[key])continue;
+    const[cx,,cz]=key.split(',').map(Number);
+    if(Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz))>UNLOAD_R){_disposeChunkRec(underChunks[key]);delete underChunks[key];}
+  }
 }
 function clearWorld(){
   const drop=(rec)=>{scene.remove(rec.solidMesh);rec.solidMesh.geometry.dispose();for(const m of rec.specials)scene.remove(m);};
@@ -1589,7 +1618,7 @@ let yaw=0,pitch=0;
 const SPEED=6,SPRINT_SPEED=10,GRAV=18,JV=7.5,EYE=1.55;
 let coyoteTime=0,jumpBuffer=0;
 const COYOTE=0.15,JBUF=0.12;
-function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}const wMin=-WORLD_R*CHUNK,wMax=WORLD_R*CHUNK;P.x=Math.max(wMin+1,Math.min(wMax-1,P.x));P.z=Math.max(wMin+1,Math.min(wMax-1,P.z));if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
+function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
 function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}}
 
 // ═══ ENEMY BUILDERS ═══
@@ -1806,7 +1835,6 @@ let enemies=[];
 function spawnEnemy(){
   let angle=Math.random()*Math.PI*2,dist=20+Math.random()*10;
   let sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
-  const wMin=-WORLD_R*CHUNK+2,wMax=WORLD_R*CHUNK-2;sx=Math.max(wMin,Math.min(wMax,sx));sz=Math.max(wMin,Math.min(wMax,sz));
   const h=getHeight(Math.floor(sx),Math.floor(sz));
   const biome=getBiome(Math.floor(sx),Math.floor(sz));
   let et;
@@ -1972,7 +2000,7 @@ function buildBoss(def,sc){
   const tex=new THREE.CanvasTexture(lc);const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));sprite.scale.set(3.5*sc,.55*sc,1);sprite.position.y=2.65*sc;
   root.add(body,head,hpBg,hpFg,sprite);return{root,body,head,hpBar:hpFg,mat};
 }
-function spawnBoss(def){if(boss)return;const angle=Math.random()*Math.PI*2,dist=18;let sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;const wMin=-WORLD_R*CHUNK+3,wMax=WORLD_R*CHUNK-3;sx=Math.max(wMin,Math.min(wMax,sx));sz=Math.max(wMin,Math.min(wMax,sz));const h=getHeight(Math.floor(sx),Math.floor(sz));const sc=def.scale;const built=buildBoss(def,sc);built.root.position.set(sx,h+1.85*sc,sz);markShadowCaster(built.root);scene.add(built.root);const mhp=def.baseHp+gs.wave*4;boss={root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,mat:built.mat,hp:mhp,maxHp:mhp,def,velY:0,onGround:false,atkCd:0,atkPhase:0,chargeDir:null,chargeT:0,charging:false,phase:1,stuckT:0,lastX:sx,lastZ:sz,flashT:0,breakCd:0,sc};$bossName.textContent=def.name;$bossHpFill.style.width='100%';$bossPhase.textContent='PHASE 1';$bossWrap.classList.add('show');sfxBossAppear();showAlert('👑 BOSS: '+def.name);}
+function spawnBoss(def){if(boss)return;const angle=Math.random()*Math.PI*2,dist=18;let sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;const h=getHeight(Math.floor(sx),Math.floor(sz));const sc=def.scale;const built=buildBoss(def,sc);built.root.position.set(sx,h+1.85*sc,sz);markShadowCaster(built.root);scene.add(built.root);const mhp=def.baseHp+gs.wave*4;boss={root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,mat:built.mat,hp:mhp,maxHp:mhp,def,velY:0,onGround:false,atkCd:0,atkPhase:0,chargeDir:null,chargeT:0,charging:false,phase:1,stuckT:0,lastX:sx,lastZ:sz,flashT:0,breakCd:0,sc};$bossName.textContent=def.name;$bossHpFill.style.width='100%';$bossPhase.textContent='PHASE 1';$bossWrap.classList.add('show');sfxBossAppear();showAlert('👑 BOSS: '+def.name);}
 function updateBossHUD(){if(!boss)return;const r=Math.max(0,boss.hp/boss.maxHp);$bossHpFill.style.width=(r*100)+'%';$bossHpFill.style.background=r>.5?'linear-gradient(90deg,#ff1744,#ff6d00)':r>.25?'linear-gradient(90deg,#ff6d00,#ffab00)':'linear-gradient(90deg,#aa0000,#ff1744)';const ph=boss.hp<boss.maxHp*.33?3:boss.hp<boss.maxHp*.66?2:1;if(ph!==boss.phase){boss.phase=ph;$bossPhase.textContent='PHASE '+ph;showBonus('⚡ PHASE '+ph+'!');sfxWave();if(ph===2)boss.body.material.emissiveIntensity=.6;if(ph===3){boss.body.material.emissiveIntensity=1.2;boss.head.material.emissiveIntensity=1.2;}}}
 function hitBoss(dmgVal){if(!boss)return;boss.hp-=dmgVal;boss.flashT=.15;boss.body.material.emissive.setHex(0xffffff);boss.body.material.emissiveIntensity=2;boss.head.material.emissive.setHex(0xffffff);boss.head.material.emissiveIntensity=2;const r=Math.max(0,boss.hp/boss.maxHp);boss.hpBar.scale.x=Math.max(.01,r);sfxBossDmg();if(boss.hp<=0)killBoss();}
 function killBoss(){
@@ -1999,7 +2027,7 @@ function killBoss(){
   if(!wasMiniBoss&&!wasFinal)unlockAchievement('bossSlayer');
   if(wasFinal)setTimeout(()=>gameComplete(),2000);
 }
-function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);if(boss.flashT>0){boss.flashT-=dt;if(boss.flashT<=0){boss.body.material.emissive.setHex(boss.def.emissive);boss.body.material.emissiveIntensity=.35+boss.phase*.2;boss.head.material.emissive.setHex(boss.def.emissive);boss.head.material.emissiveIntensity=.35+boss.phase*.2;}}const fy=bp.y-(.85*sc);boss.velY-=GRAV*dt;const spd=2+boss.phase*.8+(gs.wave*.15);if(boss.charging){const cd=boss.chargeDir;const nx=bp.x+cd.x*12*dt;const nz=bp.z+cd.z*12*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}boss.chargeT-=dt;if(boss.chargeT<=0)boss.charging=false;}else if(dist>2){const nx=bp.x+(dx/dist)*spd*dt;const nz=bp.z+(dz/dist)*spd*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;}const ny=fy+boss.velY*dt;if(!overlaps(bp.x,ny,bp.z,sc*.4,1.7*sc)){bp.y=ny+.85*sc;boss.onGround=false;}else{if(boss.velY<0)boss.onGround=true;boss.velY=0;}if(bp.y<-1){const rh=getHeight(Math.floor(bp.x),Math.floor(bp.z));bp.y=rh+1.85*sc;boss.velY=0;boss.onGround=true;}bp.x=Math.max(-WORLD_R*CHUNK+2,Math.min(WORLD_R*CHUNK-2,bp.x));bp.z=Math.max(-WORLD_R*CHUNK+2,Math.min(WORLD_R*CHUNK-2,bp.z));boss.root.rotation.y=Math.atan2(dx,dz);boss.stuckT+=dt;if(boss.stuckT>1.5){const mv=Math.abs(bp.x-boss.lastX)+Math.abs(bp.z-boss.lastZ);if(mv<.3&&boss.onGround){boss.velY=7;if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(1,2.5-boss.phase*.3);}}boss.lastX=bp.x;boss.lastZ=bp.z;boss.stuckT=0;}boss.atkCd=Math.max(0,boss.atkCd-dt);boss.breakCd=Math.max(0,boss.breakCd-dt);if(dist<2.5*sc&&boss.atkCd<=0&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg+boss.phase*5);boss.atkCd=1.5-boss.phase*.2;}if(!boss.charging){boss.atkPhase=(boss.atkPhase||0)-dt;if(boss.atkPhase<=0){const pats=boss.def.patterns,pat=pats[Math.floor(Math.random()*pats.length)];boss.atkPhase=Math.max(1.2,3-boss.phase*.5);if(pat==='multishot'){[-0.4,0,0.4].forEach(a=>{const ca=Math.atan2(dx,dz)+a;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ca)*20,bp.y+sc,bp.z+Math.cos(ca)*20,boss.def.dmg*.6);});sfxBow();}else if(pat==='omnishot'){for(let a=0;a<8;a++){const ang=(a/8)*Math.PI*2;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ang)*20,bp.y+sc,bp.z+Math.cos(ang)*20,boss.def.dmg*.5);}sfxBow();sfxMagic();}else if(pat==='charge'){if(dist>4){sfxCharge();boss.charging=true;boss.chargeDir={x:dx/dist,z:dz/dist};boss.chargeT=0.6;boss.velY=4;}}else if(pat==='stomp'){if(boss.onGround){boss.velY=8;sfxHammer();}if(dist<6&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*.8);spawnParticles(bp.x,bp.y,bp.z,boss.def.deathColor,5);}}else if(pat==='aoeBlast'){spawnParticles(bp.x,bp.y+.5,bp.z,boss.def.deathColor,8);if(dist<7&&hasLOS(bp.x,bp.y+sc,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*1.2);sfxMagic();}for(const e of enemies){const ed=Math.hypot(e.root.position.x-bp.x,e.root.position.z-bp.z);if(ed<8)e.hp=Math.min(e.hp+2,e.maxHp);}}}}boss.hpBar.lookAt(camera.position);updateBossHUD();}
+function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);if(boss.flashT>0){boss.flashT-=dt;if(boss.flashT<=0){boss.body.material.emissive.setHex(boss.def.emissive);boss.body.material.emissiveIntensity=.35+boss.phase*.2;boss.head.material.emissive.setHex(boss.def.emissive);boss.head.material.emissiveIntensity=.35+boss.phase*.2;}}const fy=bp.y-(.85*sc);boss.velY-=GRAV*dt;const spd=2+boss.phase*.8+(gs.wave*.15);if(boss.charging){const cd=boss.chargeDir;const nx=bp.x+cd.x*12*dt;const nz=bp.z+cd.z*12*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}boss.chargeT-=dt;if(boss.chargeT<=0)boss.charging=false;}else if(dist>2){const nx=bp.x+(dx/dist)*spd*dt;const nz=bp.z+(dz/dist)*spd*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;}const ny=fy+boss.velY*dt;if(!overlaps(bp.x,ny,bp.z,sc*.4,1.7*sc)){bp.y=ny+.85*sc;boss.onGround=false;}else{if(boss.velY<0)boss.onGround=true;boss.velY=0;}if(bp.y<-1){const rh=getHeight(Math.floor(bp.x),Math.floor(bp.z));bp.y=rh+1.85*sc;boss.velY=0;boss.onGround=true;}boss.root.rotation.y=Math.atan2(dx,dz);boss.stuckT+=dt;if(boss.stuckT>1.5){const mv=Math.abs(bp.x-boss.lastX)+Math.abs(bp.z-boss.lastZ);if(mv<.3&&boss.onGround){boss.velY=7;if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(1,2.5-boss.phase*.3);}}boss.lastX=bp.x;boss.lastZ=bp.z;boss.stuckT=0;}boss.atkCd=Math.max(0,boss.atkCd-dt);boss.breakCd=Math.max(0,boss.breakCd-dt);if(dist<2.5*sc&&boss.atkCd<=0&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg+boss.phase*5);boss.atkCd=1.5-boss.phase*.2;}if(!boss.charging){boss.atkPhase=(boss.atkPhase||0)-dt;if(boss.atkPhase<=0){const pats=boss.def.patterns,pat=pats[Math.floor(Math.random()*pats.length)];boss.atkPhase=Math.max(1.2,3-boss.phase*.5);if(pat==='multishot'){[-0.4,0,0.4].forEach(a=>{const ca=Math.atan2(dx,dz)+a;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ca)*20,bp.y+sc,bp.z+Math.cos(ca)*20,boss.def.dmg*.6);});sfxBow();}else if(pat==='omnishot'){for(let a=0;a<8;a++){const ang=(a/8)*Math.PI*2;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ang)*20,bp.y+sc,bp.z+Math.cos(ang)*20,boss.def.dmg*.5);}sfxBow();sfxMagic();}else if(pat==='charge'){if(dist>4){sfxCharge();boss.charging=true;boss.chargeDir={x:dx/dist,z:dz/dist};boss.chargeT=0.6;boss.velY=4;}}else if(pat==='stomp'){if(boss.onGround){boss.velY=8;sfxHammer();}if(dist<6&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*.8);spawnParticles(bp.x,bp.y,bp.z,boss.def.deathColor,5);}}else if(pat==='aoeBlast'){spawnParticles(bp.x,bp.y+.5,bp.z,boss.def.deathColor,8);if(dist<7&&hasLOS(bp.x,bp.y+sc,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*1.2);sfxMagic();}for(const e of enemies){const ed=Math.hypot(e.root.position.x-bp.x,e.root.position.z-bp.z);if(ed<8)e.hp=Math.min(e.hp+2,e.maxHp);}}}}boss.hpBar.lookAt(camera.position);updateBossHUD();}
 function updateDragon(dt){
   if(!dragon)return;
   const dp=dragon.root.position;
@@ -2044,8 +2072,6 @@ function updateDragon(dt){
     const nz=dp.z-dragon.chargeDir.z*2*dt;if(!overlaps(dp.x,dp.y-.3,nz,.4,.7))dp.z=nz;
     if(dragon.stateT<=0){dragon.state='prowl';dragon.stateT=2.5+Math.random()*2;}
   }
-  const wMin=-WORLD_R*CHUNK+2,wMax=WORLD_R*CHUNK-2;
-  dp.x=Math.max(wMin,Math.min(wMax,dp.x));dp.z=Math.max(wMin,Math.min(wMax,dp.z));
 }
 
 // ═══ ITEMS ═══
@@ -2256,8 +2282,7 @@ function spawnPigs(count=8){
   for(let i=0;i<count;i++){
     const angle=Math.random()*Math.PI*2,dist=10+Math.random()*20;
     const wx=P.x+Math.cos(angle)*dist,wz=P.z+Math.sin(angle)*dist;
-    const wMin=-WORLD_R*CHUNK+2,wMax=WORLD_R*CHUNK-2;
-    createPig(Math.max(wMin,Math.min(wMax,wx)),Math.max(wMin,Math.min(wMax,wz)));
+    createPig(wx,wz);
   }
 }
 function killMob(mob){scene.remove(mob.root);mob.dead=true;meat++;updateMeatHUD();showBonus('🥩 MEAT x'+meat);playTone(500,.12,.1,'sine');spawnParticles(mob.root.position.x,mob.root.position.y,mob.root.position.z,0xf4a9a8,3);}
@@ -2283,7 +2308,6 @@ function updateMobs(dt){
     else{mob.wanderT-=dt;if(mob.wanderT<=0){mob.wanderAngle+=(Math.random()-.5)*Math.PI;mob.wanderT=1.5+Math.random()*2;}moveX=Math.sin(mob.wanderAngle)*WANDER_SPD;moveZ=Math.cos(mob.wanderAngle)*WANDER_SPD;mob.root.rotation.y=mob.wanderAngle;}
     const nx2=mp.x+moveX*dt;if(!overlaps(nx2,fy,mp.z,.38,.95))mp.x=nx2;
     const nz2=mp.z+moveZ*dt;if(!overlaps(mp.x,fy,nz2,.38,.95))mp.z=nz2;
-    const _wMin=-WORLD_R*CHUNK+2,_wMax=WORLD_R*CHUNK-2;mp.x=Math.max(_wMin,Math.min(_wMax,mp.x));mp.z=Math.max(_wMin,Math.min(_wMax,mp.z));
     const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;if(moving&&mob.legs){for(let li=0;li<4;li++){mob.legs[li].rotation.x=(li%2===0?1:-1)*swing;}}
   }
 }
@@ -3209,7 +3233,7 @@ function tick(now){
   // sprint FOV kick (Minecraft-style)
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
-  chunkT+=dt;if(chunkT>.5){updateChunks(false);applyWorldEdits();chunkT=0;}
+  chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
   updateBoss(dt);updateDragon(dt);updateMobs(dt);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnPigs(Math.min(lack,4));}
   const t=Date.now()/1000;
