@@ -20,11 +20,11 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0};
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 const unlockedWeapons=[true,false,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null];
-const SLOT_MAT=['grass','stone','sand','wood','brick','torch'];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null,'slab','stair'];
+const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair'];
 
 const CRAFT_RECIPES=[
   {name:'⚔ Sword',  wi:1,  needs:{wood:5},          desc:'🪵×5'},
@@ -35,6 +35,8 @@ const CRAFT_RECIPES=[
   {name:'📦 Chest',  wi:-1, needs:{wood:10},         desc:'🪵×10'},
   {name:'🛏 Bed',    wi:-2, needs:{wood:6,grass:4},  desc:'🪵×6+🌿×4'},
   {name:'🧱 Brick×3',wi:-3, needs:{stone:5},         desc:'🪨×5'},
+  {name:'⬜ ハーフブロック×4',wi:-12,needs:{stone:2},   desc:'🪨×2'},
+  {name:'🪜 階段×4',  wi:-13,needs:{stone:3},         desc:'🪨×3'},
   {name:'💊 ポーション',wi:-4, needs:{grass:3},        desc:'🌿×3'},
   {name:'🏹 矢束×10',  wi:-5, needs:{wood:2},          desc:'🪵×2', req:3},
   {name:'💎 Diamond Sword',wi:-6,needs:{diamond:3,wood:1},desc:'💎×3+🪵×1'},
@@ -90,6 +92,8 @@ function updateInvHUD(){
   $invDiamond.textContent='💎 DIAMOND: '+inv.diamond;
   $invDragonCore.textContent='💠 DRAGON CORE: '+inv.dragonCore;
   const tc=document.getElementById('torchCount');if(tc)tc.textContent=inv.torch>0?inv.torch:'';
+  const slc=document.getElementById('slabCount');if(slc)slc.textContent=inv.slab>0?inv.slab:'';
+  const stc=document.getElementById('stairCount');if(stc)stc.textContent=inv.stair>0?inv.stair:'';
 }
 
 function addMaterial(ti){
@@ -112,7 +116,9 @@ const MATERIAL_LABELS={
   brick:'🧱 BRICK',
   arrow:'🏹 ARROW',
   diamond:'💎 DIAMOND',
-  dragonCore:'💠 DRAGON CORE'
+  dragonCore:'💠 DRAGON CORE',
+  slab:'⬜ SLAB',
+  stair:'🪜 STAIRS'
 };
 
 function getMissingMaterialsText(recipe){
@@ -163,6 +169,8 @@ function doCraft(idx){
   else if(r.wi===-4){P.hp=Math.min(P.maxHp,P.hp+30);showBonus('💊 HP+30 HEALED!');}
   else if(r.wi===-5){inv.arrow+=10;showBonus('🏹 矢×10 CRAFTED!');}
   else if(r.wi===-11){inv.torch+=4;showBonus('🔥 トーチ×4 CRAFTED!');}
+  else if(r.wi===-12){inv.slab+=4;showBonus('⬜ ハーフブロック×4 CRAFTED!');}
+  else if(r.wi===-13){inv.stair+=4;showBonus('🪜 階段×4 CRAFTED!');}
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
@@ -222,7 +230,7 @@ bindTapSafe($craftBtn,_onCraftBtnTap);
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;
   hasDiamondSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
@@ -251,7 +259,9 @@ function applyWorldEdits(){
   for(const k in worldEdits.placed){
     if(!voxels[k]){
       const[x,y,z]=k.split('|').map(Number);
-      addBlock(x,y,z,worldEdits.placed[k],true,true);
+      // placed values are packed ti|(meta<<5); legacy saves store plain ti (≤16, meta 0)
+      const raw=worldEdits.placed[k];
+      addBlock(x,y,z,raw&31,true,true,raw>>5);
     }
   }
   _deferDirty=false;flushDirtyChunks();
@@ -790,11 +800,26 @@ function rand3(x,y,z,seed){seed=seed||1337;let h=(Math.imul(x,374761393)+Math.im
 const CHUNK=16,CHUNK_Y=8,WORLD_R=48;
 const WORLD_CY_MIN=-4,WORLD_CY_MAX=2; // underground (-32) to mountain tops (+16)
 const DRAW_RY=isTouch?1:2;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1];
-const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16;
-const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK];
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2];
+const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16,SLAB_BLOCK=17,STAIR_BLOCK=18;
+const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK];
+// ─── PARTIAL BLOCKS (slabs & stairs) ───
+// Shapes are described as 1-2 sub-boxes in local cell coords [x0,y0,z0,x1,y1,z1].
+// meta — slab: 0 bottom half / 1 top half; stair: 0-3 = which side the tall
+// half faces (+x,+z,-x,-z). The same boxes drive both meshing and collision.
+function isPartial(ti){return ti===SLAB_BLOCK||ti===STAIR_BLOCK;}
+const STAIR_DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
+function shapeBoxes(ti,meta){
+  if(ti===SLAB_BLOCK)return meta?[[0,.5,0,1,1,1]]:[[0,0,0,1,.5,1]];
+  if(ti===STAIR_BLOCK){
+    const d=STAIR_DIRS[meta&3];
+    return[[0,0,0,1,.5,1],
+           [d[0]>0?.5:0,.5,d[1]>0?.5:0,d[0]<0?.5:1,1,d[1]<0?.5:1]];
+  }
+  return[[0,0,0,1,1,1]];
+}
 const boxGeo=new THREE.BoxGeometry(1,1,1);
 // Minecraft-style face shading baked into the shared geometry's vertex colors:
 // top bright, N/S sides mid, E/W darker, bottom darkest.
@@ -814,7 +839,7 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
 // (custom geometry/shader). Editing a block rebuilds only the touched chunks.
 const AO_LEVEL=[1,.76,.58,.45];
 boxGeo.computeBoundingSphere();boxGeo.computeBoundingBox();
-function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK)?1:0;}
+function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK&&!isPartial(v.ti))?1:0;}
 const _FACE_UV=[[0,0],[1,0],[1,1],[0,1]];
 // face order matches blockMats material arrays: +x,-x,+y(top),-y(bottom),+z,-z
 const FACE_DEF=(()=>{
@@ -846,6 +871,31 @@ function makeChunkRec(isUnder){
   mesh.userData.isChunk=true;
   return{keys:new Set(),specials:new Set(),solidMesh:mesh,built:false,loaded:true,under:isUnder};
 }
+// emit one sub-box of a partial block (slab / stair). Faces flush with the
+// cell boundary are culled against full neighbours like normal cube faces;
+// inset faces are always drawn. Flat directional shading (no AO probes) and
+// UVs cropped to the box extents so the texture doesn't stretch.
+function _emitSubBox(buckets,bm,x,y,z,e,skipBottom){
+  for(let f=0;f<6;f++){
+    if(skipBottom&&f===3)continue; // stair upper box sits on the base box
+    const fd=FACE_DEF[f];
+    const flush=f===0?e[3]===1:f===1?e[0]===0:f===2?e[4]===1:f===3?e[1]===0:f===4?e[5]===1:e[2]===0;
+    if(flush&&_aoOccluder(x+fd.n[0],y+fd.n[1],z+fd.n[2]))continue;
+    const mat=Array.isArray(bm)?bm[f]:bm;
+    let b=buckets.get(mat);
+    if(!b){b={pos:[],nrm:[],uv:[],col:[],idx:[]};buckets.set(mat,b);}
+    const vi=b.pos.length/3;
+    for(let ci=0;ci<4;ci++){
+      const c=fd.c[ci];
+      const lx=c[0]?e[3]:e[0],ly=c[1]?e[4]:e[1],lz=c[2]?e[5]:e[2];
+      b.pos.push(x+lx,y+ly,z+lz);
+      b.nrm.push(fd.n[0],fd.n[1],fd.n[2]);
+      b.uv.push(fd.n[0]!==0?lz:lx,fd.n[1]!==0?lz:ly);
+      b.col.push(fd.shade,fd.shade,fd.shade);
+    }
+    b.idx.push(vi,vi+1,vi+2,vi,vi+2,vi+3);
+  }
+}
 function buildChunkMesh(rec){
   const buckets=new Map();
   for(const k of rec.keys){
@@ -853,6 +903,11 @@ function buildChunkMesh(rec){
     const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK)continue;
     const p=k.split('|');const x=+p[0],y=+p[1],z=+p[2];
     const bm=blockMats[ti];
+    if(isPartial(ti)){
+      const boxes=shapeBoxes(ti,v.meta||0);
+      for(let bi=0;bi<boxes.length;bi++)_emitSubBox(buckets,bm,x,y,z,boxes[bi],ti===STAIR_BLOCK&&bi===1);
+      continue;
+    }
     for(let f=0;f<6;f++){
       const fd=FACE_DEF[f];
       if(_aoOccluder(x+fd.n[0],y+fd.n[1],z+fd.n[2]))continue; // hidden face
@@ -1043,6 +1098,8 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
+// slabs & stairs share the stone material so their faces batch with stone blocks
+blockMats[SLAB_BLOCK]=blockMats[1];blockMats[STAIR_BLOCK]=blockMats[1];
 function applyShadowSetting(){
   SHADOWS_ON=!!settings.shadows;
   renderer.shadowMap.enabled=SHADOWS_ON;
@@ -1118,9 +1175,9 @@ function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,
 // Registers a voxel. Cube blocks live in the merged chunk mesh; only water
 // and torches get an individual mesh (custom geometry / shader).
 // Returns the voxel key (generation collects the keys into its chunk record).
-function addBlock(x,y,z,ti,addToScene,playerPlaced){
+function addBlock(x,y,z,ti,addToScene,playerPlaced,meta){
   const k=vKey(x,y,z);if(voxels[k])return;
-  const v={ti,active:!!addToScene,playerPlaced:!!playerPlaced,rec:null,mesh:null,tint:null};
+  const v={ti,meta:meta|0,active:!!addToScene,playerPlaced:!!playerPlaced,rec:null,mesh:null,tint:null};
   // live placement (player build / world-edit replay): world-gen sets tint
   // itself via tintAt() for its own blend-cache reuse, this covers the rest
   if(addToScene&&(ti===0||ti===5))v.tint=computeGrassTint(x,z);
@@ -1458,6 +1515,12 @@ function overlaps(px,py,pz,hw,hh){
   const mnX=Math.floor(px-hw),mxX=Math.floor(px+hw),mnY=Math.floor(py),mxY=Math.floor(py+hh),mnZ=Math.floor(pz-hw),mxZ=Math.floor(pz+hw);
   for(let bx=mnX;bx<=mxX;bx++)for(let by=mnY;by<=mxY;by++)for(let bz=mnZ;bz<=mxZ;bz++){
     const v=voxels[vKey(bx,by,bz)];if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===TORCH_BLOCK)continue;
+    if(isPartial(v.ti)){
+      for(const e of shapeBoxes(v.ti,v.meta||0)){
+        if(px-hw<bx+e[3]&&px+hw>bx+e[0]&&py<by+e[4]&&py+hh>by+e[1]&&pz-hw<bz+e[5]&&pz+hw>bz+e[2])return true;
+      }
+      continue;
+    }
     if(px-hw<bx+1&&px+hw>bx&&py<by+1&&py+hh>by&&pz-hw<bz+1&&pz+hw>bz)return true;
   }
   const CHW=0.45,CHH=0.7;
@@ -1526,7 +1589,7 @@ let yaw=0,pitch=0;
 const SPEED=6,SPRINT_SPEED=10,GRAV=18,JV=7.5,EYE=1.55;
 let coyoteTime=0,jumpBuffer=0;
 const COYOTE=0.15,JBUF=0.12;
-function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}const wMin=-WORLD_R*CHUNK,wMax=WORLD_R*CHUNK;P.x=Math.max(wMin+1,Math.min(wMax-1,P.x));P.z=Math.max(wMin+1,Math.min(wMax-1,P.z));if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
+function movePlayer(vx,vz,dt){P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}const wMin=-WORLD_R*CHUNK,wMax=WORLD_R*CHUNK;P.x=Math.max(wMin+1,Math.min(wMax-1,P.x));P.z=Math.max(wMin+1,Math.min(wMax-1,P.z));if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
 function doJump(){if(!gs.running)return;initAudio();if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}}
 
 // ═══ ENEMY BUILDERS ═══
@@ -2597,13 +2660,28 @@ function _offMatsFor(ti){
   const mats=Array.isArray(src)?src.map(mk):mk(src);
   _offMatCache[ti]=mats;return mats;
 }
+// half-height / stepped preview geometries for the new partial blocks
+const _slabOffGeo=new THREE.BoxGeometry(.34,.17,.34);
+_slabOffGeo.setAttribute('color',boxGeo.getAttribute('color'));
+const _stairOffBaseGeo=new THREE.BoxGeometry(.34,.17,.34);
+_stairOffBaseGeo.setAttribute('color',boxGeo.getAttribute('color'));
+const _stairOffTopGeo=new THREE.BoxGeometry(.17,.17,.34);
+_stairOffTopGeo.setAttribute('color',boxGeo.getAttribute('color'));
 let _offMesh=null,_offType=-1;
 function _refreshOffhand(){
   if(_offType===curType&&_offMesh)return;
   _offType=curType;
   if(_offMesh)offhandGroup.remove(_offMesh); // geometry/materials are cached, don't dispose
   const ti=SLOT_TI[curType];
-  _offMesh=new THREE.Mesh(ti===TORCH_BLOCK?torchGeo:_offGeo,_offMatsFor(ti));
+  if(ti===STAIR_BLOCK){
+    _offMesh=new THREE.Group();
+    const base=new THREE.Mesh(_stairOffBaseGeo,_offMatsFor(ti));base.position.y=-.085;
+    const top=new THREE.Mesh(_stairOffTopGeo,_offMatsFor(ti));top.position.set(.085,.085,0);
+    for(const m of[base,top]){m.renderOrder=1000;m.frustumCulled=false;}
+    _offMesh.add(base,top);
+  }else{
+    _offMesh=new THREE.Mesh(ti===TORCH_BLOCK?torchGeo:ti===SLAB_BLOCK?_slabOffGeo:_offGeo,_offMatsFor(ti));
+  }
   _offMesh.renderOrder=1000;_offMesh.frustumCulled=false;
   _offMesh.rotation.set(ti===TORCH_BLOCK?.15:.35,.75,ti===TORCH_BLOCK?-.2:0);
   _offMesh.scale.setScalar(ti===TORCH_BLOCK?.55:1); // torch is a tall stick; shrink to hand size
@@ -2674,7 +2752,7 @@ function castVoxel(){
   let t=0,nx=0,ny=0,nz=0;
   while(t<=7){
     const v=voxels[vKey(x,y,z)];
-    if(v&&v.active&&v.ti!==WATER_BLOCK)return{x,y,z,ti:v.ti,nx,ny,nz};
+    if(v&&v.active&&v.ti!==WATER_BLOCK)return{x,y,z,ti:v.ti,nx,ny,nz,hy:oy+_rd.y*t};
     if(tMx<tMy&&tMx<tMz){t=tMx;tMx+=tDx;x+=stepX;nx=-stepX;ny=0;nz=0;}
     else if(tMy<tMz){t=tMy;tMy+=tDy;y+=stepY;nx=0;ny=-stepY;nz=0;}
     else{t=tMz;tMz+=tDz;z+=stepZ;nx=0;ny=0;nz=-stepZ;}
@@ -2709,7 +2787,7 @@ const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
   if(e.code==='Space'&&gs.running){e.preventDefault();doJump();}
-  if(e.code>='Digit1'&&e.code<='Digit6')setType(parseInt(e.code[5])-1);
+  if(e.code>='Digit1'&&e.code<='Digit8')setType(parseInt(e.code[5])-1);
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
@@ -2734,7 +2812,7 @@ if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.()
 
 // ═══ HOTBAR ═══
 let curType=0;const slots=[...document.querySelectorAll('.hslot')];
-function setType(idx){if(idx<0||idx>5)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');}
+function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');}
 slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();initAudio();setType(parseInt(s.dataset.i,10));});});
 function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
@@ -2849,10 +2927,19 @@ function doPlace(e){
   if(px<P.x+.35&&px+1>P.x-.35&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.35&&pz+1>P.z-.35)return;
   for(const en of enemies){const ep=en.root.position,fy=ep.y-.85;if(px<ep.x+.5&&px+1>ep.x-.5&&py<fy+1.7&&py+1>fy&&pz<ep.z+.5&&pz+1>ep.z-.5)return;}
   const mat=SLOT_MAT[curType],ti=SLOT_TI[curType];
-  if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
+  if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':mat==='slab'?'⬜ ハーフブロックがない！クラフトしよう':mat==='stair'?'🪜 階段がない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
   inv[mat]--;updateInvHUD();
-  addBlock(px,py,pz,ti,true,true);
-  const pk=vKey(px,py,pz);worldEdits.placed[pk]=ti;delete worldEdits.removed[pk];
+  let meta=0;
+  if(ti===SLAB_BLOCK){
+    // top face → bottom slab, bottom face → top slab, side face → by hit height
+    if(n.y>0)meta=0;else if(n.y<0)meta=1;else meta=(bh.hy-py>.5)?1:0;
+  }else if(ti===STAIR_BLOCK){
+    // tall half faces the way the player is looking, so walking on climbs up
+    camera.getWorldDirection(_rd);
+    meta=Math.abs(_rd.x)>Math.abs(_rd.z)?(_rd.x>0?0:2):(_rd.z>0?1:3);
+  }
+  addBlock(px,py,pz,ti,true,true,meta);
+  const pk=vKey(px,py,pz);worldEdits.placed[pk]=ti|(meta<<5);delete worldEdits.removed[pk];
   sfxPlace();triggerPlaceSwing();
 }
 
@@ -3004,7 +3091,7 @@ async function continueGame(){
   finalBossPending=!!d.finalBossPending;
   P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
-  curType=Math.max(0,Math.min(5,d.curType||0));setType(curType);
+  curType=Math.max(0,Math.min(SLOT_TI.length-1,d.curType||0));setType(curType);
   yaw=d.yaw||0;pitch=d.pitch||0;
   if(d.inv)Object.assign(inv,d.inv);
   if(d.unlockedWeapons)d.unlockedWeapons.forEach((v,i)=>{if(i<unlockedWeapons.length)unlockedWeapons[i]=v;});
