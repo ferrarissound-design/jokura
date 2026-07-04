@@ -860,6 +860,9 @@ function buildChunkMesh(rec){
       let b=buckets.get(mat);
       if(!b){b={pos:[],nrm:[],uv:[],col:[],idx:[]};buckets.set(mat,b);}
       const vi=b.pos.length/3;
+      // grass tops (ti 0/1 face index 2) are tinted per-column so the green
+      // blends smoothly across a biome border instead of snapping
+      const tint=(f===2&&(ti===0||ti===5))?(v.tint||computeGrassTint(x,z)):null;
       for(let ci=0;ci<4;ci++){
         const c=fd.c[ci];
         b.pos.push(x+c[0],y+c[1],z+c[2]);
@@ -870,7 +873,8 @@ function buildChunkMesh(rec){
         const s2=_aoOccluder(x+A[1][0],y+A[1][1],z+A[1][2]);
         const cc=_aoOccluder(x+A[2][0],y+A[2][1],z+A[2][2]);
         const sh=fd.shade*AO_LEVEL[(s1&&s2)?3:s1+s2+cc];
-        b.col.push(sh,sh,sh);
+        if(tint)b.col.push(sh*tint[0],sh*tint[1],sh*tint[2]);
+        else b.col.push(sh,sh,sh);
       }
       b.idx.push(vi,vi+1,vi+2,vi,vi+2,vi+3);
     }
@@ -1003,6 +1007,9 @@ function smat(map,extra){return new THREE.MeshStandardMaterial(Object.assign({ma
 const _T={
   grassTop:noisyTex(0x6fb13a,11,.13), grassSide:grassSideTex(0x6fb13a,0x7a5230,12), dirt:noisyTex(0x7a5230,13,.14),
   forestTop:noisyTex(0x3f9a3a,14,.13), forestSide:grassSideTex(0x3f9a3a,0x5d4a28,15),
+  // neutral (near-white) grass-top used in-world: the actual green comes from
+  // the per-column biome tint baked into vertex color, so it can blend
+  grassTopNeutral:noisyTex(0xffffff,1101,.13),
   stone:noisyTex(0x8a8f98,21,.12), sand:noisyTex(0xd9c27a,22,.1),
   logSide:logSideTex(0x6b4a2f,23), logTop:logTopTex(0x9a7a4f,24), brick:brickTex(0xc05a4a,25),
   greyStone:noisyTex(0x78909c,26,.12), volcano:noisyTex(0x1a0a00,27,.5), snow:noisyTex(0xeef3ff,28,.06),
@@ -1011,14 +1018,17 @@ const _T={
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
+// shared top material for both grass biomes: same neutral texture, so their
+// merged-mesh faces batch into one draw call; the green comes from vertex tint
+const _grassTopMat=smat(_T.grassTopNeutral);
 const blockMats=BLOCK_COLORS.map((c,i)=>{
   switch(i){
-    case 0: return faceMats(_T.grassSide,_T.grassTop,_T.dirt);
+    case 0: {const s=smat(_T.grassSide);return[s,s,_grassTopMat,smat(_T.dirt),s,s];}
     case 1: return smat(_T.stone);
     case 2: return smat(_T.sand);
     case 3: return faceMats(_T.logSide,_T.logTop,_T.logTop);
     case 4: return smat(_T.brick);
-    case 5: return faceMats(_T.forestSide,_T.forestTop,_T.dirt);
+    case 5: {const s=smat(_T.forestSide);return[s,s,_grassTopMat,smat(_T.dirt),s,s];}
     case 6: return smat(_T.greyStone);
     case 7: return smat(_T.volcano,{roughness:.3,metalness:.4,emissive:0x330000,emissiveIntensity:.3});
     case LAVA_BLOCK: return smat(_T.lava,{roughness:.8,emissive:0xff2200,emissiveIntensity:1.2,vertexColors:false}); // glows evenly, no face shading
@@ -1089,6 +1099,20 @@ function getBiome(wx,wz){
 }
 function getBiomeName(b){return['🌿 PLAINS','🏜 DESERT','🌲 FOREST','🪨 MOUNTAIN','🌋 VOLCANO','❄ SNOW'][b];}
 function getGroundType(biome){return[0,2,5,1,7,SNOW_BLOCK][biome];}
+// ─── BIOME GRASS COLOR BLENDING (Minecraft-style) ───
+// Grass tops (ti 0 plains / ti 5 forest) render with a shared neutral texture
+// and get their green from this per-column tint instead, so the color fades
+// smoothly across a biome border rather than snapping at the tile edge.
+const PLAINS_GRASS_RGB=[0x6f/255,0xb1/255,0x3a/255],FOREST_GRASS_RGB=[0x3f/255,0x9a/255,0x3a/255];
+function computeGrassTint(wx,wz,biomeAt){
+  biomeAt=biomeAt||getBiome;
+  let r=0,g=0,b=0,n=0;
+  for(let dz=-2;dz<=2;dz+=2)for(let dx=-2;dx<=2;dx+=2){
+    const c=biomeAt(wx+dx,wz+dz)===BIOMES.FOREST?FOREST_GRASS_RGB:PLAINS_GRASS_RGB;
+    r+=c[0];g+=c[1];b+=c[2];n++;
+  }
+  return[r/n,g/n,b/n];
+}
 function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,4);if(biome===BIOMES.MOUNTAIN)h=h*4+2;else if(biome===BIOMES.FOREST)h=h*1.5+0.3;else if(biome===BIOMES.DESERT)h=h*0.8;else if(biome===BIOMES.VOLCANO)h=h*3.5+1.5;else if(biome===BIOMES.SNOW)h=h*2.5+0.5;else h=h*1.2;return Math.max(0,Math.floor(h+1));}
 
 // Registers a voxel. Cube blocks live in the merged chunk mesh; only water
@@ -1096,7 +1120,10 @@ function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,
 // Returns the voxel key (generation collects the keys into its chunk record).
 function addBlock(x,y,z,ti,addToScene,playerPlaced){
   const k=vKey(x,y,z);if(voxels[k])return;
-  const v={ti,active:!!addToScene,playerPlaced:!!playerPlaced,rec:null,mesh:null};
+  const v={ti,active:!!addToScene,playerPlaced:!!playerPlaced,rec:null,mesh:null,tint:null};
+  // live placement (player build / world-edit replay): world-gen sets tint
+  // itself via tintAt() for its own blend-cache reuse, this covers the rest
+  if(addToScene&&(ti===0||ti===5))v.tint=computeGrassTint(x,z);
   if(ti===WATER_BLOCK||ti===TORCH_BLOCK){
     const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:torchGeo,blockMats[ti]);
     m.position.set(x+.5,y+.5,z+.5);
@@ -1143,10 +1170,13 @@ function generateChunk(cx,cz){
       const h=getHeight(x,z),biome=getBiome(x,z);
       const lakeN=noise(x*.05+777,z*.05+777);
       const lake=(biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45);
-      c={h,biome,lake};colCache.set(k,c);
+      c={h,biome,lake,tint:null};colCache.set(k,c);
     }
     return c;
   };
+  // grass tint, memoized per column; reuses colAt so overlapping blend
+  // samples between neighbouring columns cost no extra noise calls
+  const tintAt=(x,z)=>{const c=colAt(x,z);return c.tint||(c.tint=computeGrassTint(x,z,(xx,zz)=>colAt(xx,zz).biome));};
   // is a surface cell solid? (lakes keep their bed and are never carved)
   const solidAt=(x,y,z)=>{
     if(y<0)return isUnderSolid(x,y,z);
@@ -1182,7 +1212,7 @@ function generateChunk(cx,cz){
         !solidAt(wx,y+1,wz)||!solidAt(wx,y-1,wz);
       if(!exposed)continue;
       const ti=y===h?getGroundType(biome):y===h-1?sub:deepTi;
-      const m=addBlock(wx,y,wz,ti,false);if(m)meshes.add(m);
+      const m=addBlock(wx,y,wz,ti,false);if(m){meshes.add(m);if(ti===0||ti===5)voxels[m].tint=tintAt(wx,wz);}
     }
     if(!solidAt(wx,h,wz))continue; // top carved away: no features over the hole
     if(biome===BIOMES.VOLCANO){
@@ -1194,10 +1224,10 @@ function generateChunk(cx,cz){
       if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,1,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.add(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.add(top);}
       if(rand2(wx,wz,41)<0.03){const topH=1+Math.floor(rand2(wx,wz,42)*3);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,SNOW_BLOCK,false);if(mr)meshes.add(mr);}}
     }
-    if(biome===BIOMES.FOREST&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml)meshes.add(ml);}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml)meshes.add(ml);}}}
-    if(biome===BIOMES.PLAINS&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml)meshes.add(ml);[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2)meshes.add(ml2);});}
+    if(biome===BIOMES.FOREST&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx,wz);}}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx+dx,wz+dz);}}}}
+    if(biome===BIOMES.PLAINS&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx,wz);}[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2){meshes.add(ml2);voxels[ml2].tint=tintAt(wx+dx,wz+dz);}});}
     if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.add(mr);}}
-    if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms)meshes.add(ms);}}
+    if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms){meshes.add(ms);voxels[ms].tint=tintAt(wx,wz);}}}
   }
   const rec=makeChunkRec(false);
   for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
