@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260709a">
+<link rel="stylesheet" href="styles/main.css?v=20260712a">
 
 </head>
 <body>
@@ -26,6 +26,7 @@
   <div id="goalLabel">🎯 目標: 木を集めて剣を作ろう</div>
   <div id="armorLabel" style="display:none"></div>
   <div id="meatLabel">🥩 MEAT: 0</div>
+  <div id="petLabel" style="display:none"></div>
   <button id="eatBtn" class="disabled">🍖 EAT</button>
   <div id="invPanel">
     <div class="invRow" id="invWood">🪵 WOOD: 0</div>
@@ -100,7 +101,7 @@
   <div id="ovTitle">ジョークラ</div>
   <div id="ovSplash">ダイヤを掘れ！</div>
   <div id="ovSub">VOXEL SURVIVAL</div>
-  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>🐷豚・🐑羊・🐔鶏を育てて🥩🧶🥚をゲット！🌾畑で小麦も育てよう！</div>
+  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>🐷豚・🐑羊・🐔鶏を育てて🥩🧶🥚をゲット！🌾畑で小麦も育てよう！<br>🐺オオカミを肉で手なずけて相棒にしよう！</div>
   <button id="ovBtn" class="mc-btn">NEW GAME</button>
   <button id="modeBtn" class="mc-btn secondary">🎮 MODE: ⚔ SURVIVAL</button>
   <button id="helpBtn" class="mc-btn secondary">HOW TO PLAY</button>
@@ -121,6 +122,7 @@
       <b>満腹度</b>: 走る・跳ぶ・戦うと減る。60以下で自然回復が止まり、0になるとHPが徐々に減る（10未満にはならない）。🥩肉で回復。<br>
       <b>防具</b>: 鎧をクラフトすると敵の攻撃を軽減（🛡木20%→🛡石35%→💎ダイヤ55%）。防ぐたび耐久が減り、0で壊れる。再クラフトで修理。溶岩・寒冷・空腹には無効。<br>
       <b>動物・牧畜</b>: 🐷豚は倒すと🥩肉。🐑羊は近くでXキー(スマホはPLACE長押し)で刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。🐔鶏は時々🥚卵を産み落とし、拾うと満腹度が回復。<br>
+      <b>🐺相棒</b>: 野生のオオカミは🥩肉を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で肉をあげると手なずけられ、付いてきて敵と戦ってくれる。倒れても時間か肉で復活。肉でHP回復。<br>
       <b>農業</b>: 🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキー(スマホはPLACE長押し)で植える。時間で育ち、成熟したら同じ操作で収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復。<br>
       <b>地下</b>: 深く掘るとダイヤ・古い宝箱・地下ドラゴンに出会える。危険なら地上へ戻ろう。<br>
       <b>PC</b>: WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / E武器切替 / Cクラフト / F5セーブ。<br>
@@ -186,6 +188,6 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="scripts/main.js?v=20260709a"></script>
+<script src="scripts/main.js?v=20260712a"></script>
 </body>
 </html>
