@@ -20,7 +20,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0};
 
 // ═══ ARMOR ═══
 // 鎧は敵の攻撃ダメージを cut 分軽減し、防いだ量だけ耐久(dur)が減る。0で壊れる。
@@ -62,6 +62,8 @@ const CRAFT_RECIPES=[
   {name:'🏆 ダイヤドラゴン像',wi:-9,needs:{dragonCore:1,diamond:3},desc:'💠×1+💎×3'},
   {name:'💎 Diamond Hammer',wi:-10,needs:{diamond:4,stone:20},       desc:'💎×4+🪨×20', req:2},
   {name:'💎 ダイヤの鎧',wi:-16,armorTier:2,needs:{diamond:4,stone:10},desc:'💎×4+🪨×10'},
+  {name:'🌱 種×4',    wi:-17,needs:{grass:3},        desc:'🌿×3'},
+  {name:'🍞 パン',     wi:-18,needs:{wheat:4},        desc:'🌾×4'},
 ];
 
 const ACHIEVEMENT_DEFS={
@@ -70,6 +72,8 @@ const ACHIEVEMENT_DEFS={
   firstBow:{title:'遠距離デビュー',desc:'弓をクラフトする',reward:'🏹 +10',apply(){inv.arrow+=10;updateInvHUD();}},
   firstArmor:{title:'鉄壁の備え',desc:'鎧をクラフトする',reward:'SCORE +300',apply(){gs.score+=300;}},
   firstBase:{title:'拠点づくり',desc:'チェストかベッドを設置する',reward:'HP +30',apply(){P.hp=Math.min(P.maxHp,P.hp+30);}},
+  firstShear:{title:'羊毛刈り',desc:'羊の毛を刈る',reward:'SCORE +200',apply(){gs.score+=200;}},
+  firstHarvest:{title:'収穫の喜び',desc:'小麦を収穫する',reward:'HP +20 / 満腹度+20',apply(){P.hp=Math.min(P.maxHp,P.hp+20);P.food=Math.min(100,P.food+20);}},
   firstDiamond:{title:'ダイヤ発見',desc:'ダイヤを初めて入手する',reward:'SCORE +500',apply(){gs.score+=500;}},
   treasureHunter:{title:'地下探検家',desc:'地下宝箱を開ける',reward:'💎 +1',apply(){inv.diamond+=1;updateInvHUD();}},
   wave5:{title:'WAVE5到達',desc:'WAVE5に到達する',reward:'🥩 +2 / 🏹 +10',apply(){meat+=2;inv.arrow+=10;updateMeatHUD();updateInvHUD();}},
@@ -99,6 +103,9 @@ const $invBrick=document.getElementById('invBrick');
 const $invArrow=document.getElementById('invArrow');
 const $invDiamond=document.getElementById('invDiamond');
 const $invDragonCore=document.getElementById('invDragonCore');
+const $invSeed=document.getElementById('invSeed');
+const $invWheat=document.getElementById('invWheat');
+const $invWool=document.getElementById('invWool');
 const $treasureInfo=document.getElementById('treasureInfo');
 const $craftPanel=document.getElementById('craftPanel');
 
@@ -112,6 +119,9 @@ function updateInvHUD(){
   $invArrow.textContent='🏹 ARROW: '+q(inv.arrow);
   $invDiamond.textContent='💎 DIAMOND: '+q(inv.diamond);
   $invDragonCore.textContent='💠 DRAGON CORE: '+q(inv.dragonCore);
+  if($invSeed)$invSeed.textContent='🌱 SEED: '+q(inv.seed);
+  if($invWheat)$invWheat.textContent='🌾 WHEAT: '+q(inv.wheat);
+  if($invWool)$invWool.textContent='🧶 WOOL: '+q(inv.wool);
   const tc=document.getElementById('torchCount');if(tc)tc.textContent=isCreative()?'∞':(inv.torch>0?inv.torch:'');
   const slc=document.getElementById('slabCount');if(slc)slc.textContent=isCreative()?'∞':(inv.slab>0?inv.slab:'');
   const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'∞':(inv.stair>0?inv.stair:'');
@@ -159,7 +169,10 @@ const MATERIAL_LABELS={
   diamond:'💎 DIAMOND',
   dragonCore:'💠 DRAGON CORE',
   slab:'⬜ SLAB',
-  stair:'🪜 STAIRS'
+  stair:'🪜 STAIRS',
+  seed:'🌱 SEED',
+  wheat:'🌾 WHEAT',
+  wool:'🧶 WOOL'
 };
 
 function getMissingMaterialsText(recipe){
@@ -213,6 +226,8 @@ function doCraft(idx){
   else if(r.wi===-11){inv.torch+=4;showBonus('🔥 トーチ×4 CRAFTED!');}
   else if(r.wi===-12){inv.slab+=4;showBonus('⬜ ハーフブロック×4 CRAFTED!');}
   else if(r.wi===-13){inv.stair+=4;showBonus('🪜 階段×4 CRAFTED!');}
+  else if(r.wi===-17){inv.seed+=4;showBonus('🌱 種×4 CRAFTED!');}
+  else if(r.wi===-18){P.hp=Math.min(P.maxHp,P.hp+10);P.food=Math.min(100,P.food+50);showBonus('🍞 パン FOOD+50 HP+10!');}
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
@@ -275,7 +290,7 @@ bindTapSafe($craftBtn,_onCraftBtnTap);
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
   hasDiamondSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
@@ -386,6 +401,7 @@ async function saveGame(){
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),
+    farmPlots:farmPlots.map(f=>({x:f.x,y:f.y,z:f.z,stage:f.stage,growT:f.growT})),
     openedTreasures:[...openedTreasureKeys],
     achievements:{...achievements},
     savedAt:Date.now()
@@ -613,7 +629,9 @@ function renderQuestLog(){
       ['🔨 ハンマーをクラフト',unlockedWeapons[2],'石を掘る速度と近接火力を確保'],
       ['🛏 ベッド/📦チェストで拠点準備',isBaseReady(),'夜スキップと素材保管で長期戦に備える'],
       ['🏹 弓をクラフト',unlockedWeapons[3],'空中やボス相手の安全な攻撃手段'],
-      ['🛡 鎧をクラフト',!!achievements.firstArmor||!!armor,'敵の攻撃を軽減。防ぐたび耐久が減り0で壊れる（再クラフトで修理）']
+      ['🛡 鎧をクラフト',!!achievements.firstArmor||!!armor,'敵の攻撃を軽減。防ぐたび耐久が減り0で壊れる（再クラフトで修理）'],
+      ['🐑 羊の毛を刈る',!!achievements.firstShear,'倒さずにウールを収集できる。刈った羊の毛はしばらくすると生え変わる'],
+      ['🌾 小麦を収穫',!!achievements.firstHarvest,'草から種を作って草ブロックの上に植え、育ったら収穫しよう']
     ]},
     {title:'地下探索とダイヤ装備',items:[
       ['💎 ダイヤを入手',gotDiamond,'深く掘るほど貴重素材と危険が増える'],
@@ -648,6 +666,8 @@ function renderWorldGuide(){
   return '<div class="codexSection"><div class="codexHd">🌍 バイオーム / 地下 / WAVE</div>'+
     '<div class="codexSub">バイオーム</div><div class="codexNote">🌿草原: 基本素材集め / 🏜砂漠: 砂と開けた地形 / 🌲森林: 木材集め / 🪨岩山: 石と鉱石向き / 🌋火山: 溶岩と強敵に注意 / ❄雪原: 寒冷ダメージに注意。</div>'+
     '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
+    '<div class="codexSub">動物・牧畜</div><div class="codexNote">🐷豚: 倒すと🥩肉 / 🐑羊: Xキーで刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。倒すと肉とウールの両方 / 🐔鶏: 時々🥚卵を産み落とす。歩いて拾うと満腹度が回復。倒すと肉。</div>'+
+    '<div class="codexSub">農業</div><div class="codexNote">🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキーで植える。時間とともに育ち、成熟したらXキーで収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復できる。</div>'+
     '<div class="codexSub">地下</div><div class="codexNote">深く掘るとダイヤ、古い宝箱、地下ドラゴンに遭遇する。危険なら階段やブロックで地上へ戻ろう。</div>'+
     '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
 }
@@ -2501,7 +2521,71 @@ function placeTrophy(){
 }
 function resetTrophies(){for(const t of trophies)scene.remove(t.mesh);trophies=[];trophyCount=0;updateTrophyHUD();}
 
-// ═══ MOBS（豚） ═══
+// ═══ FARMING（小麦畑） ═══
+// 畑は草ブロックの上に設置する独立の装飾物（チェスト等と同じ扱い）。stage 0→1→2 で育ち、
+// stage2（成熟）で収穫すると小麦とたまに種が手に入るが、畑自体は消えるので再度植える必要がある。
+let farmPlots=[];
+const CROP_STAGE_T=[20,45]; // 経過秒数のしきい値：stage1へ20秒、stage2（成熟）へ45秒
+const _farmSoilGeo=new THREE.BoxGeometry(.94,.1,.94);
+const _farmSoilMat=new THREE.MeshStandardMaterial({color:0x4a3320,roughness:.95});
+const _cropStageGeos=[new THREE.BoxGeometry(.16,.22,.16),new THREE.BoxGeometry(.22,.42,.22),new THREE.BoxGeometry(.28,.62,.28)];
+const _cropStageMats=[
+  new THREE.MeshStandardMaterial({color:0x5fae3c,roughness:.85}),
+  new THREE.MeshStandardMaterial({color:0x9dbb3a,roughness:.85}),
+  new THREE.MeshStandardMaterial({color:0xe0c04a,roughness:.8,emissive:0x332200,emissiveIntensity:.15}),
+];
+function makeFarmMesh(stage){
+  const root=new THREE.Object3D();
+  const soil=new THREE.Mesh(_farmSoilGeo,_farmSoilMat.clone());soil.position.y=.05;
+  const geo=_cropStageGeos[stage];
+  const crop=new THREE.Mesh(geo,_cropStageMats[stage].clone());crop.position.y=.1+geo.parameters.height/2;
+  root.add(soil,crop);markShadowCaster(root);return root;
+}
+function _cropNearby(){return farmPlots.some(f=>{if(f.stage<2)return false;const dx=f.x+.5-P.x,dz=f.z+.5-P.z,dy=f.y+.3-(P.y+.8);return Math.hypot(dx,dy,dz)<2.3;});}
+function plantSeed(){
+  if(!gs.running)return false;
+  if(!isCreative()&&inv.seed<=0)return false;
+  const bh=castVoxel();if(!bh)return false;
+  if(bh.ti!==0||bh.ny<=0)return false; // 草ブロック(ti===0)の上面を見ている場合のみ植えられる
+  const px=bh.x,py=bh.y+1,pz=bh.z;
+  for(const f of farmPlots){if(Math.floor(f.x)===px&&Math.floor(f.y)===py&&Math.floor(f.z)===pz)return false;}
+  if(px<P.x+.4&&px+1>P.x-.4&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.4&&pz+1>P.z-.4)return false;
+  if(!isCreative())inv.seed--;
+  const mesh=makeFarmMesh(0);mesh.position.set(px+.5,py,pz+.5);scene.add(mesh);
+  farmPlots.push({mesh,x:px,y:py,z:pz,stage:0,growT:0});
+  updateInvHUD();sfxPlace();showBonus('🌱 種を植えた！');
+  return true;
+}
+function harvestNearestCrop(){
+  let nearest=null,nd=2.3;
+  for(const f of farmPlots){if(f.stage<2)continue;const dx=f.x+.5-P.x,dz=f.z+.5-P.z,dy=f.y+.3-(P.y+.8);const d=Math.hypot(dx,dy,dz);if(d<nd){nd=d;nearest=f;}}
+  if(!nearest)return;
+  scene.remove(nearest.mesh);
+  const idx=farmPlots.indexOf(nearest);if(idx>=0)farmPlots.splice(idx,1);
+  const wheat=2+Math.floor(Math.random()*3);
+  inv.wheat+=wheat;
+  const seedBack=Math.random()<0.6?1+Math.floor(Math.random()*2):0;
+  if(seedBack>0)inv.seed+=seedBack;
+  updateInvHUD();sfxPlace();showBonus('🌾 小麦×'+wheat+(seedBack?' / 🌱 種×'+seedBack:'')+' 収穫！');
+  unlockAchievement('firstHarvest');
+}
+function updateFarmPlots(dt){
+  for(const f of farmPlots){
+    if(f.stage>=2)continue;
+    f.growT+=dt;
+    const nextStage=f.growT>=CROP_STAGE_T[1]?2:(f.growT>=CROP_STAGE_T[0]?1:0);
+    if(nextStage!==f.stage){
+      f.stage=nextStage;
+      scene.remove(f.mesh);
+      f.mesh=makeFarmMesh(f.stage);
+      f.mesh.position.set(f.x+.5,f.y,f.z+.5);
+      scene.add(f.mesh);
+    }
+  }
+}
+function resetFarmPlots(){for(const f of farmPlots)scene.remove(f.mesh);farmPlots=[];}
+
+// ═══ MOBS（豚・羊・鶏） ═══
 const mobs=[];const MAX_MOBS=15;let meat=0;
 const _pigGeos={body:new THREE.BoxGeometry(.9,.65,.6),head:new THREE.BoxGeometry(.58,.52,.52),leg:new THREE.BoxGeometry(.2,.45,.2),nose:new THREE.BoxGeometry(.26,.18,.08),eye:new THREE.BoxGeometry(.09,.09,.05)};
 const _pigMatBase={body:new THREE.MeshStandardMaterial({color:0xf4a9a8,roughness:.9}),leg:new THREE.MeshStandardMaterial({color:0xe8968f,roughness:.9}),nose:new THREE.MeshStandardMaterial({color:0xf08080,roughness:.8}),eye:new THREE.MeshBasicMaterial({color:0x111111})};
@@ -2516,24 +2600,94 @@ function makePigMesh(){
   const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_pigGeos.leg,_pigMatBase.leg.clone());l.position.set(x,y,z);return l;});
   root.add(body,head,...legs);return{root,body,head,legs};
 }
-function createPig(wx,wz){
-  if(mobs.length>=MAX_MOBS)return;
-  const h=getHeight(Math.floor(wx),Math.floor(wz));const built=makePigMesh();built.root.position.set(wx,h+1.05,wz);markShadowCaster(built.root);scene.add(built.root);
-  mobs.push({root:built.root,body:built.body,head:built.head,legs:built.legs,hp:3,maxHp:3,velY:0,onGround:false,wanderAngle:Math.random()*Math.PI*2,wanderT:0,hitFlash:0,oinkT:2+Math.random()*5,dead:false});
+const _sheepGeos={body:new THREE.BoxGeometry(.85,.55,.65),wool:new THREE.BoxGeometry(.98,.7,.78),head:new THREE.BoxGeometry(.4,.4,.42),leg:new THREE.BoxGeometry(.18,.4,.18),eye:new THREE.BoxGeometry(.07,.07,.04)};
+const _sheepMatBase={wool:new THREE.MeshStandardMaterial({color:0xf4f4ec,roughness:1}),skin:new THREE.MeshStandardMaterial({color:0xe8c9a8,roughness:.85}),leg:new THREE.MeshStandardMaterial({color:0xcaa87e,roughness:.9}),eye:new THREE.MeshBasicMaterial({color:0x111111})};
+function makeSheepMesh(){
+  const root=new THREE.Object3D();
+  const body=new THREE.Mesh(_sheepGeos.body,_sheepMatBase.skin.clone());body.position.y=.42;
+  const wool=new THREE.Mesh(_sheepGeos.wool,_sheepMatBase.wool.clone());wool.position.y=.5;
+  const head=new THREE.Mesh(_sheepGeos.head,_sheepMatBase.skin.clone());head.position.set(0,.58,.4);
+  const eyeL=new THREE.Mesh(_sheepGeos.eye,_sheepMatBase.eye.clone());eyeL.position.set(-.12,.05,.21);head.add(eyeL);
+  const eyeR=new THREE.Mesh(_sheepGeos.eye,_sheepMatBase.eye.clone());eyeR.position.set(.12,.05,.21);head.add(eyeR);
+  const legPos=[[-.22,-.1,.16],[.22,-.1,.16],[-.22,-.1,-.16],[.22,-.1,-.16]];
+  const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_sheepGeos.leg,_sheepMatBase.leg.clone());l.position.set(x,y,z);return l;});
+  root.add(body,wool,head,...legs);return{root,body,head,legs,wool};
 }
-function spawnPigs(count=8){
+const _chickenGeos={body:new THREE.BoxGeometry(.4,.38,.42),head:new THREE.BoxGeometry(.24,.24,.24),beak:new THREE.BoxGeometry(.12,.09,.14),wing:new THREE.BoxGeometry(.1,.28,.32),leg:new THREE.BoxGeometry(.06,.26,.06),eye:new THREE.BoxGeometry(.05,.05,.03)};
+const _chickenMatBase={body:new THREE.MeshStandardMaterial({color:0xf5f0e0,roughness:.9}),beak:new THREE.MeshStandardMaterial({color:0xe0a53c,roughness:.7}),comb:new THREE.MeshStandardMaterial({color:0xdd3344,roughness:.7}),leg:new THREE.MeshStandardMaterial({color:0xe0a53c,roughness:.8}),eye:new THREE.MeshBasicMaterial({color:0x111111})};
+function makeChickenMesh(){
+  const root=new THREE.Object3D();
+  const body=new THREE.Mesh(_chickenGeos.body,_chickenMatBase.body.clone());body.position.y=.34;
+  const head=new THREE.Mesh(_chickenGeos.head,_chickenMatBase.body.clone());head.position.set(0,.58,.16);
+  const beak=new THREE.Mesh(_chickenGeos.beak,_chickenMatBase.beak.clone());beak.position.set(0,-.03,.16);head.add(beak);
+  const comb=new THREE.Mesh(new THREE.BoxGeometry(.08,.09,.14),_chickenMatBase.comb.clone());comb.position.set(0,.15,.02);head.add(comb);
+  const eyeL=new THREE.Mesh(_chickenGeos.eye,_chickenMatBase.eye.clone());eyeL.position.set(-.09,.04,.12);head.add(eyeL);
+  const eyeR=new THREE.Mesh(_chickenGeos.eye,_chickenMatBase.eye.clone());eyeR.position.set(.09,.04,.12);head.add(eyeR);
+  const wingL=new THREE.Mesh(_chickenGeos.wing,_chickenMatBase.body.clone());wingL.position.set(-.22,.34,0);
+  const wingR=new THREE.Mesh(_chickenGeos.wing,_chickenMatBase.body.clone());wingR.position.set(.22,.34,0);
+  const legPos=[[-.1,-.15,.08],[.1,-.15,.08]];
+  const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_chickenGeos.leg,_chickenMatBase.leg.clone());l.position.set(x,y,z);return l;});
+  root.add(body,head,wingL,wingR,...legs);return{root,body,head,legs};
+}
+const ANIMAL_KINDS={
+  pig:{build:makePigMesh,hp:3,color:0xf4a9a8},
+  sheep:{build:makeSheepMesh,hp:4,color:0xf4f4ec},
+  chicken:{build:makeChickenMesh,hp:2,color:0xf5f0e0},
+};
+function createAnimal(wx,wz,kind='pig'){
+  if(mobs.length>=MAX_MOBS)return;
+  const def=ANIMAL_KINDS[kind]||ANIMAL_KINDS.pig;
+  const h=getHeight(Math.floor(wx),Math.floor(wz));const built=def.build();built.root.position.set(wx,h+1.05,wz);markShadowCaster(built.root);scene.add(built.root);
+  const mob={kind,root:built.root,body:built.body,head:built.head,legs:built.legs,hp:def.hp,maxHp:def.hp,velY:0,onGround:false,wanderAngle:Math.random()*Math.PI*2,wanderT:0,hitFlash:0,oinkT:2+Math.random()*5,dead:false};
+  if(kind==='sheep'){mob.wool=built.wool;mob.sheared=false;mob.regrowT=0;}
+  if(kind==='chicken')mob.eggT=15+Math.random()*15;
+  mobs.push(mob);
+}
+function spawnAnimals(count=8){
   for(let i=0;i<count;i++){
     const angle=Math.random()*Math.PI*2,dist=10+Math.random()*20;
     const wx=P.x+Math.cos(angle)*dist,wz=P.z+Math.sin(angle)*dist;
-    createPig(wx,wz);
+    const roll=Math.random();
+    const kind=roll<0.5?'pig':(roll<0.8?'sheep':'chicken');
+    createAnimal(wx,wz,kind);
   }
 }
-function killMob(mob){scene.remove(mob.root);mob.dead=true;meat++;updateMeatHUD();showBonus('🥩 MEAT x'+meat);playTone(500,.12,.1,'sine');spawnParticles(mob.root.position.x,mob.root.position.y,mob.root.position.z,0xf4a9a8,3);}
+function killMob(mob){
+  scene.remove(mob.root);mob.dead=true;
+  let msg,color=0xf4a9a8;
+  if(mob.kind==='sheep'){
+    meat++;const wool=mob.sheared?(1+Math.floor(Math.random()*2)):(2+Math.floor(Math.random()*2));
+    inv.wool+=wool;updateInvHUD();msg='🥩 MEAT +1 / 🧶 WOOL +'+wool;color=0xf4f4ec;
+  }else if(mob.kind==='chicken'){
+    meat++;msg='🥩 MEAT +1';color=0xf5f0e0;
+  }else{
+    meat++;msg='🥩 MEAT x'+meat;
+  }
+  updateMeatHUD();showBonus(msg);playTone(500,.12,.1,'sine');spawnParticles(mob.root.position.x,mob.root.position.y,mob.root.position.z,color,3);
+}
 function hitMob(mob,damage=1){if(mob.dead)return;mob.hp-=damage;mob.hitFlash=.15;mob.root.scale.set(1.3,.7,1.3);sfxOink();if(mob.hp<=0)killMob(mob);}
 const _atkDir=new THREE.Vector3();
 function attackMobs(w){
   if(w.type==='ranged')return;camera.getWorldDirection(_atkDir);const range=w.type==='aoe'?w.range:(w.range+.5);
   for(let i=mobs.length-1;i>=0;i--){const mob=mobs[i];if(mob.dead)continue;const mp=mob.root.position;const hdx=mp.x-P.x,hdz=mp.z-P.z,hdist=Math.hypot(hdx,hdz);if(hdist>range)continue;if(w.type==='aoe'){hitMob(mob,w.dmg);}else{const hlen=Math.hypot(_atkDir.x,_atkDir.z)||1;const dot=(hdx/hdist)*(_atkDir.x/hlen)+(hdz/hdist)*(_atkDir.z/hlen);if(dot>0.3)hitMob(mob,w.dmg);}}
+}
+// ═══ SHEARING ═══
+function _shearableSheepNearby(){return mobs.some(m=>m.kind==='sheep'&&!m.dead&&!m.sheared&&Math.hypot(m.root.position.x-P.x,m.root.position.z-P.z)<2.5);}
+function shearNearestSheep(){
+  let nearest=null,nd=2.5;
+  for(const m of mobs){if(m.kind!=='sheep'||m.dead||m.sheared)continue;const d=Math.hypot(m.root.position.x-P.x,m.root.position.z-P.z);if(d<nd){nd=d;nearest=m;}}
+  if(!nearest)return;
+  const wool=1+Math.floor(Math.random()*2);
+  inv.wool+=wool;nearest.sheared=true;nearest.regrowT=45;
+  if(nearest.wool)nearest.wool.visible=false;
+  updateInvHUD();showBonus('🧶 ウール×'+wool+' 刈った！');playTone(700,.1,.1,'triangle');unlockAchievement('firstShear');
+}
+// ═══ EGGS ═══
+const EGG_ITEM={name:'🥚 EGG',type:'egg',value:15,color:0xfff3c4};
+function layEgg(x,y,z){
+  const mat=new THREE.MeshBasicMaterial({color:EGG_ITEM.color,transparent:true,opacity:.9});
+  const m=new THREE.Mesh(itemGeo,mat);m.position.set(x,y,z);scene.add(m);
+  items.push({mesh:m,mat,info:EGG_ITEM,x,y,z,time:0});
 }
 function updateMobs(dt){
   const FLEE_DIST=6,WANDER_SPD=1.4,FLEE_SPD=4.2;const swing=Math.sin(Date.now()*.006)*.35;
@@ -2542,16 +2696,19 @@ function updateMobs(dt){
     const mp=mob.root.position;const dx=P.x-mp.x,dz=P.z-mp.z,dist=Math.hypot(dx,dz);
     const tooFar=dist>55;mob.root.visible=!tooFar;if(tooFar)continue;
     if(mob.hitFlash>0){mob.hitFlash-=dt;if(mob.hitFlash<=0)mob.root.scale.set(1,1,1);}
-    mob.oinkT-=dt;if(mob.oinkT<=0){mob.oinkT=4+Math.random()*6;if(dist<20)sfxOink();}
+    if(mob.kind==='pig'){mob.oinkT-=dt;if(mob.oinkT<=0){mob.oinkT=4+Math.random()*6;if(dist<20)sfxOink();}}
+    if(mob.kind==='sheep'&&mob.sheared){mob.regrowT-=dt;if(mob.regrowT<=0){mob.sheared=false;if(mob.wool)mob.wool.visible=true;}}
+    if(mob.kind==='chicken'){mob.eggT-=dt;if(mob.eggT<=0){mob.eggT=18+Math.random()*14;if(mob.onGround)layEgg(mp.x,mp.y-.3,mp.z);}}
+    const kFleeDist=mob.kind==='chicken'?8:FLEE_DIST,kFleeSpd=mob.kind==='chicken'?5.2:FLEE_SPD,kWanderSpd=mob.kind==='chicken'?1.7:WANDER_SPD;
     mob.velY-=GRAV*dt;const fy=mp.y-.5;const ny=fy+mob.velY*dt;
     if(!overlaps(mp.x,ny,mp.z,.38,.95)){mp.y=ny+.5;mob.onGround=false;}else{if(mob.velY<0)mob.onGround=true;mob.velY=0;}
     if(mp.y<-10){const rh=getHeight(Math.floor(mp.x),Math.floor(mp.z));mp.y=rh+1.05;mob.velY=0;continue;}
     let moveX=0,moveZ=0;
-    if(dist<FLEE_DIST){const l=dist||1;moveX=-(dx/l)*FLEE_SPD;moveZ=-(dz/l)*FLEE_SPD;mob.root.rotation.y=Math.atan2(-dx,-dz);if(mob.onGround&&Math.random()<.012)mob.velY=5;}
-    else{mob.wanderT-=dt;if(mob.wanderT<=0){mob.wanderAngle+=(Math.random()-.5)*Math.PI;mob.wanderT=1.5+Math.random()*2;}moveX=Math.sin(mob.wanderAngle)*WANDER_SPD;moveZ=Math.cos(mob.wanderAngle)*WANDER_SPD;mob.root.rotation.y=mob.wanderAngle;}
+    if(dist<kFleeDist){const l=dist||1;moveX=-(dx/l)*kFleeSpd;moveZ=-(dz/l)*kFleeSpd;mob.root.rotation.y=Math.atan2(-dx,-dz);if(mob.onGround&&Math.random()<.012)mob.velY=5;}
+    else{mob.wanderT-=dt;if(mob.wanderT<=0){mob.wanderAngle+=(Math.random()-.5)*Math.PI;mob.wanderT=1.5+Math.random()*2;}moveX=Math.sin(mob.wanderAngle)*kWanderSpd;moveZ=Math.cos(mob.wanderAngle)*kWanderSpd;mob.root.rotation.y=mob.wanderAngle;}
     const nx2=mp.x+moveX*dt;if(!overlaps(nx2,fy,mp.z,.38,.95))mp.x=nx2;
     const nz2=mp.z+moveZ*dt;if(!overlaps(mp.x,fy,nz2,.38,.95))mp.z=nz2;
-    const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;if(moving&&mob.legs){for(let li=0;li<4;li++){mob.legs[li].rotation.x=(li%2===0?1:-1)*swing;}}
+    const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;if(moving&&mob.legs){for(let li=0;li<mob.legs.length;li++){mob.legs[li].rotation.x=(li%2===0?1:-1)*swing;}}
   }
 }
 
@@ -2599,6 +2756,7 @@ function getCurrentGoal(){
   if(bedCount===0&&beds.length===0)return '🛏 ベッドで夜をスキップ WOOD '+matProgress('wood',6)+' / GRASS '+matProgress('grass',4);
   if(!unlockedWeapons[3])return '🏹 弓を作って遠距離対策 WOOD '+matProgress('wood',3)+' / STONE '+matProgress('stone',3);
   if(!armor&&gs.wave>=3)return '🛡 鎧を作って防御を固めよう WOOD '+matProgress('wood',8)+' / GRASS '+matProgress('grass',4);
+  if(farmPlots.length===0&&!achievements.firstHarvest)return '🌾 草から種を作り、畑で小麦を育てよう';
   if(inv.diamond===0&&!hasDiamondSword)return '💎 地下深くでダイヤを探そう';
   if(!hasDiamondSword)return '💎 ダイヤ剣を作ろう DIAMOND '+matProgress('diamond',3)+' / WOOD '+matProgress('wood',1);
   if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
@@ -3050,6 +3208,21 @@ function setKnob(dx,dy){let l=Math.hypot(dx,dy);if(l>JMAX){dx=dx/l*JMAX;dy=dy/l*
 function resetKnob(){jK.style.left='35px';jK.style.top='35px';joy.x=0;joy.y=0;}
 if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAudio();jActive=true;jPid=e.pointerId;jW.setPointerCapture(jPid);const r=jW.getBoundingClientRect();jCX=r.left+r.width/2;jCY=r.top+r.height/2;setKnob(e.clientX-jCX,e.clientY-jCY);});jW.addEventListener('pointermove',(e)=>{if(!jActive||e.pointerId!==jPid)return;e.preventDefault();setKnob(e.clientX-jCX,e.clientY-jCY);});const endJ=(e)=>{if(e.pointerId!==jPid)return;jActive=false;jPid=null;resetKnob();};jW.addEventListener('pointerup',endJ);jW.addEventListener('pointercancel',endJ);}
 
+// ═══ X操作（家具・農作業） ═══
+function doFurnitureAction(){
+  if(!gs.running)return;
+  if(_bedNearby())                    sleepBed();
+  else if(_chestNearby())             interactChest();
+  else if(_treasureNearby())          openTreasure();
+  else if(_shearableSheepNearby())    shearNearestSheep();
+  else if(_cropNearby())              harvestNearestCrop();
+  else if(bedCount>0)                 placeBed();
+  else if(chestCount>0)               placeChest();
+  else if(trophyCount>0)              placeTrophy();
+  else if((isCreative()||inv.seed>0)&&plantSeed()){}
+  else showBonus('置ける家具がない！');
+}
+
 // ═══ INPUT ═══
 let lActive=false,lId=null,lX=0,lY=0;const LS_BASE=.006;let LS=LS_BASE*(settings.lookSens||1);const uiPointers=new Set();
 if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='questBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay')||el.closest('.menuPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
@@ -3062,16 +3235,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
   if(e.code==='KeyQ'||e.code==='KeyG')openQuest();
-  if(e.code==='KeyX'){
-    if(!gs.running)return;
-    if(_bedNearby())           sleepBed();
-    else if(_chestNearby())    interactChest();
-    else if(_treasureNearby()) openTreasure();
-    else if(bedCount>0)        placeBed();
-    else if(chestCount>0)      placeChest();
-    else if(trophyCount>0)     placeTrophy();
-    else showBonus('置ける家具がない！');
-  }
+  if(e.code==='KeyX')doFurnitureAction();
   if(e.code==='KeyB'){
     if(!gs.running)return;
     if(_bedNearby())sleepBed();else placeBed();
@@ -3290,13 +3454,7 @@ function _startPlacePress(){
   initAudio();
   placeLongPressTimer=setTimeout(()=>{
     placeLongPressTimer=null;
-    if(_bedNearby())           sleepBed();
-    else if(_chestNearby())    interactChest();
-    else if(_treasureNearby()) openTreasure();
-    else if(bedCount>0)        placeBed();
-    else if(chestCount>0)      placeChest();
-    else if(trophyCount>0)     placeTrophy();
-    else showBonus('置ける家具がない！');
+    doFurnitureAction();
   },500);
 }
 function _endPlacePress(runShort){
@@ -3373,7 +3531,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
-  resetChests();resetBeds();resetTrophies();resetTreasures();
+  resetChests();resetBeds();resetTrophies();resetTreasures();resetFarmPlots();
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
@@ -3407,7 +3565,7 @@ async function startGame(){
   $pauseBtn.style.display='flex';
   applyModeUI();
   if(isCreative())showAlert('🪄 CREATIVE MODE：自由に建築しよう！');
-  spawnPigs(8);updateInvHUD();resize();
+  spawnAnimals(8);updateInvHUD();resize();
 }
 async function continueGame(){
   const d=await loadSaveData();if(!d)return;
@@ -3450,18 +3608,21 @@ async function continueGame(){
   trophyCount=d.trophyCount||0;
   if(d.trophies){for(const td of d.trophies){const mesh=makeTrophyMesh();mesh.position.set(td.x+.5,td.y,td.z+.5);scene.add(mesh);trophies.push({mesh,x:td.x,y:td.y,z:td.z});}}
   updateTrophyHUD();
+  // 畑復元
+  if(d.farmPlots){for(const fd of d.farmPlots){const st=Math.max(0,Math.min(2,fd.stage||0));const mesh=makeFarmMesh(st);mesh.position.set(fd.x+.5,fd.y,fd.z+.5);scene.add(mesh);farmPlots.push({mesh,x:fd.x,y:fd.y,z:fd.z,stage:st,growT:fd.growT||0});}}
   // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
   if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   $pauseBtn.style.display='flex';
   applyModeUI();
-  spawnPigs(8);updateInvHUD();resize();
+  spawnAnimals(8);updateInvHUD();resize();
 }
 // アイテムピックアップ（武器ドロップで解放）
 function pickupItem(info){
   if(info.type==='hp'){P.hp=Math.min(P.maxHp,P.hp+info.value);showBonus(info.name);playTone(700,.15,.1,'sine');}
   else if(info.type==='weapon'){unlockWeaponByDrop(info.wi);showBonus(info.name+' GET!');playTone(900,.15,.1);}
   else if(info.type==='score'){gs.score+=info.value;showBonus(info.name);playTone(1000,.1,.08);}
+  else if(info.type==='egg'){P.food=Math.min(100,P.food+info.value);showBonus(info.name+' FOOD+'+info.value);playTone(650,.12,.08,'sine');}
 }
 let _ovBtnLastT=0;
 function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startNewGameWithConfirm();}
@@ -3545,8 +3706,8 @@ function tick(now){
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
   chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
-  updateBoss(dt);updateDragon(dt);updateMobs(dt);
-  mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnPigs(Math.min(lack,4));}
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);updateFarmPlots(dt);
+  mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
