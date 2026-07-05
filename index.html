@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260716a">
+<link rel="stylesheet" href="styles/main.css?v=20260717a">
 
 </head>
 <body>
@@ -48,8 +48,11 @@
     <div class="invRow" id="invCactus" style="color:#7fdc8a">🌵 CACTUS: 0</div>
     <div class="invRow" id="invMushroom" style="color:#ff9e9e">🍄 MUSHROOM: 0</div>
     <div class="invRow" id="invClay" style="color:#cdb69a">🟤 CLAY: 0</div>
+    <div class="invRow" id="invIronOre" style="color:#e8b27a">🔶 IRON ORE: 0</div>
+    <div class="invRow" id="invIronIngot" style="color:#dfe4ee">🔩 IRON INGOT: 0</div>
     <div class="invRow" id="invChest">📦 CHEST: 0</div>
     <div class="invRow" id="invBed">🛏 BED: 0</div>
+    <div class="invRow" id="invFurnace" style="color:#ffab6e">🔥 FURNACE: 0</div>
     <div class="invRow" id="invEnchantTable" style="color:#ffd76e">⚒ ENCHANT TABLE: 0</div>
     <div class="invRow" id="invTrophy" style="color:#aaf0ff">🏆 DRAGON STATUE: 0</div>
   </div>
@@ -130,7 +133,8 @@
       <b>目的</b>: 素材を集めて装備を強化し、WAVE20のキングダイヤモンドドラゴンを倒そう。<br>
       <b>序盤</b>: 木を5個集めて剣を作る → 石を集めてハンマー/弓を作る → ベッドとチェストで拠点準備。<br>
       <b>満腹度</b>: 走る・跳ぶ・戦うと減る。60以下で自然回復が止まり、0になるとHPが徐々に減る（10未満にはならない）。🥩肉で回復。<br>
-      <b>防具</b>: 鎧をクラフトすると敵の攻撃を軽減（🛡木20%→🛡石35%→💎ダイヤ55%）。防ぐたび耐久が減り、0で壊れる。再クラフトで修理。溶岩・寒冷・空腹には無効。<br>
+      <b>防具</b>: 鎧をクラフトすると敵の攻撃を軽減（🛡木20%→🛡石35%→🔩鉄45%→💎ダイヤ55%）。防ぐたび耐久が減り、0で壊れる。再クラフトで修理。溶岩・寒冷・空腹には無効。<br>
+      <b>🔥 精錬</b>: 地下(深さ13〜)で🔶鉄鉱石を掘り、🪨×12のかまどを設置。近くでクラフトを開くと鉄鉱石＋🪵木(燃料)を🔩鉄インゴットに精錬できる。鉄の剣(攻撃5)・鉄の鎧(軽減45%)で石とダイヤの間を埋めよう。<br>
       <b>動物・牧畜</b>: 🐷豚は倒すと🥩肉。🐑羊は近くでXキー(スマホはPLACE長押し)で刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。🐔鶏は時々🥚卵を産み落とし、拾うと満腹度が回復。<br>
       <b>🐺相棒</b>: 野生のオオカミは🥩肉を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で肉をあげると手なずけられ、付いてきて敵と戦ってくれる。倒れても時間か肉で復活。肉でHP回復。<br>
       <b>農業</b>: 🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキー(スマホはPLACE長押し)で植える。時間で育ち、成熟したら同じ操作で収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復。<br>
@@ -202,6 +206,6 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="scripts/main.js?v=20260716a"></script>
+<script src="scripts/main.js?v=20260717a"></script>
 </body>
 </html>
