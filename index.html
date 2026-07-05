@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260707b">
+<link rel="stylesheet" href="styles/main.css?v=20260708a">
 
 </head>
 <body>
@@ -24,6 +24,7 @@
   <div id="biomeLabel">🌿 PLAINS</div>
   <div id="weaponLabel">👊 Fist</div>
   <div id="goalLabel">🎯 目標: 木を集めて剣を作ろう</div>
+  <div id="armorLabel" style="display:none"></div>
   <div id="meatLabel">🥩 MEAT: 0</div>
   <button id="eatBtn" class="disabled">🍖 EAT</button>
   <div id="invPanel">
@@ -115,6 +116,7 @@
       <b>目的</b>: 素材を集めて装備を強化し、WAVE20のキングダイヤモンドドラゴンを倒そう。<br>
       <b>序盤</b>: 木を5個集めて剣を作る → 石を集めてハンマー/弓を作る → ベッドとチェストで拠点準備。<br>
       <b>満腹度</b>: 走る・跳ぶ・戦うと減る。60以下で自然回復が止まり、0になるとHPが徐々に減る（10未満にはならない）。🥩肉で回復。<br>
+      <b>防具</b>: 鎧をクラフトすると敵の攻撃を軽減（🛡木20%→🛡石35%→💎ダイヤ55%）。防ぐたび耐久が減り、0で壊れる。再クラフトで修理。溶岩・寒冷・空腹には無効。<br>
       <b>地下</b>: 深く掘るとダイヤ・古い宝箱・地下ドラゴンに出会える。危険なら地上へ戻ろう。<br>
       <b>PC</b>: WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / E武器切替 / Cクラフト / F5セーブ。<br>
       <b>スマホ</b>: 左スティック移動 / 右スワイプ視点 / ATTACK攻撃 / PLACE長押しで家具・宝箱操作。<br>
@@ -179,6 +181,6 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="scripts/main.js?v=20260707c"></script>
+<script src="scripts/main.js?v=20260708a"></script>
 </body>
 </html>

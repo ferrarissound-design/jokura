@@ -19,6 +19,7 @@ canvas#c{display:block;touch-action:none}
 #biomeLabel{position:absolute;top:calc(92px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#fff8;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
 #weaponLabel{position:absolute;top:calc(106px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f9d342cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
 #goalLabel{position:absolute;top:calc(122px + var(--safeT));left:calc(10px + var(--safeL));max-width:min(430px,72vw);padding:4px 7px;border:1px solid rgba(249,211,66,.3);border-radius:7px;background:rgba(0,0,0,.45);font-size:9px;color:#fff8c6;text-shadow:1px 1px 0 #000;z-index:10;font-weight:800;line-height:1.35;letter-spacing:.2px}
+#armorLabel{position:absolute;top:calc(144px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
 #meatLabel{position:absolute;top:calc(158px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f4a9a8cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
 #eatBtn{position:absolute;top:calc(172px + var(--safeT));left:calc(10px + var(--safeL));padding:4px 10px;border-radius:7px;border:1.5px solid #f4a9a866;background:rgba(244,169,168,.22);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #eatBtn:active{transform:scale(.92)}
