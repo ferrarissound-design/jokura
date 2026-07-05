@@ -20,7 +20,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0};
 // 弓に装填する矢の種類: 'normal' | 'fire'(炎上) | 'ice'(鈍足)
 let arrowMode='normal';
 
@@ -31,6 +31,8 @@ const ARMOR_DEFS=[
   {name:'🛡 木の鎧',   cut:.20,maxDur:60, hudColor:'#d8b07a'},
   {name:'🛡 石の鎧',   cut:.35,maxDur:120,hudColor:'#c2cad6'},
   {name:'💎 ダイヤの鎧',cut:.55,maxDur:250,hudColor:'#7fe9ff'},
+  // tier 3 = 鉄。表示順はレシピ側で制御するため、セーブ互換のため末尾に追加
+  {name:'🔩 鉄の鎧',   cut:.45,maxDur:180,hudColor:'#dfe4ee'},
 ];
 let armor=null; // {tier,dur} 装備中の鎧（null=未装備）
 
@@ -39,8 +41,9 @@ let armor=null; // {tier,dur} 装備中の鎧（null=未装備）
 let gameMode='survival';
 const isCreative=()=>gameMode==='creative';
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
+let hasIronSword=false; // 鉄の剣: 石とダイヤの中間ティア（ダイヤ剣を作ると上書きされる）
 const unlockedWeapons=[true,false,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay'];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay'];
 const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair'];
 
 const CRAFT_RECIPES=[
@@ -58,6 +61,9 @@ const CRAFT_RECIPES=[
   {name:'🏹 矢束×10',  wi:-5, needs:{wood:2},          desc:'🪵×2', req:3},
   {name:'🛡 木の鎧',   wi:-14,armorTier:0,needs:{wood:8,grass:4},   desc:'🪵×8+🌿×4'},
   {name:'🛡 石の鎧',   wi:-15,armorTier:1,needs:{stone:15,wood:5},  desc:'🪨×15+🪵×5', req:2},
+  {name:'🔥 かまど',   wi:-25,needs:{stone:12},       desc:'🪨×12', req:2},
+  {name:'🔩 鉄の剣',   wi:-26,needs:{ironIngot:3,wood:1},desc:'🔩×3+🪵×1', req:1},
+  {name:'🔩 鉄の鎧',   wi:-27,armorTier:3,needs:{ironIngot:5},desc:'🔩×5', req:2},
   {name:'💎 Diamond Sword',wi:-6,needs:{diamond:3,wood:1},desc:'💎×3+🪵×1'},
   {name:'💎 Diamond Bow',  wi:-7,needs:{diamond:3,wood:2},desc:'💎×3+🪵×2',req:3},
   {name:'🔮 Diamond Staff',wi:-8,needs:{diamond:5,wood:2},desc:'💎×5+🪵×2'},
@@ -90,6 +96,14 @@ function enchLevel(d){const v=enchants[d.key];return v===true?1:v===false?0:v;}
 function enchCostText(cost){return Object.entries(cost).map(([k,v])=>(MATERIAL_LABELS[k]||k).split(' ')[0]+'×'+v).join('+');}
 function enchSuffix(){let s='';if(enchants.atk)s+=' ⚔+'+enchants.atk;if(enchants.rng)s+=' 🎯+'+enchants.rng;if(enchants.fire)s+='🔥';if(enchants.frost)s+='❄';return s;}
 
+// ═══ 精錬（かまど） ═══
+// 🔥かまどの近くでクラフトパネルを開くと精錬メニューが出る。
+// 鉄鉱石＋燃料(木)で鉄インゴットを作り、鉄の剣・鉄の鎧の素材にする。
+const SMELT_RECIPES=[
+  {name:'🔩 鉄インゴット',   needs:{ironOre:1,wood:1},  desc:'🔶×1+🪵×1(燃料)', give:{ironIngot:1}},
+  {name:'🔩 鉄インゴット×3', needs:{ironOre:3,wood:2},  desc:'🔶×3+🪵×2(燃料)', give:{ironIngot:3}},
+];
+
 const ACHIEVEMENT_DEFS={
   firstSword:{title:'はじめての剣',desc:'剣をクラフトする',reward:'🥩 +1',apply(){meat+=1;updateMeatHUD();}},
   firstHammer:{title:'石の使い手',desc:'ハンマーをクラフトする',reward:'SCORE +300',apply(){gs.score+=300;}},
@@ -106,6 +120,7 @@ const ACHIEVEMENT_DEFS={
   finalChallenge:{title:'最終決戦',desc:'WAVE20に到達する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   dragonSlayer:{title:'ドラゴンスレイヤー',desc:'キングダイヤモンドドラゴンを倒す',reward:'🏆 CLEAR BONUS',apply(){gs.score+=3000;}},
   firstEnchant:{title:'エンチャントの力',desc:'強化台で武器を強化する',reward:'SCORE +500',apply(){gs.score+=500;}},
+  firstSmelt:{title:'鉄の時代',desc:'かまどで鉄を精錬する',reward:'SCORE +300',apply(){gs.score+=300;}},
   biomeCollector:{title:'バイオームコレクター',desc:'6バイオームの固有素材をすべて所持する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   endless25:{title:'終わらない戦い',desc:'エンドレスモードでWAVE25に到達',reward:'SCORE +2000',apply(){gs.score+=2000;}},
   endless30:{title:'伝説の生存者',desc:'エンドレスモードでWAVE30に到達',reward:'SCORE +5000',apply(){gs.score+=5000;}},
@@ -138,6 +153,8 @@ const $invCrystal=document.getElementById('invCrystal');
 const $invCactus=document.getElementById('invCactus');
 const $invMushroom=document.getElementById('invMushroom');
 const $invClay=document.getElementById('invClay');
+const $invIronOre=document.getElementById('invIronOre');
+const $invIronIngot=document.getElementById('invIronIngot');
 const $invDiamond=document.getElementById('invDiamond');
 const $invDragonCore=document.getElementById('invDragonCore');
 const $invSeed=document.getElementById('invSeed');
@@ -165,6 +182,8 @@ function updateInvHUD(){
   optRow($invCactus,'🌵 CACTUS',inv.cactus,null);
   optRow($invMushroom,'🍄 MUSHROOM',inv.mushroom,null);
   optRow($invClay,'🟤 CLAY',inv.clay,null);
+  optRow($invIronOre,'🔶 IRON ORE',inv.ironOre,null);
+  optRow($invIronIngot,'🔩 IRON INGOT',inv.ironIngot,null);
   $invDiamond.textContent='💎 DIAMOND: '+q(inv.diamond);
   $invDragonCore.textContent='💠 DRAGON CORE: '+q(inv.dragonCore);
   if($invSeed)$invSeed.textContent='🌱 SEED: '+q(inv.seed);
@@ -217,6 +236,7 @@ const FIRST_FIND_ALERTS={
   cactus:'🌵 サボテンを入手！ジュースにできる',
   mushroom:'🍄 キノコを入手！シチューにできる',
   clay:'🟤 粘土を入手！レンガの素材だ',
+  ironOre:'🔶 鉄鉱石を入手！🔥かまど(🪨×12)で精錬しよう',
 };
 function addMaterial(ti){
   const mat=BLOCK_MAT_MAP[ti];if(!mat)return;
@@ -254,7 +274,9 @@ const MATERIAL_LABELS={
   crystal:'🔮 CRYSTAL',
   cactus:'🌵 CACTUS',
   mushroom:'🍄 MUSHROOM',
-  clay:'🟤 CLAY'
+  clay:'🟤 CLAY',
+  ironOre:'🔶 IRON ORE',
+  ironIngot:'🔩 IRON INGOT'
 };
 
 function getMissingMaterialsText(recipe){
@@ -266,6 +288,13 @@ function getMissingMaterialsText(recipe){
   return lacks.join('  ');
 }
 
+function applyIronSword(){
+  hasIronSword=true;
+  unlockedWeapons[1]=true;
+  if(hasDiamondSword)return; // ダイヤ剣が上位: 性能・表示は上書きしない
+  WEAPONS[1].name='🔩 Iron Sword';WEAPONS[1].dmg=5;WEAPONS[1].cd=0.38;
+  if(weaponIdx===1){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='🔩 Iron Sword';}
+}
 function applyDiamondSword(){
   hasDiamondSword=true;
   WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=8;WEAPONS[1].cd=0.35;
@@ -296,6 +325,7 @@ function doCraft(idx){
   if(r.wi===-7&&hasDiamondBow)return;
   if(r.wi===-8&&hasDiamondStaff)return;
   if(r.wi===-10&&hasDiamondHammer)return;
+  if(r.wi===-26&&(hasIronSword||hasDiamondSword))return; // ダイヤ剣所持なら鉄の剣は不要
   if(r.armorTier!=null&&armor&&armor.tier===r.armorTier&&armor.dur>=ARMOR_DEFS[r.armorTier].maxDur)return;
   if(!isCreative()&&r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に'+WEAPONS[r.req].name+'を入手しよう');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
@@ -316,6 +346,8 @@ function doCraft(idx){
   else if(r.wi===-23){P.food=Math.min(100,P.food+25);showBonus('🌵 ジュース FOOD+25!');}
   else if(r.wi===-24){inv.brick+=4;showBonus('🧱 レンガ×4 CRAFTED!');}
   else if(r.wi===-19){enchTableCount++;updateEnchTableHUD();showBonus('⚒ 強化台×'+enchTableCount+'  X/PLACE長押しで設置！');}
+  else if(r.wi===-25){furnaceCount++;updateFurnaceHUD();showBonus('🔥 かまど×'+furnaceCount+'  X/PLACE長押しで設置！');}
+  else if(r.wi===-26){applyIronSword();showAlert('🔩 IRON SWORD CRAFTED!');playTone(1000,.18,.18,'square');setTimeout(()=>playTone(1300,.14,.16,'square'),140);setTimeout(()=>playTone(1600,.1,.14,'square'),280);}
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
@@ -326,7 +358,7 @@ function doCraft(idx){
   if(r.wi===1)unlockAchievement('firstSword');
   else if(r.wi===2)unlockAchievement('firstHammer');
   else if(r.wi===3)unlockAchievement('firstBow');
-  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8&&r.wi!==-9&&r.armorTier==null){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
+  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8&&r.wi!==-9&&r.wi!==-26&&r.armorTier==null){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
   closeCraftPanel();
 }
 
@@ -340,6 +372,8 @@ function buildCraftPanel(){
     else if(r.wi===-7&&hasDiamondBow){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-8&&hasDiamondStaff){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-10&&hasDiamondHammer){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
+    else if(r.wi===-26&&hasIronSword){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
+    else if(r.wi===-26&&hasDiamondSword){el.classList.add('done');el.textContent='✅ '+r.name+' (💎剣所持)';}
     else if(r.wi===-9&&trophyCount>0){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み×'+trophyCount+')';}
     else if(r.armorTier!=null&&armor&&armor.tier===r.armorTier&&armor.dur>=ARMOR_DEFS[r.armorTier].maxDur){el.classList.add('done');el.textContent='✅ '+r.name+' (装備中)';}
     else if(r.req!=null&&!unlockedWeapons[r.req]){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 要:'+WEAPONS[r.req].name;}
@@ -347,6 +381,16 @@ function buildCraftPanel(){
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
   });
+  // 🔥かまどの近くにいるときだけ精錬メニューを追加
+  if(_furnaceNearby()){
+    const hd=document.createElement('div');hd.className='citem header';hd.textContent='🔥 精錬（かまど）';$craftPanel.appendChild(hd);
+    SMELT_RECIPES.forEach((r,i)=>{
+      const el=document.createElement('div');el.className='citem';
+      if(canCraft(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doSmelt(i);});}
+      else{el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+getMissingMaterialsText(r);}
+      $craftPanel.appendChild(el);
+    });
+  }
   // ⚒強化台の近くにいるときだけ武器強化メニューを追加
   if(_enchTableNearby()){
     const hd=document.createElement('div');hd.className='citem header';hd.textContent='⚒ 武器強化（強化台）';$craftPanel.appendChild(hd);
@@ -364,6 +408,18 @@ function buildCraftPanel(){
       $craftPanel.appendChild(el);
     });
   }
+}
+function doSmelt(i){
+  const r=SMELT_RECIPES[i];if(!r)return;
+  if(!_furnaceNearby()){showBonus('🔥 かまどの近くでのみ精錬できる');return;}
+  if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');return;}
+  if(!isCreative())for(const[k,v]of Object.entries(r.needs))inv[k]-=v;
+  for(const[k,v]of Object.entries(r.give))inv[k]+=v;
+  unlockAchievement('firstSmelt');
+  updateInvHUD();
+  showBonus(r.name+' 精錬完了！');
+  playTone(600,.12,.12,'square');setTimeout(()=>playTone(900,.1,.1,'square'),110);
+  buildCraftPanel(); // 連続精錬できるようパネルは開いたまま更新
 }
 function doEnchant(i){
   const d=ENCHANT_DEFS[i];if(!d)return;
@@ -419,8 +475,9 @@ document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains
 function resetInv(){
   inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.fireArrow=0;inv.iceArrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
   inv.ice=0;inv.obsidian=0;inv.crystal=0;inv.cactus=0;inv.mushroom=0;inv.clay=0;
+  inv.ironOre=0;inv.ironIngot=0;
   arrowMode='normal';resetEnchants();
-  hasDiamondSword=false;
+  hasDiamondSword=false;hasIronSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
   WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;
@@ -523,9 +580,10 @@ async function saveGame(){
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
-    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
+    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,
     arrowMode,enchants:{...enchants},
     enchTableCount,enchTables:enchTables.map(t=>({x:t.x,y:t.y,z:t.z})),
+    furnaceCount,furnaces:furnaces.map(f=>({x:f.x,y:f.y,z:f.z})),
     pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
@@ -595,7 +653,7 @@ async function startNewGameWithConfirm(slot=activeSaveSlot){
   await startGame();
 }
 updateOverlaySaveInfo();
-const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！','武器をエンチャントしろ！','氷の上は滑るぞ！','黒曜石は壊されない！','エンドレスに挑め！','火矢で敵を燃やせ！'];
+const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！','武器をエンチャントしろ！','氷の上は滑るぞ！','黒曜石は壊されない！','エンドレスに挑め！','火矢で敵を燃やせ！','鉄を精錬しろ！','かまどを作ろう！'];
 const $ovSplash=document.getElementById('ovSplash');
 function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];}
 rotateSplash();
@@ -748,6 +806,7 @@ function recipeStatusText(r){
   if(r.wi===-7&&hasDiamondBow)return '作成済み';
   if(r.wi===-8&&hasDiamondStaff)return '作成済み';
   if(r.wi===-10&&hasDiamondHammer)return '作成済み';
+  if(r.wi===-26&&(hasIronSword||hasDiamondSword))return '作成済み';
   if(r.wi===-9&&trophyCount>0)return '作成済み×'+trophyCount;
   if(r.armorTier!=null&&armor&&armor.tier===r.armorTier)return '装備中 耐久'+armorPct()+'%';
   if(r.req!=null&&!unlockedWeapons[r.req])return '要: '+WEAPONS[r.req].name;
@@ -766,6 +825,9 @@ function renderQuestLog(){
       ['🌾 小麦を収穫',!!achievements.firstHarvest,'草から種を作って草ブロックの上に植え、育ったら収穫しよう']
     ]},
     {title:'地下探索とダイヤ装備',items:[
+      ['🔶 鉄鉱石を入手',inv.ironOre>0||inv.ironIngot>0||hasIronSword||!!achievements.firstSmelt,'深さ13以降の地下に生成される'],
+      ['🔥 かまどで鉄を精錬',!!achievements.firstSmelt,'🪨×12でかまどを作って設置し、鉄鉱石＋木(燃料)でインゴットに'],
+      ['🔩 鉄の剣・鉄の鎧を作成',hasIronSword||(armor&&armor.tier===3),'石とダイヤの間の中間装備。ダイヤまでのつなぎに'],
       ['💎 ダイヤを入手',gotDiamond,'深く掘るほど貴重素材と危険が増える'],
       ['💎 Diamond Swordを作成',hasDiamondSword,'WAVE中盤以降の主力武器'],
       ['🔮 Diamond Staff / Bow / Hammerを強化',hasDiamondStaff||hasDiamondBow||hasDiamondHammer,'戦い方に合わせてダイヤ装備を追加'],
@@ -804,7 +866,8 @@ function renderWorldGuide(){
     '<div class="codexSub">⚒ 武器強化（エンチャント）</div><div class="codexNote">🪨×15+💎×1で強化台をクラフトし、Xキー(スマホはPLACE長押し)で設置。近くでクラフトメニューを開くと強化メニューが現れる。⚔攻撃強化(💎・最大Lv3・全武器+1/Lv) / 🎯射程強化(💎+🔮・最大Lv3・+15%/Lv) / 🔥炎上付与(💠・近接ヒットで敵が燃える) / ❄氷結付与(💠+🧊・近接ヒットで敵が鈍足)。</div>'+
     '<div class="codexSub">🏹 火矢と氷矢</div><div class="codexNote">🪵×2+⬛黒曜石×1で🔥火矢×10、🪵×2+🧊氷×1で🧊氷矢×10をクラフト。Rキー(スマホは左のARROW表示タップ)で装填切替。火矢は命中した敵を炎上させ、氷矢は動きを遅くする。ボスにも有効。</div>'+
     '<div class="codexSub">♾ エンドレスモード</div><div class="codexNote">WAVE20のキングドラゴンを倒すと、クリア画面からそのままエンドレスモードへ突入できる。WAVEは無限に続き敵は強くなり続ける。5WAVEごとに歴代ボスの強化版（EXボス）が出現し、倒すと💎を落とす。ハイスコアはランキングに♾クリア済みとして記録される。</div>'+
-    '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
+    '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 🔩鉄45% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
+    '<div class="codexSub">🔥 精錬（かまど）</div><div class="codexNote">地下の深さ13以降に🔶鉄鉱石が生成される。🪨×12でかまどをクラフトしてXキー(スマホはPLACE長押し)で設置し、近くでクラフトメニューを開くと精錬メニューが現れる。鉄鉱石＋🪵木(燃料)で🔩鉄インゴットを作り、🔩鉄の剣(🔩×3+🪵×1・攻撃5)や🔩鉄の鎧(🔩×5・軽減45%)にできる。石装備とダイヤ装備の間をつなぐ中間ティア。</div>'+
     '<div class="codexSub">動物・牧畜</div><div class="codexNote">🐷豚: 倒すと🥩肉 / 🐑羊: Xキーで刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。倒すと肉とウールの両方 / 🐔鶏: 時々🥚卵を産み落とす。歩いて拾うと満腹度が回復。倒すと肉。</div>'+
     '<div class="codexSub">🐺 相棒（ペット）</div><div class="codexNote">野生のオオカミは🥩肉を持っていると寄ってくる。近づいてXキー(スマホはPLACE長押し)で肉を1つあげると手なずけられ、相棒として付いてきて敵と戦ってくれる。HPが0になっても倒れるだけで、時間経過か肉をあげると復活。肉をあげればHP回復もできる。</div>'+
     '<div class="codexSub">農業</div><div class="codexNote">🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキーで植える。時間とともに育ち、成熟したらXキーで収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復できる。</div>'+
@@ -2745,8 +2808,39 @@ function placeEnchTable(){
   enchTableCount--;enchTables.push({mesh,x:px,y:py,z:pz});
   updateEnchTableHUD();sfxPlace();showBonus('⚒ 強化台設置！近くでCRAFTを開くと強化できる');
 }
-function _enchTableNearby(){return enchTables.some(t=>{const dx=t.x+.5-P.x,dz=t.z+.5-P.z,dy=t.y+.5-(P.y+.8);return Math.hypot(dx,dy,dz)<2.8;});}
+function _enchTableNearby(){return enchTables.some(t=>{const dx=t.x+.5-P.x,dz=t.z+.5-P.z,dy=t.y+.5-(P.y+.8);return Math.hypot(dx,dy,dz)<3.2;});}
 function resetEnchTables(){for(const t of enchTables)scene.remove(t.mesh);enchTables=[];enchTableCount=0;updateEnchTableHUD();}
+
+// ═══ かまど（精錬台） ═══
+// 強化台と同じ設置型家具。近くでクラフトパネルを開くと精錬メニューが出る。
+let furnaces=[];
+let furnaceCount=0;
+const $furnaceLabel=document.getElementById('invFurnace');
+function updateFurnaceHUD(){if($furnaceLabel)$furnaceLabel.textContent='🔥 FURNACE: '+furnaceCount;}
+function makeFurnaceMesh(){
+  const root=new THREE.Object3D();
+  const stoneMat=new THREE.MeshStandardMaterial({color:0x6f7680,roughness:.9});
+  const darkMat=new THREE.MeshStandardMaterial({color:0x1c1c22,roughness:.95});
+  const emberMat=new THREE.MeshStandardMaterial({color:0xff5a1e,emissive:0xff6a22,emissiveIntensity:1.5,roughness:.4});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.9,.9,.9),stoneMat);body.position.y=.45;
+  const mouth=new THREE.Mesh(new THREE.BoxGeometry(.5,.34,.1),darkMat);mouth.position.set(0,.3,.43);
+  const ember=new THREE.Mesh(new THREE.BoxGeometry(.34,.14,.06),emberMat);ember.position.set(0,.22,.45);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(.96,.1,.96),darkMat.clone());top.position.y=.95;
+  root.add(body,mouth,ember,top);markShadowCaster(root);return root;
+}
+function placeFurnace(){
+  if(!gs.running)return;if(furnaceCount<=0){showBonus('かまどがない！クラフトしよう');return;}
+  const bh=castVoxel();if(!bh)return;
+  const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
+  const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
+  for(const f of furnaces){if(Math.floor(f.x)===px&&Math.floor(f.y)===py&&Math.floor(f.z)===pz)return;}
+  if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1>P.z-.45)return;
+  const mesh=makeFurnaceMesh();mesh.position.set(px+.5,py,pz+.5);scene.add(mesh);
+  furnaceCount--;furnaces.push({mesh,x:px,y:py,z:pz});
+  updateFurnaceHUD();sfxPlace();showBonus('🔥 かまど設置！近くでCRAFTを開くと精錬できる');
+}
+function _furnaceNearby(){return furnaces.some(f=>{const dx=f.x+.5-P.x,dz=f.z+.5-P.z,dy=f.y+.5-(P.y+.8);return Math.hypot(dx,dy,dz)<3.2;});}
+function resetFurnaces(){for(const f of furnaces)scene.remove(f.mesh);furnaces=[];furnaceCount=0;updateFurnaceHUD();}
 
 // ═══ FARMING（小麦畑） ═══
 // 畑は草ブロックの上に設置する独立の装飾物（チェスト等と同じ扱い）。stage 0→1→2 で育ち、
@@ -3130,7 +3224,9 @@ function getCurrentGoal(){
   if(!unlockedWeapons[3])return '🏹 弓を作って遠距離対策 WOOD '+matProgress('wood',3)+' / STONE '+matProgress('stone',3);
   if(!armor&&gs.wave>=3)return '🛡 鎧を作って防御を固めよう WOOD '+matProgress('wood',8)+' / GRASS '+matProgress('grass',4);
   if(farmPlots.length===0&&!achievements.firstHarvest)return '🌾 草から種を作り、畑で小麦を育てよう';
-  if(inv.diamond===0&&!hasDiamondSword)return '💎 地下深くでダイヤを探そう';
+  if(!hasIronSword&&!hasDiamondSword&&inv.ironOre>0&&furnaces.length===0&&furnaceCount===0)return '🔥 かまど(🪨×12)を作って鉄を精錬しよう';
+  if(!hasIronSword&&!hasDiamondSword&&inv.ironIngot>=3&&inv.wood>=1)return '🔩 鉄の剣を作ろう INGOT '+matProgress('ironIngot',3);
+  if(inv.diamond===0&&!hasDiamondSword)return '💎 地下で鉄とダイヤを探そう（鉄は深さ13〜）';
   if(!hasDiamondSword)return '💎 ダイヤ剣を作ろう DIAMOND '+matProgress('diamond',3)+' / WOOD '+matProgress('wood',1);
   if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
   if(boss)return '👑 ボスを倒せ！攻撃後は距離を取ろう';
@@ -3599,6 +3695,7 @@ function doFurnitureAction(){
   else if(_cropNearby())              harvestNearestCrop();
   else if(bedCount>0)                 placeBed();
   else if(chestCount>0)               placeChest();
+  else if(furnaceCount>0)             placeFurnace();
   else if(enchTableCount>0)           placeEnchTable();
   else if(trophyCount>0)              placeTrophy();
   else if((isCreative()||inv.seed>0)&&plantSeed()){}
@@ -3886,10 +3983,13 @@ function undergroundDeath(){
     for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}
     unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
     if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;unlockedWeapons[1]=false;}}
+    // 鉄の剣もスナップショットへ巻き戻す（ダイヤ剣が無いときだけ性能を反映）
+    hasIronSword=!!undergroundSnapshot.hasIronSword;
+    if(hasIronSword){unlockedWeapons[1]=true;if(!hasDiamondSword){WEAPONS[1].name='🔩 Iron Sword';WEAPONS[1].dmg=5;WEAPONS[1].cd=0.38;}}
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;unlockedWeapons[3]=false;}}
     if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;unlockedWeapons[5]=false;}}
     if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';unlockedWeapons[2]=false;}}
-    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();
+    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;furnaceCount=undergroundSnapshot.furnaceCount!=null?undergroundSnapshot.furnaceCount:furnaceCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();updateFurnaceHUD();
     undergroundSnapshot=null;
   }
   prevPlayerUnderground=false;
@@ -3944,7 +4044,7 @@ function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   removePet();
-  resetChests();resetBeds();resetTrophies();resetEnchTables();resetTreasures();resetFarmPlots();
+  resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
   endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
@@ -4005,6 +4105,7 @@ async function continueGame(){
   arrowMode=(d.arrowMode==='fire'||d.arrowMode==='ice')?d.arrowMode:'normal';
   if(d.enchants){enchants.atk=Math.max(0,Math.min(3,d.enchants.atk|0));enchants.rng=Math.max(0,Math.min(3,d.enchants.rng|0));enchants.fire=!!d.enchants.fire;enchants.frost=!!d.enchants.frost;}
   armor=(d.armor&&ARMOR_DEFS[d.armor.tier])?{tier:d.armor.tier,dur:Math.min(ARMOR_DEFS[d.armor.tier].maxDur,Math.max(1,d.armor.dur||0))}:null;updateArmorHUD();
+  if(d.hasIronSword)applyIronSword(); // ダイヤ剣より先に適用（ダイヤが上書きする）
   if(d.hasDiamondSword)applyDiamondSword();
   if(d.hasDiamondBow)applyDiamondBow();
   if(d.hasDiamondStaff)applyDiamondStaff();
@@ -4029,6 +4130,10 @@ async function continueGame(){
   enchTableCount=d.enchTableCount||0;
   if(d.enchTables){for(const td of d.enchTables){const mesh=makeEnchTableMesh();mesh.position.set(td.x+.5,td.y,td.z+.5);scene.add(mesh);enchTables.push({mesh,x:td.x,y:td.y,z:td.z});}}
   updateEnchTableHUD();
+  // かまど復元
+  furnaceCount=d.furnaceCount||0;
+  if(d.furnaces){for(const fd of d.furnaces){const mesh=makeFurnaceMesh();mesh.position.set(fd.x+.5,fd.y,fd.z+.5);scene.add(mesh);furnaces.push({mesh,x:fd.x,y:fd.y,z:fd.z});}}
+  updateFurnaceHUD();
   // 畑復元
   if(d.farmPlots){for(const fd of d.farmPlots){const st=Math.max(0,Math.min(2,fd.stage||0));const mesh=makeFarmMesh(st);mesh.position.set(fd.x+.5,fd.y,fd.z+.5);scene.add(mesh);farmPlots.push({mesh,x:fd.x,y:fd.y,z:fd.z,stage:st,growT:fd.growT||0});}}
   // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
@@ -4095,7 +4200,7 @@ function tick(now){
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0&&P.food>60){P.hp=Math.min(P.maxHp,P.hp+2.5*dt);P.food=Math.max(0,P.food-.5*dt);}
   if(!isCreative()){gs.nextWave-=dt;if(gs.nextWave<=0)startWave();}
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,chestCount,bedCount,trophyCount,enchTableCount};sfxEnterUnder();}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,chestCount,bedCount,trophyCount,enchTableCount,furnaceCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
   if(!_isUnder&&finalBossPending&&!boss&&!isCreative()){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
