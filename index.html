@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260712a">
+<link rel="stylesheet" href="styles/main.css?v=20260716a">
 
 </head>
 <body>
@@ -34,14 +34,23 @@
     <div class="invRow" id="invSand">🏖 SAND: 0</div>
     <div class="invRow" id="invGrass">🌿 GRASS: 0</div>
     <div class="invRow" id="invBrick">🧱 BRICK: 0</div>
-    <div class="invRow" id="invArrow">🏹 ARROW: 0</div>
+    <div class="invRow tappable" id="invArrow">🏹 ARROW: 0</div>
+    <div class="invRow tappable" id="invFireArrow" style="color:#ffb27a">🔥 FIRE ARROW: 0</div>
+    <div class="invRow tappable" id="invIceArrow" style="color:#a8e6ff">🧊 ICE ARROW: 0</div>
     <div class="invRow" id="invDiamond" style="color:#00e5ff;text-shadow:0 0 6px #00bfff88">💎 DIAMOND: 0</div>
     <div class="invRow" id="invDragonCore" style="color:#88ffff;text-shadow:0 0 6px #00e5ff88">💠 DRAGON CORE: 0</div>
     <div class="invRow" id="invSeed">🌱 SEED: 0</div>
     <div class="invRow" id="invWheat">🌾 WHEAT: 0</div>
     <div class="invRow" id="invWool">🧶 WOOL: 0</div>
+    <div class="invRow" id="invIce" style="color:#bfeaff">🧊 ICE: 0</div>
+    <div class="invRow" id="invObsidian" style="color:#b499e6">⬛ OBSIDIAN: 0</div>
+    <div class="invRow" id="invCrystal" style="color:#e0a8ff">🔮 CRYSTAL: 0</div>
+    <div class="invRow" id="invCactus" style="color:#7fdc8a">🌵 CACTUS: 0</div>
+    <div class="invRow" id="invMushroom" style="color:#ff9e9e">🍄 MUSHROOM: 0</div>
+    <div class="invRow" id="invClay" style="color:#cdb69a">🟤 CLAY: 0</div>
     <div class="invRow" id="invChest">📦 CHEST: 0</div>
     <div class="invRow" id="invBed">🛏 BED: 0</div>
+    <div class="invRow" id="invEnchantTable" style="color:#ffd76e">⚒ ENCHANT TABLE: 0</div>
     <div class="invRow" id="invTrophy" style="color:#aaf0ff">🏆 DRAGON STATUE: 0</div>
   </div>
   <button id="craftBtn">🛠 CRAFT</button>
@@ -86,7 +95,7 @@
     <div class="hslot" data-i="7"><div class="dot" style="background:conic-gradient(from 180deg at 50% 50%,#8a8f98 0 25%,rgba(255,255,255,.08) 25% 50%,#8a8f98 50% 100%)"></div>Stairs<span class="hcount" id="stairCount"></span></div>
   </div>
   <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / ⛏攻撃 / 🧱設置(長押し=家具) / 🔄武器切替</div>
-  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / 1-8:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト</div>
+  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-8:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
   <button id="weaponBtn">🔄 WEAPON</button>
   <div id="actionWrap">
@@ -101,7 +110,7 @@
   <div id="ovTitle">ジョークラ</div>
   <div id="ovSplash">ダイヤを掘れ！</div>
   <div id="ovSub">VOXEL SURVIVAL</div>
-  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>⚔武器を切り替えて戦え！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>🐷豚・🐑羊・🐔鶏を育てて🥩🧶🥚をゲット！🌾畑で小麦も育てよう！<br>🐺オオカミを肉で手なずけて相棒にしよう！</div>
+  <div id="ovInfo">広大なワールドで生き残れ<br>🌿草原 🏜砂漠 🌲森林 🪨岩山 🌋火山 ❄雪原<br>各バイオームでしか採れない固有素材を探せ！<br>⚔武器を切り替えて戦え！⚒強化台で武器をエンチャント！<br>🔥火矢・🧊氷矢で敵を燃やし、凍らせろ！<br>💀WAVE5・10・15でボス出現！<br>💎WAVE20 キングダイヤモンドドラゴンを倒してゲームクリア！<br>♾クリア後はエンドレスモードで無限WAVEに挑戦！<br>🐷豚・🐑羊・🐔鶏を育てて🥩🧶🥚をゲット！🌾畑で小麦も育てよう！<br>🐺オオカミを肉で手なずけて相棒にしよう！</div>
   <button id="ovBtn" class="mc-btn">NEW GAME</button>
   <button id="modeBtn" class="mc-btn secondary">🎮 MODE: ⚔ SURVIVAL</button>
   <button id="helpBtn" class="mc-btn secondary">HOW TO PLAY</button>
@@ -109,6 +118,7 @@
   <button id="codexBtn" class="mc-btn secondary">📖 ガイド</button>
   <button id="achievementsBtn" class="mc-btn secondary">ACHIEVEMENTS</button>
   <button id="contDeathBtn" class="mc-btn" style="display:none;background:linear-gradient(to bottom,#6b8b5b 0%,#4a6a3a 100%)">コンティニュー<br><span style="font-size:.75em;opacity:.8">HP全回復 / スコア半減</span></button>
+  <button id="endlessBtn" class="mc-btn" style="display:none;background:linear-gradient(to bottom,#7a5bd6 0%,#4a2a9a 100%)">♾ エンドレスモード<br><span style="font-size:.75em;opacity:.8">WAVE21から無限WAVEに挑戦</span></button>
   <button id="contBtn" class="mc-btn">セーブスロット</button>
   <div id="saveInfo">セーブデータ確認中...</div>
   <div id="rankInfo"></div>
@@ -124,6 +134,10 @@
       <b>動物・牧畜</b>: 🐷豚は倒すと🥩肉。🐑羊は近くでXキー(スマホはPLACE長押し)で刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。🐔鶏は時々🥚卵を産み落とし、拾うと満腹度が回復。<br>
       <b>🐺相棒</b>: 野生のオオカミは🥩肉を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で肉をあげると手なずけられ、付いてきて敵と戦ってくれる。倒れても時間か肉で復活。肉でHP回復。<br>
       <b>農業</b>: 🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキー(スマホはPLACE長押し)で植える。時間で育ち、成熟したら同じ操作で収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復。<br>
+      <b>バイオーム素材</b>: 各バイオームに固有素材がある。🧊氷(❄雪原・上を歩くと滑る) / ⬛黒曜石(🌋火山・超硬い＆敵に壊されない) / 🔮水晶(🪨岩山) / 🌵サボテン(🏜砂漠) / 🍄キノコ(🌲森林) / 🟤粘土(🌿草原)。<br>
+      <b>⚒ 武器強化</b>: 🪨×15＋💎×1で強化台をクラフトして設置。近くでクラフトメニューを開くと、余った💎ダイヤや💠ドラゴンコアで「攻撃+1」「射程+15%」「🔥炎上付与」「❄氷結付与」を付けられる。<br>
+      <b>🏹 矢の切替</b>: 🔥火矢(⬛黒曜石)と🧊氷矢(🧊氷)をクラフトしたら、Rキー(スマホは左のARROW表示をタップ)で装填する矢を切替。火矢は敵を燃やし、氷矢は鈍足にする。<br>
+      <b>♾ エンドレス</b>: WAVE20クリア後はエンドレスモードに挑戦できる。難易度が上がり続ける無限WAVEでハイスコアを狙おう。5WAVEごとに強化ボスが出現。<br>
       <b>地下</b>: 深く掘るとダイヤ・古い宝箱・地下ドラゴンに出会える。危険なら地上へ戻ろう。<br>
       <b>PC</b>: WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / E武器切替 / Cクラフト / F5セーブ。<br>
       <b>スマホ</b>: 左スティック移動 / 右スワイプ視点 / ATTACK攻撃 / PLACE長押しで家具・宝箱操作。<br>
@@ -188,6 +202,6 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="scripts/main.js?v=20260712a"></script>
+<script src="scripts/main.js?v=20260716a"></script>
 </body>
 </html>

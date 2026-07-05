@@ -27,6 +27,9 @@ canvas#c{display:block;touch-action:none}
 #eatBtn.disabled{opacity:.3;pointer-events:none}
 #invPanel{position:absolute;top:calc(197px + var(--safeT));left:calc(10px + var(--safeL));z-index:10;pointer-events:none}
 .invRow{font-size:8px;color:#cccddda0;letter-spacing:.8px;text-shadow:1px 1px 0 #000;line-height:1.55}
+/* 矢の種類切替: 行タップで装填する矢を選ぶ（親パネルはpointer-events:none） */
+.invRow.tappable{pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.invRow.sel{color:#f9d342;text-shadow:0 0 6px #f9d34266,1px 1px 0 #000}
 #craftBtn{position:absolute;top:calc(347px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
 #craftBtn:active{transform:scale(.92)}
 #questBtn{position:absolute;top:calc(347px + var(--safeT));left:calc(100px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#fff1a6;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
@@ -38,6 +41,7 @@ canvas#c{display:block;touch-action:none}
 .citem:active{background:rgba(255,255,255,.1)}
 .citem.locked{opacity:.35;pointer-events:none}
 .citem.done{color:#7ecfff55;pointer-events:none}
+.citem.header{height:24px;font-size:9px;color:#ffd76e;background:rgba(249,211,66,.08);letter-spacing:1px;pointer-events:none;justify-content:center}
 #xhair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;z-index:5}
 #xhair::before,#xhair::after{content:'';position:absolute;background:rgba(255,255,255,.7);border-radius:1px}
 #xhair::before{width:2px;height:100%;left:50%;transform:translateX(-50%)}

@@ -20,7 +20,9 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0};
+// 弓に装填する矢の種類: 'normal' | 'fire'(炎上) | 'ice'(鈍足)
+let arrowMode='normal';
 
 // ═══ ARMOR ═══
 // 鎧は敵の攻撃ダメージを cut 分軽減し、防いだ量だけ耐久(dur)が減る。0で壊れる。
@@ -38,7 +40,7 @@ let gameMode='survival';
 const isCreative=()=>gameMode==='creative';
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 const unlockedWeapons=[true,false,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null,'slab','stair'];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','stone','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay'];
 const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair'];
 
 const CRAFT_RECIPES=[
@@ -64,7 +66,29 @@ const CRAFT_RECIPES=[
   {name:'💎 ダイヤの鎧',wi:-16,armorTier:2,needs:{diamond:4,stone:10},desc:'💎×4+🪨×10'},
   {name:'🌱 種×4',    wi:-17,needs:{grass:3},        desc:'🌿×3'},
   {name:'🍞 パン',     wi:-18,needs:{wheat:4},        desc:'🌾×4'},
+  {name:'🔥 火矢×10',  wi:-20,needs:{wood:2,obsidian:1},desc:'🪵×2+⬛×1', req:3},
+  {name:'🧊 氷矢×10',  wi:-21,needs:{wood:2,ice:1},   desc:'🪵×2+🧊×1', req:3},
+  {name:'🍄 キノコシチュー',wi:-22,needs:{mushroom:2},   desc:'🍄×2'},
+  {name:'🌵 サボテンジュース',wi:-23,needs:{cactus:2},   desc:'🌵×2'},
+  {name:'🧱 レンガ×4(粘土)',wi:-24,needs:{clay:2},      desc:'🟤×2'},
+  {name:'⚒ 強化台',   wi:-19,needs:{stone:15,diamond:1},desc:'🪨×15+💎×1', req:2},
 ];
+
+// ═══ 武器強化（エンチャント） ═══
+// ⚒強化台の近くでクラフトパネルを開くと強化メニューが出る。
+// atk/rng はレベル制（重ねがけ）、fire/frost は一度きりの属性付与。
+// 効果は全武器共通に乗る: wDmg()/wRange() 参照。
+const enchants={atk:0,rng:0,fire:false,frost:false};
+function resetEnchants(){enchants.atk=0;enchants.rng=0;enchants.fire=false;enchants.frost=false;}
+const ENCHANT_DEFS=[
+  {key:'atk', icon:'⚔', name:'攻撃強化', max:3, cost:l=>({diamond:l+1}),        effect:'全武器ダメージ+1'},
+  {key:'rng', icon:'🎯',name:'射程強化', max:3, cost:l=>({diamond:1,crystal:l}),effect:'攻撃射程+15%'},
+  {key:'fire',icon:'🔥',name:'炎上付与', max:1, cost:()=>({dragonCore:1}),      effect:'近接攻撃で敵が燃える'},
+  {key:'frost',icon:'❄',name:'氷結付与', max:1, cost:()=>({dragonCore:1,ice:3}),effect:'近接攻撃で敵が鈍足に'},
+];
+function enchLevel(d){const v=enchants[d.key];return v===true?1:v===false?0:v;}
+function enchCostText(cost){return Object.entries(cost).map(([k,v])=>(MATERIAL_LABELS[k]||k).split(' ')[0]+'×'+v).join('+');}
+function enchSuffix(){let s='';if(enchants.atk)s+=' ⚔+'+enchants.atk;if(enchants.rng)s+=' 🎯+'+enchants.rng;if(enchants.fire)s+='🔥';if(enchants.frost)s+='❄';return s;}
 
 const ACHIEVEMENT_DEFS={
   firstSword:{title:'はじめての剣',desc:'剣をクラフトする',reward:'🥩 +1',apply(){meat+=1;updateMeatHUD();}},
@@ -81,6 +105,10 @@ const ACHIEVEMENT_DEFS={
   bossSlayer:{title:'ボススレイヤー',desc:'通常ボスを倒す',reward:'SCORE +1000',apply(){gs.score+=1000;}},
   finalChallenge:{title:'最終決戦',desc:'WAVE20に到達する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   dragonSlayer:{title:'ドラゴンスレイヤー',desc:'キングダイヤモンドドラゴンを倒す',reward:'🏆 CLEAR BONUS',apply(){gs.score+=3000;}},
+  firstEnchant:{title:'エンチャントの力',desc:'強化台で武器を強化する',reward:'SCORE +500',apply(){gs.score+=500;}},
+  biomeCollector:{title:'バイオームコレクター',desc:'6バイオームの固有素材をすべて所持する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
+  endless25:{title:'終わらない戦い',desc:'エンドレスモードでWAVE25に到達',reward:'SCORE +2000',apply(){gs.score+=2000;}},
+  endless30:{title:'伝説の生存者',desc:'エンドレスモードでWAVE30に到達',reward:'SCORE +5000',apply(){gs.score+=5000;}},
 };
 const achievements={};
 function resetAchievements(){for(const key of Object.keys(ACHIEVEMENT_DEFS))achievements[key]=false;}
@@ -102,6 +130,14 @@ const $invSand=document.getElementById('invSand');
 const $invGrass=document.getElementById('invGrass');
 const $invBrick=document.getElementById('invBrick');
 const $invArrow=document.getElementById('invArrow');
+const $invFireArrow=document.getElementById('invFireArrow');
+const $invIceArrow=document.getElementById('invIceArrow');
+const $invIce=document.getElementById('invIce');
+const $invObsidian=document.getElementById('invObsidian');
+const $invCrystal=document.getElementById('invCrystal');
+const $invCactus=document.getElementById('invCactus');
+const $invMushroom=document.getElementById('invMushroom');
+const $invClay=document.getElementById('invClay');
 const $invDiamond=document.getElementById('invDiamond');
 const $invDragonCore=document.getElementById('invDragonCore');
 const $invSeed=document.getElementById('invSeed');
@@ -117,7 +153,18 @@ function updateInvHUD(){
   $invSand.textContent='🏖 SAND: '+q(inv.sand);
   $invGrass.textContent='🌿 GRASS: '+q(inv.grass);
   $invBrick.textContent='🧱 BRICK: '+q(inv.brick);
-  $invArrow.textContent='🏹 ARROW: '+q(inv.arrow);
+  $invArrow.textContent=(arrowMode==='normal'?'▶':'')+'🏹 ARROW: '+q(inv.arrow);
+  $invArrow.classList.toggle('sel',arrowMode==='normal');
+  // 特殊矢と固有素材の行は手に入れるまで隠す（HUDを圧迫しないように）
+  const optRow=(el,txt,v,sel)=>{if(!el)return;const show=isCreative()||v>0||sel;el.style.display=show?'':'none';el.textContent=(sel?'▶':'')+txt+': '+q(v);if(sel!=null)el.classList.toggle('sel',!!sel);};
+  optRow($invFireArrow,'🔥 FIRE ARROW',inv.fireArrow,arrowMode==='fire');
+  optRow($invIceArrow,'🧊 ICE ARROW',inv.iceArrow,arrowMode==='ice');
+  optRow($invIce,'🧊 ICE',inv.ice,null);
+  optRow($invObsidian,'⬛ OBSIDIAN',inv.obsidian,null);
+  optRow($invCrystal,'🔮 CRYSTAL',inv.crystal,null);
+  optRow($invCactus,'🌵 CACTUS',inv.cactus,null);
+  optRow($invMushroom,'🍄 MUSHROOM',inv.mushroom,null);
+  optRow($invClay,'🟤 CLAY',inv.clay,null);
   $invDiamond.textContent='💎 DIAMOND: '+q(inv.diamond);
   $invDragonCore.textContent='💠 DRAGON CORE: '+q(inv.dragonCore);
   if($invSeed)$invSeed.textContent='🌱 SEED: '+q(inv.seed);
@@ -128,6 +175,22 @@ function updateInvHUD(){
   const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'∞':(inv.stair>0?inv.stair:'');
 }
 
+// ─── 矢の切替（通常/火矢/氷矢）: 左のARROW行タップ or Rキー ───
+function setArrowMode(m){
+  if(m!=='normal'&&!isCreative()&&inv[m==='fire'?'fireArrow':'iceArrow']<=0){showBonus(m==='fire'?'🔥 火矢がない！🪵×2+⬛×1でクラフト':'🧊 氷矢がない！🪵×2+🧊×1でクラフト');return;}
+  arrowMode=m;updateInvHUD();
+  showBonus(m==='fire'?'🔥 火矢を装填（命中で炎上）':m==='ice'?'🧊 氷矢を装填（命中で鈍足）':'🏹 通常の矢を装填');
+  playTone(700,.08,.08,'sine');
+}
+function cycleArrowMode(){
+  if(!gs.running)return;
+  const order=['normal','fire','ice'];
+  let i=order.indexOf(arrowMode);
+  for(let s=0;s<order.length;s++){
+    i=(i+1)%order.length;const m=order[i];
+    if(m==='normal'||isCreative()||inv[m==='fire'?'fireArrow':'iceArrow']>0){arrowMode=m;updateInvHUD();showBonus(m==='fire'?'🔥 火矢を装填':m==='ice'?'🧊 氷矢を装填':'🏹 通常の矢を装填');playTone(700,.08,.08,'sine');return;}
+  }
+}
 const $armorLabel=document.getElementById('armorLabel');
 function armorPct(){if(!armor)return 0;return Math.max(0,Math.ceil(armor.dur/ARMOR_DEFS[armor.tier].maxDur*100));}
 function updateArmorHUD(){
@@ -147,11 +210,21 @@ function equipArmor(tier){
   playTone(500,.12,.12,'square');setTimeout(()=>playTone(750,.1,.1,'square'),110);
 }
 
+const FIRST_FIND_ALERTS={
+  ice:'🧊 氷を入手！氷矢の素材だ（上を歩くと滑る）',
+  obsidian:'⬛ 黒曜石を入手！火矢の素材だ',
+  crystal:'🔮 水晶を入手！強化台の射程強化に使える',
+  cactus:'🌵 サボテンを入手！ジュースにできる',
+  mushroom:'🍄 キノコを入手！シチューにできる',
+  clay:'🟤 粘土を入手！レンガの素材だ',
+};
 function addMaterial(ti){
   const mat=BLOCK_MAT_MAP[ti];if(!mat)return;
   if(mat==='diamond'&&inv.diamond===0)showAlert('💎 DIAMOND FOUND!');
+  if(FIRST_FIND_ALERTS[mat]&&inv[mat]===0)showAlert(FIRST_FIND_ALERTS[mat]);
   inv[mat]++;updateInvHUD();
   if(mat==='diamond')unlockAchievement('firstDiamond');
+  if(inv.ice>0&&inv.obsidian>0&&inv.crystal>0&&inv.cactus>0&&inv.mushroom>0&&inv.clay>0)unlockAchievement('biomeCollector');
 }
 
 function canCraft(recipe){
@@ -173,7 +246,15 @@ const MATERIAL_LABELS={
   stair:'🪜 STAIRS',
   seed:'🌱 SEED',
   wheat:'🌾 WHEAT',
-  wool:'🧶 WOOL'
+  wool:'🧶 WOOL',
+  fireArrow:'🔥 FIRE ARROW',
+  iceArrow:'🧊 ICE ARROW',
+  ice:'🧊 ICE',
+  obsidian:'⬛ OBSIDIAN',
+  crystal:'🔮 CRYSTAL',
+  cactus:'🌵 CACTUS',
+  mushroom:'🍄 MUSHROOM',
+  clay:'🟤 CLAY'
 };
 
 function getMissingMaterialsText(recipe){
@@ -229,6 +310,12 @@ function doCraft(idx){
   else if(r.wi===-13){inv.stair+=4;showBonus('🪜 階段×4 CRAFTED!');}
   else if(r.wi===-17){inv.seed+=4;showBonus('🌱 種×4 CRAFTED!');}
   else if(r.wi===-18){P.hp=Math.min(P.maxHp,P.hp+10);P.food=Math.min(100,P.food+50);showBonus('🍞 パン FOOD+50 HP+10!');}
+  else if(r.wi===-20){inv.fireArrow+=10;showBonus('🔥 火矢×10 CRAFTED! ARROW表示タップ/Rで装填');}
+  else if(r.wi===-21){inv.iceArrow+=10;showBonus('🧊 氷矢×10 CRAFTED! ARROW表示タップ/Rで装填');}
+  else if(r.wi===-22){P.hp=Math.min(P.maxHp,P.hp+20);P.food=Math.min(100,P.food+35);showBonus('🍄 シチュー FOOD+35 HP+20!');}
+  else if(r.wi===-23){P.food=Math.min(100,P.food+25);showBonus('🌵 ジュース FOOD+25!');}
+  else if(r.wi===-24){inv.brick+=4;showBonus('🧱 レンガ×4 CRAFTED!');}
+  else if(r.wi===-19){enchTableCount++;updateEnchTableHUD();showBonus('⚒ 強化台×'+enchTableCount+'  X/PLACE長押しで設置！');}
   else if(r.wi===-6){applyDiamondSword();showAlert('💎 DIAMOND SWORD CRAFTED!');playTone(1400,.2,.2,'sine');setTimeout(()=>playTone(1800,.15,.2,'sine'),150);setTimeout(()=>playTone(2200,.1,.2,'sine'),300);}
   else if(r.wi===-7){applyDiamondBow();showAlert('💎 DIAMOND BOW CRAFTED!');playTone(1600,.2,.2,'triangle');setTimeout(()=>playTone(2000,.15,.2,'triangle'),150);setTimeout(()=>playTone(2400,.1,.2,'triangle'),300);}
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
@@ -260,6 +347,41 @@ function buildCraftPanel(){
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
   });
+  // ⚒強化台の近くにいるときだけ武器強化メニューを追加
+  if(_enchTableNearby()){
+    const hd=document.createElement('div');hd.className='citem header';hd.textContent='⚒ 武器強化（強化台）';$craftPanel.appendChild(hd);
+    ENCHANT_DEFS.forEach((d,i)=>{
+      const el=document.createElement('div');el.className='citem';
+      const lv=enchLevel(d);
+      if(lv>=d.max){el.classList.add('done');el.textContent='✨ '+d.icon+' '+d.name+(d.max>1?' Lv'+lv:'')+' MAX';}
+      else{
+        const cost=d.cost(lv+1);
+        const afford=isCreative()||Object.entries(cost).every(([k,v])=>(inv[k]||0)>=v);
+        const label=d.icon+' '+d.name+(d.max>1?' Lv'+(lv+1):'')+' ('+enchCostText(cost)+')';
+        if(afford){el.textContent='🔵 '+label;el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doEnchant(i);});}
+        else{el.classList.add('locked');el.textContent='🔒 '+label;}
+      }
+      $craftPanel.appendChild(el);
+    });
+  }
+}
+function doEnchant(i){
+  const d=ENCHANT_DEFS[i];if(!d)return;
+  const lv=enchLevel(d);if(lv>=d.max)return;
+  if(!_enchTableNearby()){showBonus('⚒ 強化台の近くでのみ強化できる');return;}
+  const cost=d.cost(lv+1);
+  if(!isCreative()){
+    for(const[k,v]of Object.entries(cost)){if((inv[k]||0)<v){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');return;}}
+    for(const[k,v]of Object.entries(cost))inv[k]-=v;
+  }
+  if(d.key==='fire')enchants.fire=true;
+  else if(d.key==='frost')enchants.frost=true;
+  else enchants[d.key]=lv+1;
+  unlockAchievement('firstEnchant');
+  updateInvHUD();
+  showAlert(d.icon+' '+d.name+(d.max>1?' Lv'+(lv+1):'')+'！ '+d.effect);
+  playTone(1500,.15,.15,'sine');setTimeout(()=>playTone(2000,.12,.12,'sine'),120);setTimeout(()=>playTone(2600,.1,.1,'sine'),240);
+  buildCraftPanel(); // 連続強化できるようパネルは開いたまま更新
 }
 function openCraftPanel(){if(!gs.running)return;buildCraftPanel();$craftPanel.classList.add('open');}
 function closeCraftPanel(){$craftPanel.classList.remove('open');}
@@ -288,10 +410,16 @@ function bindTapSafe(el,fn){
 }
 
 bindTapSafe($craftBtn,_onCraftBtnTap);
+// ARROW行タップで装填する矢を切替（PCはRキーでも可）
+if($invArrow)bindTapSafe($invArrow,()=>setArrowMode('normal'));
+if($invFireArrow)bindTapSafe($invFireArrow,()=>setArrowMode('fire'));
+if($invIceArrow)bindTapSafe($invIceArrow,()=>setArrowMode('ice'));
 document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
-  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
+  inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.fireArrow=0;inv.iceArrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
+  inv.ice=0;inv.obsidian=0;inv.crystal=0;inv.cactus=0;inv.mushroom=0;inv.clay=0;
+  arrowMode='normal';resetEnchants();
   hasDiamondSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
   hasDiamondBow=false;
@@ -393,9 +521,11 @@ async function saveGame(){
     version:SAVE_VERSION,saveSlot:activeSaveSlot,
     gameMode,flying:!!P.flying,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
-    nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,
+    nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
     inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
+    arrowMode,enchants:{...enchants},
+    enchTableCount,enchTables:enchTables.map(t=>({x:t.x,y:t.y,z:t.z})),
     pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
@@ -421,7 +551,7 @@ const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=docu
 function formatSaveMeta(d){
   if(!d)return 'EMPTY';
   const dt=new Date(d.savedAt||Date.now());
-  const mode=d.gameMode==='creative'?'🪄CREATIVE ':'';
+  const mode=d.gameMode==='creative'?'🪄CREATIVE ':d.endlessMode?'♾ENDLESS ':'';
   return `${mode}DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
 }
 async function updateOverlaySaveInfo(options={}){
@@ -465,7 +595,7 @@ async function startNewGameWithConfirm(slot=activeSaveSlot){
   await startGame();
 }
 updateOverlaySaveInfo();
-const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！'];
+const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！','武器をエンチャントしろ！','氷の上は滑るぞ！','黒曜石は壊されない！','エンドレスに挑め！','火矢で敵を燃やせ！'];
 const $ovSplash=document.getElementById('ovSplash');
 function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];}
 rotateSplash();
@@ -638,14 +768,17 @@ function renderQuestLog(){
     {title:'地下探索とダイヤ装備',items:[
       ['💎 ダイヤを入手',gotDiamond,'深く掘るほど貴重素材と危険が増える'],
       ['💎 Diamond Swordを作成',hasDiamondSword,'WAVE中盤以降の主力武器'],
-      ['🔮 Diamond Staff / Bow / Hammerを強化',hasDiamondStaff||hasDiamondBow||hasDiamondHammer,'戦い方に合わせてダイヤ装備を追加']
+      ['🔮 Diamond Staff / Bow / Hammerを強化',hasDiamondStaff||hasDiamondBow||hasDiamondHammer,'戦い方に合わせてダイヤ装備を追加'],
+      ['⚒ 強化台で武器をエンチャント',!!achievements.firstEnchant,'余った💎や💠で攻撃+1/射程+15%/🔥炎上/❄氷結を付与'],
+      ['🌍 バイオーム固有素材をコンプリート',!!achievements.biomeCollector,'🧊氷(雪原)・⬛黒曜石(火山)・🔮水晶(岩山)・🌵サボテン(砂漠)・🍄キノコ(森林)・🟤粘土(草原)']
     ]},
     {title:'WAVE進行',items:[
       ['🌊 WAVE5に到達',gs.wave>=5,'スケルトンキングが出現'],
       ['🌊 WAVE10に到達',gs.wave>=10,'炎のゴーレムが出現'],
       ['🌊 WAVE15に到達',gs.wave>=15,'ダークアイが出現'],
       ['🌊 WAVE20に到達',gs.wave>=20,'最終決戦: 地上でキングドラゴンを迎え撃つ'],
-      ['🏆 キングダイヤモンドドラゴン撃破',!!achievements.dragonSlayer,'ゲームクリア実績']
+      ['🏆 キングダイヤモンドドラゴン撃破',!!achievements.dragonSlayer,'ゲームクリア実績'],
+      ['♾ エンドレスモードに挑戦',endlessMode||!!achievements.endless25,'クリア後に選択可能。5WAVEごとにEXボス出現、難易度は無限に上昇']
     ]}
   ];
   let h='<div class="codexSection"><div class="codexHd">🎯 現在の目標</div><div class="codexGoal">'+getCurrentGoal()+'</div></div>';
@@ -667,6 +800,10 @@ function renderWorldGuide(){
   const waveText=BOSS_DEFS.filter(b=>[5,10,15,20].includes(b.wave)).map(b=>'WAVE'+b.wave+': '+b.name+(b.finalBoss?'（最終ボス）':'')).join('<br>');
   return '<div class="codexSection"><div class="codexHd">🌍 バイオーム / 地下 / WAVE</div>'+
     '<div class="codexSub">バイオーム</div><div class="codexNote">🌿草原: 基本素材集め / 🏜砂漠: 砂と開けた地形 / 🌲森林: 木材集め / 🪨岩山: 石と鉱石向き / 🌋火山: 溶岩と強敵に注意 / ❄雪原: 寒冷ダメージに注意。</div>'+
+    '<div class="codexSub">バイオーム固有素材</div><div class="codexNote">各バイオームの地表にそこでしか採れない素材が生成される。🧊氷(❄雪原・上を歩くと滑る・氷矢の素材) / ⬛黒曜石(🌋火山・超硬くて敵に壊されない・火矢の素材) / 🔮水晶(🪨岩山・射程強化に使用) / 🌵サボテン(🏜砂漠・ジュース) / 🍄キノコ(🌲森林・シチュー) / 🟤粘土(🌿草原・レンガ×4)。黒曜石を掘るには💎ダイヤハンマーが必要。</div>'+
+    '<div class="codexSub">⚒ 武器強化（エンチャント）</div><div class="codexNote">🪨×15+💎×1で強化台をクラフトし、Xキー(スマホはPLACE長押し)で設置。近くでクラフトメニューを開くと強化メニューが現れる。⚔攻撃強化(💎・最大Lv3・全武器+1/Lv) / 🎯射程強化(💎+🔮・最大Lv3・+15%/Lv) / 🔥炎上付与(💠・近接ヒットで敵が燃える) / ❄氷結付与(💠+🧊・近接ヒットで敵が鈍足)。</div>'+
+    '<div class="codexSub">🏹 火矢と氷矢</div><div class="codexNote">🪵×2+⬛黒曜石×1で🔥火矢×10、🪵×2+🧊氷×1で🧊氷矢×10をクラフト。Rキー(スマホは左のARROW表示タップ)で装填切替。火矢は命中した敵を炎上させ、氷矢は動きを遅くする。ボスにも有効。</div>'+
+    '<div class="codexSub">♾ エンドレスモード</div><div class="codexNote">WAVE20のキングドラゴンを倒すと、クリア画面からそのままエンドレスモードへ突入できる。WAVEは無限に続き敵は強くなり続ける。5WAVEごとに歴代ボスの強化版（EXボス）が出現し、倒すと💎を落とす。ハイスコアはランキングに♾クリア済みとして記録される。</div>'+
     '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
     '<div class="codexSub">動物・牧畜</div><div class="codexNote">🐷豚: 倒すと🥩肉 / 🐑羊: Xキーで刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。倒すと肉とウールの両方 / 🐔鶏: 時々🥚卵を産み落とす。歩いて拾うと満腹度が回復。倒すと肉。</div>'+
     '<div class="codexSub">🐺 相棒（ペット）</div><div class="codexNote">野生のオオカミは🥩肉を持っていると寄ってくる。近づいてXキー(スマホはPLACE長押し)で肉を1つあげると手なずけられ、相棒として付いてきて敵と戦ってくれる。HPが0になっても倒れるだけで、時間経過か肉をあげると復活。肉をあげればHP回復もできる。</div>'+
@@ -937,10 +1074,13 @@ const DRAW_RY=isTouch?1:2;
 // memory stays bounded no matter how far the player wanders (Minecraft-style
 // chunk loading/unloading rather than a hard world border)
 const UNLOAD_R=DRAW_R+4;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2];
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1];
 const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16,SLAB_BLOCK=17,STAIR_BLOCK=18;
+// バイオーム固有素材ブロック（そのバイオームの地表にだけ生成される）
+// 氷=滑る / 黒曜石=超硬い+敵に壊されない(耐爆) / 水晶・サボテン・キノコ・粘土=クラフト素材
+const ICE_BLOCK=19,OBSIDIAN_BLOCK=20,CRYSTAL_BLOCK=21,CACTUS_BLOCK=22,MUSHROOM_BLOCK=23,CLAY_BLOCK=24;
 const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK];
 // ─── PARTIAL BLOCKS (slabs & stairs) ───
 // Shapes are described as 1-2 sub-boxes in local cell coords [x0,y0,z0,x1,y1,z1].
@@ -1207,6 +1347,8 @@ const _T={
   greyStone:noisyTex(0x78909c,26,.12), volcano:noisyTex(0x1a0a00,27,.5), snow:noisyTex(0xeef3ff,28,.06),
   caveDirt:noisyTex(0x6b4226,29,.14), coal:oreTex(0x8a8f98,0x1a1a1a,30), deepStone:noisyTex(0x2a2e3d,31,.18),
   iron:oreTex(0x8a8f98,0xcaa472,32), diamond:oreTex(0x7fb6c8,0x3fe0ff,33), lava:noisyTex(0xff4500,34,.22),
+  ice:noisyTex(0xbfe6ff,61,.07), obsidian:noisyTex(0x1b0b2e,62,.35), crystal:oreTex(0x8a8f98,0xcc66ff,63),
+  cactus:noisyTex(0x2e9e4f,64,.16), mushroom:oreTex(0xd0483e,0xffe9d0,65), clay:noisyTex(0xb0a08c,66,.1),
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
@@ -1232,6 +1374,12 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case IRON_ORE: return smat(_T.iron,{roughness:.7,metalness:.35,emissive:0x3a1500,emissiveIntensity:.08});
     case DIAMOND_ORE: return smat(_T.diamond,{roughness:.15,metalness:.7,emissive:0x00aaff,emissiveIntensity:.45,transparent:true,opacity:.95});
     case TORCH_BLOCK: return new THREE.MeshStandardMaterial({color:0x3a2410,roughness:.6,metalness:0,emissive:0xff8a1e,emissiveIntensity:1.15,vertexColors:false});
+    case ICE_BLOCK: return smat(_T.ice,{roughness:.05,metalness:.3,transparent:true,opacity:.85,emissive:0x99ccff,emissiveIntensity:.12});
+    case OBSIDIAN_BLOCK: return smat(_T.obsidian,{roughness:.15,metalness:.5,emissive:0x30105a,emissiveIntensity:.35});
+    case CRYSTAL_BLOCK: return smat(_T.crystal,{roughness:.2,metalness:.4,emissive:0xaa44ff,emissiveIntensity:.4});
+    case CACTUS_BLOCK: return smat(_T.cactus);
+    case MUSHROOM_BLOCK: return smat(_T.mushroom,{emissive:0x441111,emissiveIntensity:.12});
+    case CLAY_BLOCK: return smat(_T.clay);
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
@@ -1413,15 +1561,27 @@ function generateChunk(cx,cz){
       if(rand2(wx,wz,30)<0.06){const lm=addBlock(wx,h,wz,LAVA_BLOCK,false);if(lm)meshes.add(lm);if(rand2(wx,wz,31)<0.5){const lm2=addBlock(wx,h+1,wz,LAVA_BLOCK,false);if(lm2)meshes.add(lm2);}}
       if(rand2(wx,wz,32)<0.05){const topH=2+Math.floor(rand2(wx,wz,33)*5);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,7,false);if(mr)meshes.add(mr);}}
       if(rand2(wx,wz,34)<0.03){const mr=addBlock(wx,h+1,wz,7,false);if(mr)meshes.add(mr);const mr2=addBlock(wx,h+2,wz,7,false);if(mr2)meshes.add(mr2);}
+      // 火山限定: 黒曜石（高硬度・敵に壊されない）
+      if(rand2(wx,wz,46)<0.03){const mo=addBlock(wx,h+1,wz,OBSIDIAN_BLOCK,false);if(mo)meshes.add(mo);}
     }
     if(biome===BIOMES.SNOW){
       if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,1,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.add(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.add(top);}
       if(rand2(wx,wz,41)<0.03){const topH=1+Math.floor(rand2(wx,wz,42)*3);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,SNOW_BLOCK,false);if(mr)meshes.add(mr);}}
+      // 雪原限定: 氷（上に乗ると滑る・氷矢の素材）
+      if(rand2(wx,wz,45)<0.045){const mi=addBlock(wx,h+1,wz,ICE_BLOCK,false);if(mi)meshes.add(mi);}
     }
     if(biome===BIOMES.FOREST&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx,wz);}}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx+dx,wz+dz);}}}}
+    // 森林限定: キノコ
+    if(biome===BIOMES.FOREST&&rand2(wx,wz,51)<0.02){const mm=addBlock(wx,h+1,wz,MUSHROOM_BLOCK,false);if(mm)meshes.add(mm);}
     if(biome===BIOMES.PLAINS&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx,wz);}[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2){meshes.add(ml2);voxels[ml2].tint=tintAt(wx+dx,wz+dz);}});}
+    // 草原限定: 粘土
+    if(biome===BIOMES.PLAINS&&rand2(wx,wz,52)<0.012){const mc=addBlock(wx,h+1,wz,CLAY_BLOCK,false);if(mc)meshes.add(mc);}
     if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.add(mr);}}
+    // 岩山限定: 水晶
+    if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,47)<0.025){const mq=addBlock(wx,h+1,wz,CRYSTAL_BLOCK,false);if(mq)meshes.add(mq);}
     if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms){meshes.add(ms);voxels[ms].tint=tintAt(wx,wz);}}}
+    // 砂漠限定: サボテン（1〜3段の柱）
+    if(biome===BIOMES.DESERT&&rand2(wx,wz,48)<0.02){const ch=1+Math.floor(rand2(wx,wz,49)*3);for(let cy=1;cy<=ch;cy++){const mc=addBlock(wx,h+cy,wz,CACTUS_BLOCK,false);if(mc)meshes.add(mc);}}
   }
   const rec=makeChunkRec(false);
   for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
@@ -1738,9 +1898,23 @@ const MOB_RESPAWN_INTERVAL=60;
 let mobRespawnT=MOB_RESPAWN_INTERVAL;
 let projectiles=[];
 const arrowGeo=new THREE.BoxGeometry(.12,.12,.5);const arrowMat=new THREE.MeshBasicMaterial({color:0xddaa44});const diamondArrowMat=new THREE.MeshBasicMaterial({color:0x00e5ff});
+const fireArrowMat=new THREE.MeshBasicMaterial({color:0xff7722});const iceArrowMat=new THREE.MeshBasicMaterial({color:0xaaeeff});
 const staffOrbGeo=new THREE.OctahedronGeometry(.22,0);const staffOrbMat=new THREE.MeshBasicMaterial({color:0x88ffff});
-function fireStaff(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const m=new THREE.Mesh(staffOrbGeo,staffOrbMat.clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);scene.add(m);projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*70,dy:dir.y*70,dz:dir.z*70,life:2.5,dmg:WEAPONS[5].dmg,staff:true});}
-function fireArrow(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const isDiamond=hasDiamondBow;const m=new THREE.Mesh(arrowGeo,(isDiamond?diamondArrowMat:arrowMat).clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);m.lookAt(sx+dir.x,sy+dir.y,sz+dir.z);scene.add(m);const spd=isDiamond?55:35;const life=isDiamond?2.4:1.8;projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*spd,dy:dir.y*spd,dz:dir.z*spd,life,dmg:WEAPONS[3].dmg,diamond:isDiamond});}
+// エンチャント込みの実効ダメージ / 射程
+function wDmg(w){return w.dmg+enchants.atk;}
+function wRange(w){return w.range*(1+enchants.rng*.15);}
+// ─── 状態異常（炎上=DoT / 氷結=鈍足）: 火矢・氷矢と属性エンチャントが付与 ───
+function igniteEnemy(en){if(!en||en.dead)return;en.burnT=3;}
+function chillEnemy(en){if(!en||en.dead)return;en.slowT=3;}
+function igniteBoss(){if(boss)boss.burnT=Math.max(boss.burnT||0,2.5);}
+function chillBoss(){if(boss)boss.slowT=Math.max(boss.slowT||0,1.6);}
+// 近接ヒット時の属性エンチャント適用
+function applyMeleeEnchants(target,isBoss){
+  if(enchants.fire){if(isBoss)igniteBoss();else igniteEnemy(target);}
+  if(enchants.frost){if(isBoss)chillBoss();else chillEnemy(target);}
+}
+function fireStaff(){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const m=new THREE.Mesh(staffOrbGeo,staffOrbMat.clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);scene.add(m);projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*70,dy:dir.y*70,dz:dir.z*70,life:2.5,dmg:wDmg(WEAPONS[5]),staff:true});}
+function fireArrow(mode){const dir=new THREE.Vector3();camera.getWorldDirection(dir);const isDiamond=hasDiamondBow;const am=mode==='fire'?fireArrowMat:mode==='ice'?iceArrowMat:isDiamond?diamondArrowMat:arrowMat;const m=new THREE.Mesh(arrowGeo,am.clone());const sx=P.x,sy=P.y+1.5,sz=P.z;m.position.set(sx,sy,sz);m.lookAt(sx+dir.x,sy+dir.y,sz+dir.z);scene.add(m);const spd=isDiamond?55:35;const life=isDiamond?2.4:1.8;projectiles.push({mesh:m,x:sx,y:sy,z:sz,dx:dir.x*spd,dy:dir.y*spd,dz:dir.z*spd,life,dmg:wDmg(WEAPONS[3])+(mode==='fire'?1:0),diamond:isDiamond,fireA:mode==='fire',iceA:mode==='ice'});}
 const bossArrowGeo=new THREE.BoxGeometry(.2,.2,.7);
 function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-bz,l=Math.hypot(dx,dy,dz)||1;const m=new THREE.Mesh(bossArrowGeo,new THREE.MeshBasicMaterial({color:0xff3300}));m.position.set(bx,by,bz);scene.add(m);projectiles.push({mesh:m,x:bx,y:by,z:bz,dx:(dx/l)*22,dy:(dy/l)*22,dz:(dz/l)*22,life:2.5,dmg:dmgVal,isBossArrow:true});}
 
@@ -1768,7 +1942,18 @@ function flyMove(vx,vz,dt){
   P.velY=0;P.onGround=false;coyoteTime=0;jumpBuffer=0;
   if(P.y<-40){P.y=20;P.velY=0;}
 }
-function movePlayer(vx,vz,dt){if(P.flying){flyMove(vx,vz,dt);return;}P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
+// 氷の上は滑る: 入力速度へ即座に切り替わらず、前フレームの速度から
+// ゆっくり補間する（氷から降りると即座に通常操作へ戻る）
+let _slideVX=0,_slideVZ=0;
+function _onIce(){
+  if(!P.onGround)return false;
+  const v=voxels[vKey(Math.floor(P.x),Math.floor(P.y-.1),Math.floor(P.z))];
+  return !!v&&v.ti===ICE_BLOCK;
+}
+function movePlayer(vx,vz,dt){if(P.flying){flyMove(vx,vz,dt);return;}
+  if(_onIce()){const k=Math.min(1,dt*2.2);_slideVX+=(vx-_slideVX)*k;_slideVZ+=(vz-_slideVZ)*k;vx=_slideVX;vz=_slideVZ;}
+  else{_slideVX=vx;_slideVZ=vz;}
+  P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
 let _flyTapT=0;
 function setFlying(on){
   if(!isCreative()&&on)return;
@@ -2293,7 +2478,16 @@ function killBoss(){
   if(!wasMiniBoss&&!wasFinal)unlockAchievement('bossSlayer');
   if(wasFinal)setTimeout(()=>gameComplete(),2000);
 }
-function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);if(boss.flashT>0){boss.flashT-=dt;if(boss.flashT<=0){boss.body.material.emissive.setHex(boss.def.emissive);boss.body.material.emissiveIntensity=.35+boss.phase*.2;boss.head.material.emissive.setHex(boss.def.emissive);boss.head.material.emissiveIntensity=.35+boss.phase*.2;}}const fy=bp.y-(.85*sc);boss.velY-=GRAV*dt;const spd=2+boss.phase*.8+(gs.wave*.15);if(boss.charging){const cd=boss.chargeDir;const nx=bp.x+cd.x*12*dt;const nz=bp.z+cd.z*12*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}boss.chargeT-=dt;if(boss.chargeT<=0)boss.charging=false;}else if(dist>2){const nx=bp.x+(dx/dist)*spd*dt;const nz=bp.z+(dz/dist)*spd*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;}const ny=fy+boss.velY*dt;if(!overlaps(bp.x,ny,bp.z,sc*.4,1.7*sc)){bp.y=ny+.85*sc;boss.onGround=false;}else{if(boss.velY<0)boss.onGround=true;boss.velY=0;}if(bp.y<-1){const rh=getHeight(Math.floor(bp.x),Math.floor(bp.z));bp.y=rh+1.85*sc;boss.velY=0;boss.onGround=true;}boss.root.rotation.y=Math.atan2(dx,dz);boss.stuckT+=dt;if(boss.stuckT>1.5){const mv=Math.abs(bp.x-boss.lastX)+Math.abs(bp.z-boss.lastZ);if(mv<.3&&boss.onGround){boss.velY=7;if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(1,2.5-boss.phase*.3);}}boss.lastX=bp.x;boss.lastZ=bp.z;boss.stuckT=0;}boss.atkCd=Math.max(0,boss.atkCd-dt);boss.breakCd=Math.max(0,boss.breakCd-dt);if(dist<2.5*sc&&boss.atkCd<=0&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg+boss.phase*5);boss.atkCd=1.5-boss.phase*.2;}if(!boss.charging){boss.atkPhase=(boss.atkPhase||0)-dt;if(boss.atkPhase<=0){const pats=boss.def.patterns,pat=pats[Math.floor(Math.random()*pats.length)];boss.atkPhase=Math.max(1.2,3-boss.phase*.5);if(pat==='multishot'){[-0.4,0,0.4].forEach(a=>{const ca=Math.atan2(dx,dz)+a;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ca)*20,bp.y+sc,bp.z+Math.cos(ca)*20,boss.def.dmg*.6);});sfxBow();}else if(pat==='omnishot'){for(let a=0;a<8;a++){const ang=(a/8)*Math.PI*2;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ang)*20,bp.y+sc,bp.z+Math.cos(ang)*20,boss.def.dmg*.5);}sfxBow();sfxMagic();}else if(pat==='charge'){if(dist>4){sfxCharge();boss.charging=true;boss.chargeDir={x:dx/dist,z:dz/dist};boss.chargeT=0.6;boss.velY=4;}}else if(pat==='stomp'){if(boss.onGround){boss.velY=8;sfxHammer();}if(dist<6&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*.8);spawnParticles(bp.x,bp.y,bp.z,boss.def.deathColor,5);}}else if(pat==='aoeBlast'){spawnParticles(bp.x,bp.y+.5,bp.z,boss.def.deathColor,8);if(dist<7&&hasLOS(bp.x,bp.y+sc,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*1.2);sfxMagic();}for(const e of enemies){const ed=Math.hypot(e.root.position.x-bp.x,e.root.position.z-bp.z);if(ed<8)e.hp=Math.min(e.hp+2,e.maxHp);}}}}boss.hpBar.lookAt(camera.position);updateBossHUD();}
+function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);
+  // 状態異常（火矢/炎上エンチャント=DoT、氷矢/氷結エンチャント=鈍足）
+  if(boss.slowT>0)boss.slowT-=dt;
+  if(boss.burnT>0){
+    boss.burnT-=dt;boss.burnAcc=(boss.burnAcc||0)+dt;
+    if(boss.burnAcc>=.7){boss.burnAcc=0;boss.hp-=3;spawnParticles(bp.x,bp.y+sc*.5,bp.z,0xff6622,3);
+      boss.hpBar.scale.x=Math.max(.01,boss.hp/boss.maxHp);
+      if(boss.hp<=0){killBoss();return;}}
+  }
+  if(boss.flashT>0){boss.flashT-=dt;if(boss.flashT<=0){boss.body.material.emissive.setHex(boss.def.emissive);boss.body.material.emissiveIntensity=.35+boss.phase*.2;boss.head.material.emissive.setHex(boss.def.emissive);boss.head.material.emissiveIntensity=.35+boss.phase*.2;}}const fy=bp.y-(.85*sc);boss.velY-=GRAV*dt;const spd=(2+boss.phase*.8+(gs.wave*.15))*(boss.slowT>0?.5:1);if(boss.charging){const cd=boss.chargeDir;const nx=bp.x+cd.x*12*dt;const nz=bp.z+cd.z*12*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;else if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(.5,1.2-boss.phase*.15);}boss.chargeT-=dt;if(boss.chargeT<=0)boss.charging=false;}else if(dist>2){const nx=bp.x+(dx/dist)*spd*dt;const nz=bp.z+(dz/dist)*spd*dt;if(!overlaps(nx,fy,bp.z,sc*.4,1.7*sc))bp.x=nx;if(!overlaps(bp.x,fy,nz,sc*.4,1.7*sc))bp.z=nz;}const ny=fy+boss.velY*dt;if(!overlaps(bp.x,ny,bp.z,sc*.4,1.7*sc)){bp.y=ny+.85*sc;boss.onGround=false;}else{if(boss.velY<0)boss.onGround=true;boss.velY=0;}if(bp.y<-1){const rh=getHeight(Math.floor(bp.x),Math.floor(bp.z));bp.y=rh+1.85*sc;boss.velY=0;boss.onGround=true;}boss.root.rotation.y=Math.atan2(dx,dz);boss.stuckT+=dt;if(boss.stuckT>1.5){const mv=Math.abs(bp.x-boss.lastX)+Math.abs(bp.z-boss.lastZ);if(mv<.3&&boss.onGround){boss.velY=7;if(boss.breakCd<=0){tryBossBreakBlock();boss.breakCd=Math.max(1,2.5-boss.phase*.3);}}boss.lastX=bp.x;boss.lastZ=bp.z;boss.stuckT=0;}boss.atkCd=Math.max(0,boss.atkCd-dt);boss.breakCd=Math.max(0,boss.breakCd-dt);if(dist<2.5*sc&&boss.atkCd<=0&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg+boss.phase*5);boss.atkCd=1.5-boss.phase*.2;}if(!boss.charging){boss.atkPhase=(boss.atkPhase||0)-dt;if(boss.atkPhase<=0){const pats=boss.def.patterns,pat=pats[Math.floor(Math.random()*pats.length)];boss.atkPhase=Math.max(1.2,3-boss.phase*.5);if(pat==='multishot'){[-0.4,0,0.4].forEach(a=>{const ca=Math.atan2(dx,dz)+a;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ca)*20,bp.y+sc,bp.z+Math.cos(ca)*20,boss.def.dmg*.6);});sfxBow();}else if(pat==='omnishot'){for(let a=0;a<8;a++){const ang=(a/8)*Math.PI*2;fireBossArrow(bp.x,bp.y+sc,bp.z,bp.x+Math.sin(ang)*20,bp.y+sc,bp.z+Math.cos(ang)*20,boss.def.dmg*.5);}sfxBow();sfxMagic();}else if(pat==='charge'){if(dist>4){sfxCharge();boss.charging=true;boss.chargeDir={x:dx/dist,z:dz/dist};boss.chargeT=0.6;boss.velY=4;}}else if(pat==='stomp'){if(boss.onGround){boss.velY=8;sfxHammer();}if(dist<6&&hasLOS(bp.x,bp.y,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*.8);spawnParticles(bp.x,bp.y,bp.z,boss.def.deathColor,5);}}else if(pat==='aoeBlast'){spawnParticles(bp.x,bp.y+.5,bp.z,boss.def.deathColor,8);if(dist<7&&hasLOS(bp.x,bp.y+sc,bp.z,P.x,P.y+1,P.z)){dmgPlayer(boss.def.dmg*1.2);sfxMagic();}for(const e of enemies){const ed=Math.hypot(e.root.position.x-bp.x,e.root.position.z-bp.z);if(ed<8)e.hp=Math.min(e.hp+2,e.maxHp);}}}}boss.hpBar.lookAt(camera.position);updateBossHUD();}
 function updateDragon(dt){
   if(!dragon)return;
   const dp=dragon.root.position;
@@ -2523,6 +2717,36 @@ function placeTrophy(){
   updateTrophyHUD();sfxPlace();showBonus('🏆 ドラゴン像を設置した！');
 }
 function resetTrophies(){for(const t of trophies)scene.remove(t.mesh);trophies=[];trophyCount=0;updateTrophyHUD();}
+
+// ═══ 強化台（エンチャントテーブル） ═══
+// チェスト等と同じ設置型家具。近くでクラフトパネルを開くと武器強化メニューが出る。
+let enchTables=[];
+let enchTableCount=0;
+const $enchTableLabel=document.getElementById('invEnchantTable');
+function updateEnchTableHUD(){if($enchTableLabel)$enchTableLabel.textContent='⚒ ENCHANT TABLE: '+enchTableCount;}
+function makeEnchTableMesh(){
+  const root=new THREE.Object3D();
+  const baseMat=new THREE.MeshStandardMaterial({color:0x2a2e3d,roughness:.7});
+  const topMat=new THREE.MeshStandardMaterial({color:0x1b2838,roughness:.3,emissive:0x7a3bd6,emissiveIntensity:.7});
+  const gemMat=new THREE.MeshStandardMaterial({color:0xb388ff,emissive:0xaa66ff,emissiveIntensity:1.6,roughness:.1});
+  const base=new THREE.Mesh(new THREE.BoxGeometry(.85,.55,.85),baseMat);base.position.y=.28;
+  const top=new THREE.Mesh(new THREE.BoxGeometry(.95,.16,.95),topMat);top.position.y=.63;
+  const gem=new THREE.Mesh(new THREE.OctahedronGeometry(.14,0),gemMat);gem.position.y=.92;
+  root.add(base,top,gem);markShadowCaster(root);return root;
+}
+function placeEnchTable(){
+  if(!gs.running)return;if(enchTableCount<=0){showBonus('強化台がない！クラフトしよう');return;}
+  const bh=castVoxel();if(!bh)return;
+  const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
+  const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
+  for(const t of enchTables){if(Math.floor(t.x)===px&&Math.floor(t.y)===py&&Math.floor(t.z)===pz)return;}
+  if(px<P.x+.45&&px+1>P.x-.45&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.45&&pz+1>P.z-.45)return;
+  const mesh=makeEnchTableMesh();mesh.position.set(px+.5,py,pz+.5);scene.add(mesh);
+  enchTableCount--;enchTables.push({mesh,x:px,y:py,z:pz});
+  updateEnchTableHUD();sfxPlace();showBonus('⚒ 強化台設置！近くでCRAFTを開くと強化できる');
+}
+function _enchTableNearby(){return enchTables.some(t=>{const dx=t.x+.5-P.x,dz=t.z+.5-P.z,dy=t.y+.5-(P.y+.8);return Math.hypot(dx,dy,dz)<2.8;});}
+function resetEnchTables(){for(const t of enchTables)scene.remove(t.mesh);enchTables=[];enchTableCount=0;updateEnchTableHUD();}
 
 // ═══ FARMING（小麦畑） ═══
 // 畑は草ブロックの上に設置する独立の装飾物（チェスト等と同じ扱い）。stage 0→1→2 で育ち、
@@ -2857,7 +3081,21 @@ bindTapSafe($eatBtn,_onEatBtnTap);
 // ═══ GAME STATE ═══
 const gs={running:false,score:0,kills:0,day:1,time:0,wave:0,nextWave:15,paused:false};
 const DAY_DUR=90;
-function startWave(){if(isCreative())return;gs.wave++;if(gs.wave>=5)unlockAchievement('wave5');if(gs.wave>=20)unlockAchievement('finalChallenge');const bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
+// ♾ エンドレスモード: WAVE20クリア後に選択可能。WAVEが無限に続き、
+// 敵のHP/ダメージ/速度のスケーリングが上限緩和のまま伸び続ける。
+// 5WAVEごとに既存ボスの強化版（EXボス）が出現する。
+let endlessMode=false;
+function makeEndlessBossDef(){
+  const base=BOSS_DEFS[Math.floor(Math.random()*(BOSS_DEFS.length-1))]; // 最終ボスは除外
+  const over=gs.wave-20;
+  return{...base,wave:gs.wave,finalBoss:false,miniBoss:false,
+    name:base.name+' EX',
+    baseHp:Math.round(base.baseHp*(1+over*.12)),
+    dmg:base.dmg+Math.floor(over*.7),
+    score:base.score+over*100,
+    diamondDrop:2+Math.floor(over/5)};
+}
+function startWave(){if(isCreative())return;gs.wave++;if(gs.wave>=5)unlockAchievement('wave5');if(gs.wave>=20)unlockAchievement('finalChallenge');if(endlessMode&&gs.wave>=25)unlockAchievement('endless25');if(endlessMode&&gs.wave>=30)unlockAchievement('endless30');let bossDef=BOSS_DEFS.find(b=>b.wave===gs.wave);if(!bossDef&&endlessMode&&gs.wave>20&&gs.wave%5===0)bossDef=makeEndlessBossDef();if(bossDef&&bossDef.finalBoss){finalBossPending=true;showAlert('⚠ 最終決戦の時… 地上へ戻れ！');playTone(80,.3,.6,'sawtooth');setTimeout(()=>{if(gs.running)playTone(120,.2,.4,'sawtooth');},400);gs.nextWave=DAY_DUR*3;}else if(bossDef&&bossDef.miniBoss){showAlert('⚡ MINI BOSS WAVE '+gs.wave+'!  '+bossDef.name);playTone(320,.2,.3,'sawtooth');setTimeout(()=>playTone(480,.15,.25,'sawtooth'),200);setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1200);const n=Math.min(4+gs.wave,10);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},600+i*350);gs.nextWave=Math.min(DAY_DUR*(.8+gs.wave*.04),DAY_DUR*1.1);}else if(bossDef){showAlert('👑 BOSS WAVE '+gs.wave+'!');sfxBossAppear();setTimeout(()=>{if(gs.running)spawnBoss(bossDef);},1500);const n=Math.min(2+gs.wave,6);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},500+i*400);gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}else{const n=Math.min(3+gs.wave*2,16);for(let i=0;i<n;i++)setTimeout(()=>{if(gs.running)spawnEnemy();},i*350);showAlert('⚠️ WAVE '+gs.wave+'  ('+n+'体)');sfxWave();gs.nextWave=Math.min(DAY_DUR*(.7+gs.wave*.05),DAY_DUR*1.2);}}
 
 // ═══ HUD ═══
 const $sv=document.getElementById('scoreVal'),$kv=document.getElementById('killVal'),$dv=document.getElementById('dayVal'),$di=document.getElementById('dayIcon'),$hf=document.getElementById('hpFill'),$wa=document.getElementById('waveAlert'),$df=document.getElementById('dmgFlash'),$bp=document.getElementById('bonusPopup'),$bl=document.getElementById('biomeLabel'),$cd=document.getElementById('coordsDisplay'),$wt=document.getElementById('waveTimer'),$goalLabel=document.getElementById('goalLabel'),$ff=document.getElementById('fdFill');
@@ -2897,7 +3135,9 @@ function getCurrentGoal(){
   if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
   if(boss)return '👑 ボスを倒せ！攻撃後は距離を取ろう';
   if(dragon)return '💎 地下ドラゴン戦！ダイヤ武器が有効';
+  if(endlessMode)return '♾ エンドレスWAVE'+gs.wave+'  どこまで生き残れるか！';
   if(gs.wave<5)return '⚔ WAVE5のボスまで生き残ろう 現在WAVE '+gs.wave;
+  if(!achievements.firstEnchant&&hasDiamondSword&&gs.wave>=8)return '⚒ 強化台(🪨×15+💎×1)で武器を強化しよう';
   if(gs.wave<20)return '🌊 WAVE20まで装備と拠点を強化しよう 現在WAVE '+gs.wave;
   return '🏆 キングダイヤモンドドラゴンを倒してクリア！';
 }
@@ -2909,12 +3149,15 @@ function updateHUD(){
   const fpct=Math.max(0,Math.min(100,P.food));if($ff){$ff.style.width=fpct+'%';$ff.style.background=fpct>20?'linear-gradient(90deg,#e07f1f,#ffcf7f)':'linear-gradient(90deg,#b71c1c,#ff8a65)';}
   {const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
-  const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
+  const w=WEAPONS[weaponIdx];
+  const arrowIcon=weaponIdx===3&&arrowMode!=='normal'?(arrowMode==='fire'?'🔥':'🧊'):'';
+  $wl.textContent=w.name+arrowIcon+enchSuffix()+(unlockedWeapons[weaponIdx]?'':'🔒');
   updateGoalHUD();updatePetHUD();
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();_updateTreasureInfo();
   const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);
-  const isBossNext=!!nextDef&&!nextDef.miniBoss;const isMiniBossNext=!!nextDef&&!!nextDef.miniBoss;
+  let isBossNext=!!nextDef&&!nextDef.miniBoss;const isMiniBossNext=!!nextDef&&!!nextDef.miniBoss;
+  if(endlessMode&&gs.wave>=20&&(gs.wave+1)%5===0)isBossNext=true; // エンドレスは5WAVEごとにEXボス
   if(gs.nextWave>0&&gs.nextWave<=10){
     const label=isBossNext?'👑 BOSS WAVE ':isMiniBossNext?'⚡ MINI BOSS ':'⚠️ WAVE ';
     $wt.textContent=label+(gs.wave+1)+' まで '+Math.ceil(gs.nextWave)+'秒';
@@ -3356,6 +3599,7 @@ function doFurnitureAction(){
   else if(_cropNearby())              harvestNearestCrop();
   else if(bedCount>0)                 placeBed();
   else if(chestCount>0)               placeChest();
+  else if(enchTableCount>0)           placeEnchTable();
   else if(trophyCount>0)              placeTrophy();
   else if((isCreative()||inv.seed>0)&&plantSeed()){}
   else showBonus('置ける家具がない！');
@@ -3370,6 +3614,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='Space'&&gs.running){e.preventDefault();if(!e.repeat)doJump();}
   if(e.code>='Digit1'&&e.code<='Digit8')setType(parseInt(e.code[5])-1);
   if(e.code==='KeyE')cycleWeapon();
+  if(e.code==='KeyR')cycleArrowMode();
   if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
   if(e.code==='KeyQ'||e.code==='KeyG')openQuest();
@@ -3416,6 +3661,7 @@ function breakBlock(bh){
 // ─── ENEMY BLOCK BREAKING ───
 function enemyBreakBlockAt(x,y,z){
   const k=vKey(x,y,z);const v=voxels[k];if(!v||!v.active||v.ti===WATER_BLOCK)return false;
+  if(v.ti===OBSIDIAN_BLOCK)return false; // 黒曜石は耐爆: 敵・ボスには絶対に壊せない
   spawnBlockDebris(x+.5,y+.5,z+.5,v.ti);
   if(Math.hypot(x-P.x,z-P.z)<20)sfxBreak();
   if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
@@ -3447,7 +3693,7 @@ function tryBossBreakBlock(){
   for(let s=1;s<=Math.ceil(sc*1.5)+1;s++){
     const bx=Math.floor(bp.x+nx*s),bz=Math.floor(bp.z+nz*s);
     for(let by=gy;by<=gy+Math.ceil(sc*1.5);by++){
-      const k=vKey(bx,by,bz);const v=voxels[k];if(!v||!v.active)continue;
+      const k=vKey(bx,by,bz);const v=voxels[k];if(!v||!v.active||v.ti===OBSIDIAN_BLOCK)continue;
       const hard=BLOCK_HARDNESS[v.ti]!==undefined?BLOCK_HARDNESS[v.ti]:99;
       if(pow>=hard){enemyBreakBlockAt(bx,by,bz);return;}
     }
@@ -3458,36 +3704,47 @@ function doAttack(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();if(attackCD>0)return;
   if(!unlockedWeapons[weaponIdx]){showBonus('🔒 武器未解放！クラフトしよう');playTone(200,.08,.08,'sawtooth');return;}
   const w=WEAPONS[weaponIdx];
-  if(w.type==='ranged'&&inv.arrow<=0&&!isCreative()){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
+  if(w.type==='ranged'&&inv.arrow+inv.fireArrow+inv.iceArrow<=0&&!isCreative()){showBonus('矢がない！🪵×2でクラフト');playTone(200,.08,.08,'sawtooth');return;}
   attackCD=w.cd;w.sfx();triggerHandSwing();
   if(w.type==='staff'){fireStaff();return;}
   if(w.type==='ranged'){
-    if(!isCreative()){inv.arrow--;updateInvHUD();}
-    const eh=castEnemiesFar(w.range);if(eh){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
-    fireArrow();return;
+    // 装填中の矢種を消費（切れていたら他の種類へフォールバック）
+    let mode=arrowMode;
+    if(!isCreative()){
+      if(mode==='fire'&&inv.fireArrow<=0)mode='normal';
+      if(mode==='ice'&&inv.iceArrow<=0)mode='normal';
+      if(mode==='normal'&&inv.arrow<=0)mode=inv.fireArrow>0?'fire':'ice';
+      inv[mode==='fire'?'fireArrow':mode==='ice'?'iceArrow':'arrow']--;updateInvHUD();
+    }
+    const dm=wDmg(w)+(mode==='fire'?1:0);
+    const eh=castEnemiesFar(wRange(w));if(eh){const found=findEnemyByMesh(eh.object);if(found){
+      if(found.isBoss){hitBoss(dm);if(mode==='fire')igniteBoss();if(mode==='ice')chillBoss();}
+      else{hitEnemy(found.enemy,dm);if(mode==='fire')igniteEnemy(found.enemy);if(mode==='ice')chillEnemy(found.enemy);}
+      return;}}
+    fireArrow(mode);return;
   }
   if(w.type==='hammer'){
     for(let i=0;i<8;i++){const a=i/8*Math.PI*2;spawnParticles(P.x+Math.cos(a)*2.5,P.y+.3,P.z+Math.sin(a)*2.5,0x00e5ff,1);}
     spawnParticles(P.x,P.y+.5,P.z,0xaaf8ff,3);
     let anyHit=false;
-    if(boss){const bp=boss.root.position;if(Math.hypot(bp.x-P.x,bp.z-P.z)<w.range){hitBoss(w.dmg);anyHit=true;}}
-    if(dragon){const dp=dragon.root.position;if(Math.hypot(dp.x-P.x,dp.z-P.z)<w.range){hitDragon(w.dmg,true);anyHit=true;}}
-    for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(ep.x-P.x,ep.z-P.z)<w.range){hitEnemy(en,w.dmg);anyHit=true;}}
+    if(boss){const bp=boss.root.position;if(Math.hypot(bp.x-P.x,bp.z-P.z)<wRange(w)){hitBoss(wDmg(w));applyMeleeEnchants(null,true);anyHit=true;}}
+    if(dragon){const dp=dragon.root.position;if(Math.hypot(dp.x-P.x,dp.z-P.z)<wRange(w)){hitDragon(wDmg(w),true);anyHit=true;}}
+    for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(ep.x-P.x,ep.z-P.z)<wRange(w)){hitEnemy(en,wDmg(w));applyMeleeEnchants(en,false);anyHit=true;}}
     attackMobs(w);
     if(!anyHit){const bh=castVoxel();if(bh){mineBlock(bh);}}
     return;
   }
   if(w.type==='aoe'){
     spawnParticles(P.x,P.y+1.5,P.z,0xff44ff,4);let anyHit=false;
-    if(boss){const bp=boss.root.position,dx=bp.x-P.x,dy=bp.y-P.y,dz=bp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitBoss(w.dmg);anyHit=true;}}
-    if(dragon){const dp=dragon.root.position,dx=dp.x-P.x,dy=dp.y-P.y,dz=dp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitDragon(w.dmg,false);anyHit=true;}}
-    for(const en of[...enemies]){const ep=en.root.position,dx=ep.x-P.x,dy=ep.y-P.y,dz=ep.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<w.range){hitEnemy(en,w.dmg);anyHit=true;}}
+    if(boss){const bp=boss.root.position,dx=bp.x-P.x,dy=bp.y-P.y,dz=bp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<wRange(w)){hitBoss(wDmg(w));applyMeleeEnchants(null,true);anyHit=true;}}
+    if(dragon){const dp=dragon.root.position,dx=dp.x-P.x,dy=dp.y-P.y,dz=dp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<wRange(w)){hitDragon(wDmg(w),false);anyHit=true;}}
+    for(const en of[...enemies]){const ep=en.root.position,dx=ep.x-P.x,dy=ep.y-P.y,dz=ep.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<wRange(w)){hitEnemy(en,wDmg(w));applyMeleeEnchants(en,false);anyHit=true;}}
     attackMobs(w);
     if(!anyHit){const bh=castVoxel();if(bh){mineBlock(bh);}}
     return;
   }
-  const eh=castEnemies();if(eh&&eh.distance<=w.range){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss)hitBoss(w.dmg);else hitEnemy(found.enemy,w.dmg);return;}}
-  if(dragon){const dp=dragon.root.position;if((dp.x-P.x)**2+(dp.y-(P.y+1.5))**2+(dp.z-P.z)**2<w.range*w.range){hitDragon(w.dmg,weaponIdx===1&&hasDiamondSword);return;}}
+  const eh=castEnemies();if(eh&&eh.distance<=wRange(w)){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss){hitBoss(wDmg(w));applyMeleeEnchants(null,true);}else{hitEnemy(found.enemy,wDmg(w));applyMeleeEnchants(found.enemy,false);}return;}}
+  if(dragon){const dp=dragon.root.position;if((dp.x-P.x)**2+(dp.y-(P.y+1.5))**2+(dp.z-P.z)**2<wRange(w)*wRange(w)){hitDragon(wDmg(w),weaponIdx===1&&hasDiamondSword);return;}}
   attackMobs(w);
   const bh=castVoxel();if(bh){mineBlock(bh);}
 }
@@ -3615,6 +3872,9 @@ if(HAS_POINTER_EVENTS){
 
 // ═══ OVERLAY ═══
 const overlay=document.getElementById('overlay'),ovTitle=document.getElementById('ovTitle'),ovInfo=document.getElementById('ovInfo'),ovBtn=document.getElementById('ovBtn'),ovSub=document.getElementById('ovSub');
+const $endlessBtn=document.getElementById('endlessBtn');
+let _endlessBtnLastT=0;
+bindTapSafe($endlessBtn,()=>{const now=Date.now();if(now-_endlessBtnLastT<100)return;_endlessBtnLastT=now;startEndless();});
 const $contDeathBtn=document.getElementById('contDeathBtn');
 let _contDeathLastT=0;
 function _onContDeathTap(){const now=Date.now();if(now-_contDeathLastT<100)return;_contDeathLastT=now;continueAfterDeath();}
@@ -3629,7 +3889,7 @@ function undergroundDeath(){
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;unlockedWeapons[3]=false;}}
     if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;unlockedWeapons[5]=false;}}
     if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';unlockedWeapons[2]=false;}}
-    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;updateChestHUD();updateBedHUD();updateTrophyHUD();
+    chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();
     undergroundSnapshot=null;
   }
   prevPlayerUnderground=false;
@@ -3654,15 +3914,29 @@ function gameComplete(){
   ovTitle.textContent='GAME CLEAR!!';
   if($ovSplash)$ovSplash.textContent='💎 キングダイヤモンドドラゴンを討伐！';
   ovSub.textContent='CONGRATULATIONS';
-  ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日';
+  ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br><span style="color:#b499e6">♾ エンドレスモードでこの世界の続きに挑戦できる！</span>';
   ovBtn.textContent='もう一度';
-  $contDeathBtn.style.display='none';$contBtn.classList.add('disabled');
+  $contDeathBtn.style.display='none';$endlessBtn.style.display='';$contBtn.classList.add('disabled');
   renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo({enableContinueButton:false});
   [1200,1500,1800,2200,2600,3000].forEach((f,i)=>setTimeout(()=>playTone(f,.25,.35,'sine'),i*160));
 }
+// クリア画面から現在のワールドのままエンドレス突入
+function startEndless(){
+  if(gs.running)return;
+  endlessMode=true;gs.running=true;
+  P.hp=P.maxHp;P.invT=3;gs.nextWave=20;
+  ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';
+  ovSub.textContent='VOXEL SURVIVAL';
+  $endlessBtn.style.display='none';$contBtn.classList.remove('disabled');
+  overlay.classList.add('hide');
+  showAlert('♾ ENDLESS MODE！WAVEは無限に続く…');
+  playTone(500,.15,.2,'sawtooth');setTimeout(()=>playTone(750,.15,.18,'sawtooth'),160);setTimeout(()=>playTone(1000,.2,.2,'sawtooth'),320);
+  saveGame();
+}
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
-  saveScore(false);
+  saveScore(endlessMode); // エンドレス中の死亡は「クリア済みラン」としてランキングに残す
+  $endlessBtn.style.display='none';
   gs.running=false;ovTitle.style.color='#ff4444';ovTitle.style.textShadow='3px 3px 0 #880000,6px 6px 0 #330000';ovTitle.textContent='GAME OVER';if($ovSplash)$ovSplash.textContent='また挑戦しよう！';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='RETRY';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo({enableContinueButton:false});
 }
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
@@ -3670,7 +3944,8 @@ function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   removePet();
-  resetChests();resetBeds();resetTrophies();resetTreasures();resetFarmPlots();
+  resetChests();resetBeds();resetTrophies();resetEnchTables();resetTreasures();resetFarmPlots();
+  endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
@@ -3713,9 +3988,10 @@ async function continueGame(){
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
   gameMode=d.gameMode==='creative'?'creative':'survival';
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
+  endlessMode=!isCreative()&&!!d.endlessMode;
   resetWeather();
   finalBossPending=!isCreative()&&!!d.finalBossPending;
-  if(!isCreative()&&!finalBossPending&&gs.wave>=20&&!achievements.dragonSlayer)finalBossPending=true;
+  if(!isCreative()&&!finalBossPending&&!endlessMode&&gs.wave>=20&&!achievements.dragonSlayer)finalBossPending=true;
   P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
   P.flying=isCreative()&&!!d.flying;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
@@ -3726,6 +4002,8 @@ async function continueGame(){
   else unlockedWeapons[0]=true;
   if(isCreative())for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=true;
   meat=d.meat||0;updateMeatHUD();
+  arrowMode=(d.arrowMode==='fire'||d.arrowMode==='ice')?d.arrowMode:'normal';
+  if(d.enchants){enchants.atk=Math.max(0,Math.min(3,d.enchants.atk|0));enchants.rng=Math.max(0,Math.min(3,d.enchants.rng|0));enchants.fire=!!d.enchants.fire;enchants.frost=!!d.enchants.frost;}
   armor=(d.armor&&ARMOR_DEFS[d.armor.tier])?{tier:d.armor.tier,dur:Math.min(ARMOR_DEFS[d.armor.tier].maxDur,Math.max(1,d.armor.dur||0))}:null;updateArmorHUD();
   if(d.hasDiamondSword)applyDiamondSword();
   if(d.hasDiamondBow)applyDiamondBow();
@@ -3747,6 +4025,10 @@ async function continueGame(){
   trophyCount=d.trophyCount||0;
   if(d.trophies){for(const td of d.trophies){const mesh=makeTrophyMesh();mesh.position.set(td.x+.5,td.y,td.z+.5);scene.add(mesh);trophies.push({mesh,x:td.x,y:td.y,z:td.z});}}
   updateTrophyHUD();
+  // 強化台復元
+  enchTableCount=d.enchTableCount||0;
+  if(d.enchTables){for(const td of d.enchTables){const mesh=makeEnchTableMesh();mesh.position.set(td.x+.5,td.y,td.z+.5);scene.add(mesh);enchTables.push({mesh,x:td.x,y:td.y,z:td.z});}}
+  updateEnchTableHUD();
   // 畑復元
   if(d.farmPlots){for(const fd of d.farmPlots){const st=Math.max(0,Math.min(2,fd.stage||0));const mesh=makeFarmMesh(st);mesh.position.set(fd.x+.5,fd.y,fd.z+.5);scene.add(mesh);farmPlots.push({mesh,x:fd.x,y:fd.y,z:fd.z,stage:st,growT:fd.growT||0});}}
   // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
@@ -3813,7 +4095,7 @@ function tick(now){
   const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0&&P.food>60){P.hp=Math.min(P.maxHp,P.hp+2.5*dt);P.food=Math.max(0,P.food-.5*dt);}
   if(!isCreative()){gs.nextWave-=dt;if(gs.nextWave<=0)startWave();}
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,chestCount,bedCount,trophyCount};sfxEnterUnder();}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,chestCount,bedCount,trophyCount,enchTableCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
   if(!_isUnder&&finalBossPending&&!boss&&!isCreative()){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
@@ -3855,20 +4137,28 @@ function tick(now){
     if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
     if(dist>50){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
+    // 状態異常: 炎上（0.7秒ごとに2ダメージ）/ 氷結（移動速度45%）
+    if(e.slowT>0)e.slowT-=dt;
+    if(e.burnT>0){
+      e.burnT-=dt;e.burnAcc=(e.burnAcc||0)+dt;
+      if(e.burnAcc>=.7){e.burnAcc=0;e.hp-=2;spawnParticles(ep.x,ep.y+.5,ep.z,0xff6622,2);
+        const br=Math.max(0,e.hp/e.maxHp);e.hpBar.scale.x=Math.max(.01,br);}
+    }
+    const statusSpd=e.slowT>0?.45:1;
     if(e.type.bat){
       const dy3=P.y+0.8-ep.y,dist3=Math.hypot(dx,dy3,dz);
       e.root.rotation.y=Math.atan2(dx,dz);
-      if(dist3>0.6){const spd=(3.5+gs.wave*.15)*dt;ep.x+=dx/dist3*spd;ep.y+=dy3/dist3*spd;ep.z+=dz/dist3*spd;}
+      if(dist3>0.6){const spd=(3.5+gs.wave*.15)*statusSpd*dt;ep.x+=dx/dist3*spd;ep.y+=dy3/dist3*spd;ep.z+=dz/dist3*spd;}
       const bk=voxels[vKey(Math.floor(ep.x),Math.floor(ep.y),Math.floor(ep.z))];if(bk&&bk.active)ep.y+=0.4;
       e.wingT=(e.wingT||0)+dt*12;
       if(e.lWing)e.lWing.rotation.z=Math.sin(e.wingT)*.7;
       if(e.rWing)e.rWing.rotation.z=-Math.sin(e.wingT)*.7;
       e.atkCd=Math.max(0,e.atkCd-dt);
-      if(dist3<1.1&&e.atkCd<=0){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=0.7;}
+      if(dist3<1.1&&e.atkCd<=0){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,endlessMode?70:40));e.atkCd=0.7;}
       e.hpBar.lookAt(camera.position);
       continue;
     }
-    e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,6.5);
+    e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,endlessMode?8:6.5)*statusSpd;
     if(dist>1)moveEnemy(e,(dx/dist)*spd,(dz/dist)*spd,dt);
     // walk cycle: swing legs (and arms unless held in a fixed pose)
     if(e.legL){const moving=dist>1&&e.onGround;e.walkT=(e.walkT||0)+(moving?dt*7:0);const sw=moving?Math.sin(e.walkT)*.5:THREE.MathUtils.lerp(e.legL.rotation.x,0,.2);e.legL.rotation.x=sw;e.legR.rotation.x=-sw;if(e.armSwing!==false){if(e.armL)e.armL.rotation.x=-sw;if(e.armR)e.armR.rotation.x=sw;}}
@@ -3877,7 +4167,7 @@ function tick(now){
     e.atkCd=Math.max(0,e.atkCd-dt);e.breakCd=Math.max(0,e.breakCd-dt);
     // 相棒オオカミが密着していると敵はそちらを攻撃（ペットが盾になる）
     if(pet&&pet.downT<=0&&e.atkCd<=0){const petP=pet.root.position;if(Math.hypot(petP.x-ep.x,petP.z-ep.z)<1.5&&Math.abs(petP.y-ep.y)<2){hitPet(Math.min(e.type.dmg*.5+gs.wave*.4,9));e.atkCd=1.2;}}
-    if(dist<1.6&&e.atkCd<=0&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=1.2;}
+    if(dist<1.6&&e.atkCd<=0&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,endlessMode?70:40));e.atkCd=1.2;}
     if(e.type.lava){const pulse=.35+Math.sin(t*4+i)*.2;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
     else if(e.type.ice){const pulse=.2+Math.sin(t*2+i)*.1;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
     else if(e.type.crystal){const pulse=.4+Math.sin(t*3+i)*.25;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
@@ -3885,7 +4175,7 @@ function tick(now){
     else{const nb=gs.time>.5?(gs.time-.5)*2:0;e.body.material.emissiveIntensity=.08+nb*.3;e.head.material.emissiveIntensity=.08+nb*.3;}
     e.hpBar.lookAt(camera.position);
   }
-  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true||p.staff===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit&&p.staff)spawnParticles(p.x,p.y,p.z,0x88ffff,5);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
+  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);if(p.fireA)igniteEnemy(en);if(p.iceA)chillEnemy(en);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);if(p.fireA)igniteBoss();if(p.iceA)chillBoss();hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true||p.staff===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.fireA)spawnParticles(p.x,p.y,p.z,0xff6622,4);else if(hit&&p.iceA)spawnParticles(p.x,p.y,p.z,0xaaeeff,4);else if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit&&p.staff)spawnParticles(p.x,p.y,p.z,0x88ffff,5);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
   for(let i=items.length-1;i>=0;i--){const it=items[i];it.time+=dt;it.mesh.position.y=it.y+Math.sin(it.time*3)*.2;it.mesh.rotation.y+=dt*2;const dx=P.x-it.x,dz=P.z-it.z,dy=P.y-it.y;if(dx*dx+dy*dy+dz*dz<3){pickupItem(it.info);scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);continue;}if(it.time>25){scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);}}
   updateParticles(dt);
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}
