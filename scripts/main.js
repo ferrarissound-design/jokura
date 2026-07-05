@@ -73,6 +73,7 @@ const ACHIEVEMENT_DEFS={
   firstArmor:{title:'鉄壁の備え',desc:'鎧をクラフトする',reward:'SCORE +300',apply(){gs.score+=300;}},
   firstBase:{title:'拠点づくり',desc:'チェストかベッドを設置する',reward:'HP +30',apply(){P.hp=Math.min(P.maxHp,P.hp+30);}},
   firstShear:{title:'羊毛刈り',desc:'羊の毛を刈る',reward:'SCORE +200',apply(){gs.score+=200;}},
+  firstTame:{title:'最高の相棒',desc:'オオカミを肉で手なずける',reward:'SCORE +300',apply(){gs.score+=300;}},
   firstHarvest:{title:'収穫の喜び',desc:'小麦を収穫する',reward:'HP +20 / 満腹度+20',apply(){P.hp=Math.min(P.maxHp,P.hp+20);P.food=Math.min(100,P.food+20);}},
   firstDiamond:{title:'ダイヤ発見',desc:'ダイヤを初めて入手する',reward:'SCORE +500',apply(){gs.score+=500;}},
   treasureHunter:{title:'地下探検家',desc:'地下宝箱を開ける',reward:'💎 +1',apply(){inv.diamond+=1;updateInvHUD();}},
@@ -395,6 +396,7 @@ async function saveGame(){
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
     inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
+    pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
@@ -667,6 +669,7 @@ function renderWorldGuide(){
     '<div class="codexSub">バイオーム</div><div class="codexNote">🌿草原: 基本素材集め / 🏜砂漠: 砂と開けた地形 / 🌲森林: 木材集め / 🪨岩山: 石と鉱石向き / 🌋火山: 溶岩と強敵に注意 / ❄雪原: 寒冷ダメージに注意。</div>'+
     '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
     '<div class="codexSub">動物・牧畜</div><div class="codexNote">🐷豚: 倒すと🥩肉 / 🐑羊: Xキーで刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。倒すと肉とウールの両方 / 🐔鶏: 時々🥚卵を産み落とす。歩いて拾うと満腹度が回復。倒すと肉。</div>'+
+    '<div class="codexSub">🐺 相棒（ペット）</div><div class="codexNote">野生のオオカミは🥩肉を持っていると寄ってくる。近づいてXキー(スマホはPLACE長押し)で肉を1つあげると手なずけられ、相棒として付いてきて敵と戦ってくれる。HPが0になっても倒れるだけで、時間経過か肉をあげると復活。肉をあげればHP回復もできる。</div>'+
     '<div class="codexSub">農業</div><div class="codexNote">🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキーで植える。時間とともに育ち、成熟したらXキーで収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復できる。</div>'+
     '<div class="codexSub">地下</div><div class="codexNote">深く掘るとダイヤ、古い宝箱、地下ドラゴンに遭遇する。危険なら階段やブロックで地上へ戻ろう。</div>'+
     '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
@@ -2629,10 +2632,28 @@ function makeChickenMesh(){
   const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_chickenGeos.leg,_chickenMatBase.leg.clone());l.position.set(x,y,z);return l;});
   root.add(body,head,wingL,wingR,...legs);return{root,body,head,legs};
 }
+const _wolfGeos={body:new THREE.BoxGeometry(.75,.5,.95),head:new THREE.BoxGeometry(.42,.4,.44),snout:new THREE.BoxGeometry(.2,.16,.22),ear:new THREE.BoxGeometry(.1,.16,.06),leg:new THREE.BoxGeometry(.16,.45,.16),tail:new THREE.BoxGeometry(.12,.12,.42),eye:new THREE.BoxGeometry(.07,.07,.04),collar:new THREE.BoxGeometry(.46,.1,.46)};
+const _wolfMatBase={fur:new THREE.MeshStandardMaterial({color:0x9aa0a8,roughness:.9}),furDark:new THREE.MeshStandardMaterial({color:0x6f757d,roughness:.9}),snout:new THREE.MeshStandardMaterial({color:0xd8dade,roughness:.85}),collar:new THREE.MeshStandardMaterial({color:0xdd2233,roughness:.6}),eye:new THREE.MeshBasicMaterial({color:0x111111})};
+function makeWolfMesh(){
+  const root=new THREE.Object3D();
+  const body=new THREE.Mesh(_wolfGeos.body,_wolfMatBase.fur.clone());body.position.y=.42;
+  const head=new THREE.Mesh(_wolfGeos.head,_wolfMatBase.fur.clone());head.position.set(0,.62,.5);
+  const snout=new THREE.Mesh(_wolfGeos.snout,_wolfMatBase.snout.clone());snout.position.set(0,-.08,.28);head.add(snout);
+  const earL=new THREE.Mesh(_wolfGeos.ear,_wolfMatBase.furDark.clone());earL.position.set(-.13,.26,-.05);head.add(earL);
+  const earR=new THREE.Mesh(_wolfGeos.ear,_wolfMatBase.furDark.clone());earR.position.set(.13,.26,-.05);head.add(earR);
+  const eyeL=new THREE.Mesh(_wolfGeos.eye,_wolfMatBase.eye.clone());eyeL.position.set(-.11,.06,.23);head.add(eyeL);
+  const eyeR=new THREE.Mesh(_wolfGeos.eye,_wolfMatBase.eye.clone());eyeR.position.set(.11,.06,.23);head.add(eyeR);
+  const collar=new THREE.Mesh(_wolfGeos.collar,_wolfMatBase.collar.clone());collar.position.set(0,.47,.5);collar.visible=false;
+  const tail=new THREE.Mesh(_wolfGeos.tail,_wolfMatBase.furDark.clone());tail.position.set(0,.55,-.6);tail.rotation.x=.5;
+  const legPos=[[-.2,-.08,.3],[.2,-.08,.3],[-.2,-.08,-.3],[.2,-.08,-.3]];
+  const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_wolfGeos.leg,_wolfMatBase.furDark.clone());l.position.set(x,y,z);return l;});
+  root.add(body,head,collar,tail,...legs);return{root,body,head,legs,tail,collar};
+}
 const ANIMAL_KINDS={
   pig:{build:makePigMesh,hp:3,color:0xf4a9a8},
   sheep:{build:makeSheepMesh,hp:4,color:0xf4f4ec},
   chicken:{build:makeChickenMesh,hp:2,color:0xf5f0e0},
+  wolf:{build:makeWolfMesh,hp:6,color:0x9aa0a8},
 };
 function createAnimal(wx,wz,kind='pig'){
   if(mobs.length>=MAX_MOBS)return;
@@ -2641,6 +2662,7 @@ function createAnimal(wx,wz,kind='pig'){
   const mob={kind,root:built.root,body:built.body,head:built.head,legs:built.legs,hp:def.hp,maxHp:def.hp,velY:0,onGround:false,wanderAngle:Math.random()*Math.PI*2,wanderT:0,hitFlash:0,oinkT:2+Math.random()*5,dead:false};
   if(kind==='sheep'){mob.wool=built.wool;mob.sheared=false;mob.regrowT=0;}
   if(kind==='chicken')mob.eggT=15+Math.random()*15;
+  if(kind==='wolf'){mob.tail=built.tail;mob.collar=built.collar;}
   mobs.push(mob);
 }
 function spawnAnimals(count=8){
@@ -2648,7 +2670,7 @@ function spawnAnimals(count=8){
     const angle=Math.random()*Math.PI*2,dist=10+Math.random()*20;
     const wx=P.x+Math.cos(angle)*dist,wz=P.z+Math.sin(angle)*dist;
     const roll=Math.random();
-    const kind=roll<0.5?'pig':(roll<0.8?'sheep':'chicken');
+    const kind=roll<0.45?'pig':(roll<0.7?'sheep':(roll<0.85?'chicken':'wolf'));
     createAnimal(wx,wz,kind);
   }
 }
@@ -2660,6 +2682,8 @@ function killMob(mob){
     inv.wool+=wool;updateInvHUD();msg='🥩 MEAT +1 / 🧶 WOOL +'+wool;color=0xf4f4ec;
   }else if(mob.kind==='chicken'){
     meat++;msg='🥩 MEAT +1';color=0xf5f0e0;
+  }else if(mob.kind==='wolf'){
+    msg='🐺 オオカミを倒した…（肉で手なずけられたのに）';color=0x9aa0a8;
   }else{
     meat++;msg='🥩 MEAT x'+meat;
   }
@@ -2704,12 +2728,123 @@ function updateMobs(dt){
     if(!overlaps(mp.x,ny,mp.z,.38,.95)){mp.y=ny+.5;mob.onGround=false;}else{if(mob.velY<0)mob.onGround=true;mob.velY=0;}
     if(mp.y<-10){const rh=getHeight(Math.floor(mp.x),Math.floor(mp.z));mp.y=rh+1.05;mob.velY=0;continue;}
     let moveX=0,moveZ=0;
-    if(dist<kFleeDist){const l=dist||1;moveX=-(dx/l)*kFleeSpd;moveZ=-(dz/l)*kFleeSpd;mob.root.rotation.y=Math.atan2(-dx,-dz);if(mob.onGround&&Math.random()<.012)mob.velY=5;}
+    if(mob.kind==='wolf'&&dist<9){
+      // オオカミは逃げない：肉を持っていると寄ってくる（おねだり）
+      mob.root.rotation.y=Math.atan2(dx,dz);
+      if((meat>0||isCreative())&&dist>1.8){const l=dist||1;moveX=(dx/l)*1.8;moveZ=(dz/l)*1.8;}
+      if(mob.tail)mob.tail.rotation.y=Math.sin(Date.now()*.008)*.5;
+    }
+    else if(dist<kFleeDist){const l=dist||1;moveX=-(dx/l)*kFleeSpd;moveZ=-(dz/l)*kFleeSpd;mob.root.rotation.y=Math.atan2(-dx,-dz);if(mob.onGround&&Math.random()<.012)mob.velY=5;}
     else{mob.wanderT-=dt;if(mob.wanderT<=0){mob.wanderAngle+=(Math.random()-.5)*Math.PI;mob.wanderT=1.5+Math.random()*2;}moveX=Math.sin(mob.wanderAngle)*kWanderSpd;moveZ=Math.cos(mob.wanderAngle)*kWanderSpd;mob.root.rotation.y=mob.wanderAngle;}
     const nx2=mp.x+moveX*dt;if(!overlaps(nx2,fy,mp.z,.38,.95))mp.x=nx2;
     const nz2=mp.z+moveZ*dt;if(!overlaps(mp.x,fy,nz2,.38,.95))mp.z=nz2;
     const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;if(moving&&mob.legs){for(let li=0;li<mob.legs.length;li++){mob.legs[li].rotation.x=(li%2===0?1:-1)*swing;}}
   }
+}
+
+// ═══ PET（オオカミの相棒） ═══
+let pet=null;
+const PET_MAX_HP=40,PET_REVIVE_T=30,PET_BITE_CD=.9;
+const $petLabel=document.getElementById('petLabel');
+const sfxBark=()=>{playTone(520,.07,.12,'square');setTimeout(()=>playTone(430,.09,.1,'square'),90);};
+function updatePetHUD(){
+  if(!$petLabel)return;
+  if(!pet){$petLabel.style.display='none';return;}
+  $petLabel.style.display='block';
+  $petLabel.textContent=pet.downT>0?'🐺 相棒: 気絶中… '+Math.ceil(pet.downT)+'s':'🐺 相棒 HP: '+Math.ceil(pet.hp)+'/'+pet.maxHp;
+}
+function _makePetState(built,hp,downT){
+  return{root:built.root,body:built.body,head:built.head,legs:built.legs,tail:built.tail,collar:built.collar,
+    hp:Math.max(0,Math.min(PET_MAX_HP,hp)),maxHp:PET_MAX_HP,velY:0,onGround:false,atkCd:0,hitFlash:0,
+    downT:Math.max(0,downT||0),barkT:3,target:null};
+}
+function _tameableWolfNearby(){return !pet&&mobs.some(m=>m.kind==='wolf'&&!m.dead&&Math.hypot(m.root.position.x-P.x,m.root.position.z-P.z)<2.5);}
+function tameNearestWolf(){
+  if(pet)return;
+  let nearest=null,nd=2.5;
+  for(const m of mobs){if(m.kind!=='wolf'||m.dead)continue;const d=Math.hypot(m.root.position.x-P.x,m.root.position.z-P.z);if(d<nd){nd=d;nearest=m;}}
+  if(!nearest)return;
+  if(!isCreative()&&meat<=0){showBonus('🥩 肉がないと手なずけられない！');return;}
+  if(!isCreative()){meat--;updateMeatHUD();}
+  const idx=mobs.indexOf(nearest);if(idx>=0)mobs.splice(idx,1);
+  pet=_makePetState(nearest,PET_MAX_HP,0);
+  if(pet.collar)pet.collar.visible=true;
+  spawnParticles(pet.root.position.x,pet.root.position.y+.5,pet.root.position.z,0xff7788,5);
+  sfxBark();showBonus('🐺 オオカミを手なずけた！相棒が一緒に戦ってくれる');
+  unlockAchievement('firstTame');updatePetHUD();
+}
+function _petFeedableNearby(){return !!pet&&meat>0&&(pet.hp<pet.maxHp||pet.downT>0)&&Math.hypot(pet.root.position.x-P.x,pet.root.position.z-P.z)<2.5;}
+function feedPet(){
+  if(!pet||meat<=0)return;
+  meat--;updateMeatHUD();
+  pet.hp=Math.min(pet.maxHp,pet.hp+15);
+  if(pet.downT>0){pet.downT=0;pet.root.rotation.z=0;showBonus('🍖 相棒が元気を取り戻した！');}
+  else showBonus('🍖 相棒のHP回復！');
+  spawnParticles(pet.root.position.x,pet.root.position.y+.5,pet.root.position.z,0xff7788,4);
+  sfxBark();updatePetHUD();
+}
+function hitPet(dmg){
+  if(!pet||pet.downT>0)return;
+  pet.hp-=dmg;pet.hitFlash=.15;pet.root.scale.set(1.25,.75,1.25);playTone(300,.1,.1,'square');
+  if(pet.hp<=0){pet.hp=0;pet.downT=PET_REVIVE_T;pet.target=null;pet.root.rotation.z=1.35;showAlert('🐺 相棒が倒れた… しばらくすると復活');playTone(200,.25,.15,'sawtooth');}
+}
+function removePet(){if(pet){scene.remove(pet.root);pet=null;}updatePetHUD();}
+function spawnPetAtPlayer(hp,downT){
+  removePet();
+  const built=makeWolfMesh();
+  const h=getHeight(Math.floor(P.x+1),Math.floor(P.z+1));
+  built.root.position.set(P.x+1,Math.max(P.y+.5,h+1.05),P.z+1);
+  markShadowCaster(built.root);scene.add(built.root);
+  built.collar.visible=true;
+  pet=_makePetState(built,hp,downT);
+  if(pet.downT>0)pet.root.rotation.z=1.35;
+  else if(pet.hp<=0)pet.hp=Math.ceil(PET_MAX_HP*.5);
+  updatePetHUD();
+}
+function updatePet(dt){
+  if(!pet)return;
+  const pp=pet.root.position;
+  const dx=P.x-pp.x,dz=P.z-pp.z,dist=Math.hypot(dx,dz);
+  if(pet.hitFlash>0){pet.hitFlash-=dt;if(pet.hitFlash<=0)pet.root.scale.set(1,1,1);}
+  // はぐれたらテレポートで合流
+  if(dist>28||Math.abs(P.y-pp.y)>14){pp.set(P.x,P.y+.6,P.z);pet.velY=0;pet.target=null;}
+  // 重力
+  pet.velY-=GRAV*dt;const fy=pp.y-.5;const ny=fy+pet.velY*dt;
+  if(!overlaps(pp.x,ny,pp.z,.38,.95)){pp.y=ny+.5;pet.onGround=false;}else{if(pet.velY<0)pet.onGround=true;pet.velY=0;}
+  if(pet.downT>0){
+    pet.downT-=dt;
+    if(pet.downT<=0){pet.downT=0;pet.hp=Math.ceil(pet.maxHp*.5);pet.root.rotation.z=0;sfxBark();showBonus('🐺 相棒が復活した！');}
+    return;
+  }
+  pet.hp=Math.min(pet.maxHp,pet.hp+.4*dt); // ゆっくり自然回復
+  // ターゲット選択：近くの敵を迎撃（プレイヤーから離れすぎる敵は追わない）
+  let target=pet.target;
+  if(target&&(target.dead||target.hp<=0||enemies.indexOf(target)<0))target=null;
+  if(!target){
+    let bd=11;
+    for(const e of enemies){if(e.dead||e.type.bat)continue;const ep=e.root.position;const d=Math.hypot(ep.x-pp.x,ep.z-pp.z);if(d<bd&&Math.hypot(ep.x-P.x,ep.z-P.z)<18&&Math.abs(ep.y-pp.y)<6){bd=d;target=e;}}
+  }
+  pet.target=target;
+  let moveX=0,moveZ=0;
+  if(target){
+    const ep=target.root.position;const tdx=ep.x-pp.x,tdz=ep.z-pp.z,td=Math.hypot(tdx,tdz);
+    pet.root.rotation.y=Math.atan2(tdx,tdz);
+    if(td>1.3){const spd=5.2;moveX=tdx/td*spd;moveZ=tdz/td*spd;if(pet.onGround&&Math.random()<.02)pet.velY=5.5;}
+    pet.atkCd=Math.max(0,pet.atkCd-dt);
+    if(td<1.5&&pet.atkCd<=0){hitEnemy(target,2+Math.floor(gs.wave*.3));pet.atkCd=PET_BITE_CD;playTone(380,.06,.1,'square');}
+  }else if(dist>3){
+    const spd=dist>8?6:3.4;
+    moveX=dx/dist*spd;moveZ=dz/dist*spd;pet.root.rotation.y=Math.atan2(dx,dz);
+    if(pet.onGround&&dist>5&&Math.random()<.02)pet.velY=5.5;
+  }else{
+    pet.root.rotation.y=Math.atan2(dx,dz);
+    pet.barkT-=dt;if(pet.barkT<=0){pet.barkT=6+Math.random()*8;if(dist<12&&Math.random()<.5)sfxBark();}
+  }
+  const nx=pp.x+moveX*dt;if(!overlaps(nx,pp.y-.5,pp.z,.38,.95))pp.x=nx;
+  const nz=pp.z+moveZ*dt;if(!overlaps(pp.x,pp.y-.5,nz,.38,.95))pp.z=nz;
+  const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;
+  if(moving&&pet.legs){const swing=Math.sin(Date.now()*.008)*.45;for(let li=0;li<pet.legs.length;li++)pet.legs[li].rotation.x=(li%2===0?1:-1)*swing;}
+  if(pet.tail)pet.tail.rotation.y=Math.sin(Date.now()*.006)*(moving?.25:.5);
 }
 
 // ═══ MEAT HUD ═══
@@ -2775,7 +2910,7 @@ function updateHUD(){
   {const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
   $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
   const w=WEAPONS[weaponIdx];$wl.textContent=w.name+(unlockedWeapons[weaponIdx]?'':'🔒');
-  updateGoalHUD();
+  updateGoalHUD();updatePetHUD();
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();_updateTreasureInfo();
   const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);
@@ -2789,7 +2924,8 @@ function updateHUD(){
 
 const miniCanvas=document.getElementById('miniCanvas');const miniCtx=miniCanvas.getContext('2d');
 function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fillRect(0,0,S,S);const sc=1.2,cx=S/2,cy=S/2;for(let dx=-20;dx<=20;dx+=2)for(let dz=-20;dz<=20;dz+=2){const wx=Math.floor(P.x)+dx,wz=Math.floor(P.z)+dz,b=getBiome(wx,wz);miniCtx.fillStyle=['#3a7d3a','#c4a44a','#1b5e1b','#6a6a6a','#cc3300','#aaccee'][b];miniCtx.fillRect(cx+dx*sc-1,cy+dz*sc-1,3,3);}
-  for(const mob of mobs){const mp=mob.root.position,mx2=cx+(mp.x-P.x)*sc,my2=cy+(mp.z-P.z)*sc;if(mx2>-2&&mx2<S+2&&my2>-2&&my2<S+2){miniCtx.fillStyle='#f4a9a8';miniCtx.fillRect(mx2-1.5,my2-1.5,3,3);}}
+  for(const mob of mobs){const mp=mob.root.position,mx2=cx+(mp.x-P.x)*sc,my2=cy+(mp.z-P.z)*sc;if(mx2>-2&&mx2<S+2&&my2>-2&&my2<S+2){miniCtx.fillStyle=mob.kind==='wolf'?'#b8c4d0':'#f4a9a8';miniCtx.fillRect(mx2-1.5,my2-1.5,3,3);}}
+  if(pet){const petP=pet.root.position,ptx=cx+(petP.x-P.x)*sc,pty=cy+(petP.z-P.z)*sc;if(ptx>-2&&ptx<S+2&&pty>-2&&pty<S+2){miniCtx.fillStyle='#7fd4ff';miniCtx.fillRect(ptx-1.5,pty-1.5,3,3);}}
   for(const e of enemies){const p=e.root.position,ex=cx+(p.x-P.x)*sc,ey=cy+(p.z-P.z)*sc;if(ex<-2||ex>S+2||ey<-2||ey>S+2)continue;miniCtx.fillStyle=e.type.lava?'#ff6600':e.type.ice?'#44ddff':e.type.name==='Skeleton'?'#eeeeff':e.type.name==='Golem'?'#4488ff':'#ff4444';miniCtx.fillRect(ex-1.5,ey-1.5,3,3);}
   if(boss){const p=boss.root.position,bx=cx+(p.x-P.x)*sc,by=cy+(p.z-P.z)*sc;if(bx>-5&&bx<S+5&&by>-5&&by<S+5){miniCtx.fillStyle='#ff0066';miniCtx.fillRect(bx-3,by-3,6,6);}}
   for(const it of items){const ix=cx+(it.x-P.x)*sc,iy=cy+(it.z-P.z)*sc;if(ix>-2&&ix<S+2&&iy>-2&&iy<S+2){miniCtx.fillStyle='#ffff00';miniCtx.fillRect(ix-1,iy-1,2,2);}}
@@ -3214,6 +3350,8 @@ function doFurnitureAction(){
   if(_bedNearby())                    sleepBed();
   else if(_chestNearby())             interactChest();
   else if(_treasureNearby())          openTreasure();
+  else if(_tameableWolfNearby())      tameNearestWolf();
+  else if(_petFeedableNearby())       feedPet();
   else if(_shearableSheepNearby())    shearNearestSheep();
   else if(_cropNearby())              harvestNearestCrop();
   else if(bedCount>0)                 placeBed();
@@ -3531,6 +3669,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
+  removePet();
   resetChests();resetBeds();resetTrophies();resetTreasures();resetFarmPlots();
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
@@ -3613,6 +3752,8 @@ async function continueGame(){
   // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
   if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
+  // 相棒オオカミ復元（ワールド生成後にプレイヤーの隣へ）
+  if(d.pet)spawnPetAtPlayer(d.pet.hp!=null?d.pet.hp:PET_MAX_HP,d.pet.downT||0);
   $pauseBtn.style.display='flex';
   applyModeUI();
   spawnAnimals(8);updateInvHUD();resize();
@@ -3706,7 +3847,7 @@ function tick(now){
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
   chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
-  updateBoss(dt);updateDragon(dt);updateMobs(dt);updateFarmPlots(dt);
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);updatePet(dt);updateFarmPlots(dt);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
@@ -3733,7 +3874,10 @@ function tick(now){
     if(e.legL){const moving=dist>1&&e.onGround;e.walkT=(e.walkT||0)+(moving?dt*7:0);const sw=moving?Math.sin(e.walkT)*.5:THREE.MathUtils.lerp(e.legL.rotation.x,0,.2);e.legL.rotation.x=sw;e.legR.rotation.x=-sw;if(e.armSwing!==false){if(e.armL)e.armL.rotation.x=-sw;if(e.armR)e.armR.rotation.x=sw;}}
     e.stuckT+=dt;if(e.stuckT>1.2){const mv=Math.abs(ep.x-e.lastX)+Math.abs(ep.z-e.lastZ);if(mv<.3&&e.onGround&&dist<14){e.velY=6.5;if(e.breakCd<=0)tryEnemyBreakBlock(e);}e.lastX=ep.x;e.lastZ=ep.z;e.stuckT=0;}
     if(e.onGround&&dist<6&&Math.random()<.008)e.velY=6;
-    e.atkCd=Math.max(0,e.atkCd-dt);e.breakCd=Math.max(0,e.breakCd-dt);if(dist<1.6&&e.atkCd<=0&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=1.2;}
+    e.atkCd=Math.max(0,e.atkCd-dt);e.breakCd=Math.max(0,e.breakCd-dt);
+    // 相棒オオカミが密着していると敵はそちらを攻撃（ペットが盾になる）
+    if(pet&&pet.downT<=0&&e.atkCd<=0){const petP=pet.root.position;if(Math.hypot(petP.x-ep.x,petP.z-ep.z)<1.5&&Math.abs(petP.y-ep.y)<2){hitPet(Math.min(e.type.dmg*.5+gs.wave*.4,9));e.atkCd=1.2;}}
+    if(dist<1.6&&e.atkCd<=0&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){dmgPlayer(Math.min(e.type.dmg+gs.wave*2,40));e.atkCd=1.2;}
     if(e.type.lava){const pulse=.35+Math.sin(t*4+i)*.2;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
     else if(e.type.ice){const pulse=.2+Math.sin(t*2+i)*.1;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
     else if(e.type.crystal){const pulse=.4+Math.sin(t*3+i)*.25;e.body.material.emissiveIntensity=pulse;e.head.material.emissiveIntensity=pulse;}
