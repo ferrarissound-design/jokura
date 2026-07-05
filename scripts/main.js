@@ -122,6 +122,8 @@ const ACHIEVEMENT_DEFS={
   firstEnchant:{title:'エンチャントの力',desc:'強化台で武器を強化する',reward:'SCORE +500',apply(){gs.score+=500;}},
   firstSmelt:{title:'鉄の時代',desc:'かまどで鉄を精錬する',reward:'SCORE +300',apply(){gs.score+=300;}},
   thunderStruck:{title:'雷に打たれても',desc:'落雷の直撃を受けて生き延びる',reward:'SCORE +200',apply(){gs.score+=200;}},
+  firstTameHorse:{title:'ウマ使い',desc:'ウマを小麦で手なずける',reward:'SCORE +200',apply(){gs.score+=200;}},
+  firstMount:{title:'名騎手',desc:'ウマに騎乗する',reward:'SCORE +300',apply(){gs.score+=300;}},
   biomeCollector:{title:'バイオームコレクター',desc:'6バイオームの固有素材をすべて所持する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   endless25:{title:'終わらない戦い',desc:'エンドレスモードでWAVE25に到達',reward:'SCORE +2000',apply(){gs.score+=2000;}},
   endless30:{title:'伝説の生存者',desc:'エンドレスモードでWAVE30に到達',reward:'SCORE +5000',apply(){gs.score+=5000;}},
@@ -586,6 +588,7 @@ async function saveGame(){
     enchTableCount,enchTables:enchTables.map(t=>({x:t.x,y:t.y,z:t.z})),
     furnaceCount,furnaces:furnaces.map(f=>({x:f.x,y:f.y,z:f.z})),
     pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
+    horseTamed:!!horse,mounted,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
@@ -654,7 +657,7 @@ async function startNewGameWithConfirm(slot=activeSaveSlot){
   await startGame();
 }
 updateOverlaySaveInfo();
-const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！','武器をエンチャントしろ！','氷の上は滑るぞ！','黒曜石は壊されない！','エンドレスに挑め！','火矢で敵を燃やせ！','鉄を精錬しろ！','かまどを作ろう！'];
+const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！','武器をエンチャントしろ！','氷の上は滑るぞ！','黒曜石は壊されない！','エンドレスに挑め！','火矢で敵を燃やせ！','鉄を精錬しろ！','かまどを作ろう！','ウマに乗って駆けろ！','小麦でウマを手なずけろ！'];
 const $ovSplash=document.getElementById('ovSplash');
 function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];}
 rotateSplash();
@@ -823,7 +826,8 @@ function renderQuestLog(){
       ['🏹 弓をクラフト',unlockedWeapons[3],'空中やボス相手の安全な攻撃手段'],
       ['🛡 鎧をクラフト',!!achievements.firstArmor||!!armor,'敵の攻撃を軽減。防ぐたび耐久が減り0で壊れる（再クラフトで修理）'],
       ['🐑 羊の毛を刈る',!!achievements.firstShear,'倒さずにウールを収集できる。刈った羊の毛はしばらくすると生え変わる'],
-      ['🌾 小麦を収穫',!!achievements.firstHarvest,'草から種を作って草ブロックの上に植え、育ったら収穫しよう']
+      ['🌾 小麦を収穫',!!achievements.firstHarvest,'草から種を作って草ブロックの上に植え、育ったら収穫しよう'],
+      ['🐴 ウマを手なずけて騎乗',!!achievements.firstMount,'🌾小麦×1で手なずけ、Xキー(PLACE長押し)で乗る。移動が速くなり段差も越えやすい']
     ]},
     {title:'地下探索とダイヤ装備',items:[
       ['🔶 鉄鉱石を入手',inv.ironOre>0||inv.ironIngot>0||hasIronSword||!!achievements.firstSmelt,'深さ13以降の地下に生成される'],
@@ -872,6 +876,7 @@ function renderWorldGuide(){
     '<div class="codexSub">🌦 天気</div><div class="codexNote">🌧雨・⛈雷雨は見た目だけでなく戦況に影響する。屋外で雨に濡れていると🔥炎上(DoT)の消化が早まる。❄雪原で⛈雷雨が重なると吹雪になり、移動速度が低下し満腹度の消費が増え、寒冷ダメージの間隔も短くなる。⛈雷雨では白い光の柱が現れたら数秒後に落雷する予告。範囲内にいるとプレイヤー・敵・ボスいずれもダメージを受けるので、柱を見たら離れよう。</div>'+
     '<div class="codexSub">動物・牧畜</div><div class="codexNote">🐷豚: 倒すと🥩肉 / 🐑羊: Xキーで刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。倒すと肉とウールの両方 / 🐔鶏: 時々🥚卵を産み落とす。歩いて拾うと満腹度が回復。倒すと肉。</div>'+
     '<div class="codexSub">🐺 相棒（ペット）</div><div class="codexNote">野生のオオカミは🥩肉を持っていると寄ってくる。近づいてXキー(スマホはPLACE長押し)で肉を1つあげると手なずけられ、相棒として付いてきて敵と戦ってくれる。HPが0になっても倒れるだけで、時間経過か肉をあげると復活。肉をあげればHP回復もできる。</div>'+
+    '<div class="codexSub">🐴 騎乗（マウント）</div><div class="codexNote">草原などに野生のウマが群れている。🌾小麦を持っていると寄ってきて、近くでXキー(スマホはPLACE長押し)で小麦×1をあげると手なずけられる（サドル付きに）。もう一度Xで騎乗！移動速度が大幅に上がり、ジャンプで2ブロックの段差も越えられる。ダッシュしても追加の満腹度を消費しない（走るのはウマ）。降りるのもX。降りている間はオオカミのように付いてくる。</div>'+
     '<div class="codexSub">農業</div><div class="codexNote">🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキーで植える。時間とともに育ち、成熟したらXキーで収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復できる。</div>'+
     '<div class="codexSub">地下</div><div class="codexNote">深く掘るとダイヤ、古い宝箱、地下ドラゴンに遭遇する。危険なら階段やブロックで地上へ戻ろう。</div>'+
     '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
@@ -1987,6 +1992,8 @@ function fireBossArrow(bx,by,bz,tx,ty,tz,dmgVal){const dx=tx-bx,dy=ty-by,dz=tz-b
 const P={x:0,y:20,z:0,velY:0,onGround:false,hp:100,maxHp:100,invT:0,food:100,flying:false};
 let yaw=0,pitch=0;
 const SPEED=6,SPRINT_SPEED=10,GRAV=18,JV=7.5,EYE=1.55;
+// 騎乗中はジャンプ力アップ（約2ブロック超え）。mounted/MOUNT_JVは騎乗セクションで定義
+function jumpV(){return mounted?MOUNT_JV:JV;}
 const FLY_SPEED=12,FLY_VSPEED=8; // creative flight: fast horizontal + vertical
 let coyoteTime=0,jumpBuffer=0;
 const COYOTE=0.15,JBUF=0.12;
@@ -2018,11 +2025,12 @@ function _onIce(){
 function movePlayer(vx,vz,dt){if(P.flying){flyMove(vx,vz,dt);return;}
   if(_onIce()){const k=Math.min(1,dt*2.2);_slideVX+=(vx-_slideVX)*k;_slideVZ+=(vz-_slideVZ)*k;vx=_slideVX;vz=_slideVZ;}
   else{_slideVX=vx;_slideVZ=vz;}
-  P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
+  P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=jumpV();P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
 let _flyTapT=0;
 function setFlying(on){
   if(!isCreative()&&on)return;
   if(P.flying===!!on)return;
+  if(on&&mounted)dismountHorse(); // 飛行と騎乗は併用しない
   P.flying=!!on;
   if(P.flying){P.velY=0;P.onGround=false;showBonus('🕊 飛行ON');playTone(900,.08,.08,'sine');setTimeout(()=>playTone(1200,.06,.06,'sine'),80);}
   else{showBonus('🛬 飛行OFF');playTone(500,.08,.06,'sine');}
@@ -2037,7 +2045,7 @@ function doJump(){
     _flyTapT=now;
     if(P.flying)return; // while flying, holding jump ascends (see flyMove)
   }
-  if(P.onGround||coyoteTime>0){P.velY=JV;P.onGround=false;coyoteTime=0;jumpBuffer=0;if(!isCreative())P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}
+  if(P.onGround||coyoteTime>0){P.velY=jumpV();P.onGround=false;coyoteTime=0;jumpBuffer=0;if(!isCreative())P.food=Math.max(0,P.food-.3);sfxJump();}else{jumpBuffer=JBUF;}
 }
 
 // ═══ ENEMY BUILDERS ═══
@@ -2970,11 +2978,31 @@ function makeWolfMesh(){
   const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_wolfGeos.leg,_wolfMatBase.furDark.clone());l.position.set(x,y,z);return l;});
   root.add(body,head,collar,tail,...legs);return{root,body,head,legs,tail,collar};
 }
+const _horseGeos={body:new THREE.BoxGeometry(.7,.7,1.4),head:new THREE.BoxGeometry(.34,.5,.62),neck:new THREE.BoxGeometry(.3,.7,.34),leg:new THREE.BoxGeometry(.18,.8,.18),tail:new THREE.BoxGeometry(.14,.52,.14),mane:new THREE.BoxGeometry(.14,.6,.18),ear:new THREE.BoxGeometry(.08,.15,.06),eye:new THREE.BoxGeometry(.07,.07,.04),snout:new THREE.BoxGeometry(.24,.2,.18),saddle:new THREE.BoxGeometry(.52,.13,.55)};
+const _horseMatBase={coat:new THREE.MeshStandardMaterial({color:0xa97a55,roughness:.9}),dark:new THREE.MeshStandardMaterial({color:0x5d4433,roughness:.95}),snout:new THREE.MeshStandardMaterial({color:0xc9a582,roughness:.85}),saddle:new THREE.MeshStandardMaterial({color:0x8b3a2e,roughness:.6}),eye:new THREE.MeshBasicMaterial({color:0x111111})};
+function makeHorseMesh(){
+  const root=new THREE.Object3D();
+  const body=new THREE.Mesh(_horseGeos.body,_horseMatBase.coat.clone());body.position.y=.55;
+  const neck=new THREE.Mesh(_horseGeos.neck,_horseMatBase.coat.clone());neck.position.set(0,.95,.55);neck.rotation.x=-.3;
+  const head=new THREE.Mesh(_horseGeos.head,_horseMatBase.coat.clone());head.position.set(0,1.32,.72);
+  const snout=new THREE.Mesh(_horseGeos.snout,_horseMatBase.snout.clone());snout.position.set(0,-.1,.36);head.add(snout);
+  const earL=new THREE.Mesh(_horseGeos.ear,_horseMatBase.dark.clone());earL.position.set(-.1,.3,-.12);head.add(earL);
+  const earR=new THREE.Mesh(_horseGeos.ear,_horseMatBase.dark.clone());earR.position.set(.1,.3,-.12);head.add(earR);
+  const eyeL=new THREE.Mesh(_horseGeos.eye,_horseMatBase.eye.clone());eyeL.position.set(-.18,.08,.2);head.add(eyeL);
+  const eyeR=new THREE.Mesh(_horseGeos.eye,_horseMatBase.eye.clone());eyeR.position.set(.18,.08,.2);head.add(eyeR);
+  const mane=new THREE.Mesh(_horseGeos.mane,_horseMatBase.dark.clone());mane.position.set(0,1.12,.4);mane.rotation.x=-.3;
+  const tail=new THREE.Mesh(_horseGeos.tail,_horseMatBase.dark.clone());tail.position.set(0,.62,-.8);tail.rotation.x=.55;
+  const saddle=new THREE.Mesh(_horseGeos.saddle,_horseMatBase.saddle.clone());saddle.position.set(0,.95,-.1);saddle.visible=false;
+  const legPos=[[-.22,-.1,.5],[.22,-.1,.5],[-.22,-.1,-.5],[.22,-.1,-.5]];
+  const legs=legPos.map(([x,y,z])=>{const l=new THREE.Mesh(_horseGeos.leg,_horseMatBase.dark.clone());l.position.set(x,y,z);return l;});
+  root.add(body,neck,head,mane,tail,saddle,...legs);return{root,body,head,legs,tail,saddle};
+}
 const ANIMAL_KINDS={
   pig:{build:makePigMesh,hp:3,color:0xf4a9a8},
   sheep:{build:makeSheepMesh,hp:4,color:0xf4f4ec},
   chicken:{build:makeChickenMesh,hp:2,color:0xf5f0e0},
   wolf:{build:makeWolfMesh,hp:6,color:0x9aa0a8},
+  horse:{build:makeHorseMesh,hp:8,color:0xa97a55},
 };
 function createAnimal(wx,wz,kind='pig'){
   if(mobs.length>=MAX_MOBS)return;
@@ -2984,6 +3012,7 @@ function createAnimal(wx,wz,kind='pig'){
   if(kind==='sheep'){mob.wool=built.wool;mob.sheared=false;mob.regrowT=0;}
   if(kind==='chicken')mob.eggT=15+Math.random()*15;
   if(kind==='wolf'){mob.tail=built.tail;mob.collar=built.collar;}
+  if(kind==='horse'){mob.tail=built.tail;mob.saddle=built.saddle;}
   mobs.push(mob);
 }
 function spawnAnimals(count=8){
@@ -2991,7 +3020,7 @@ function spawnAnimals(count=8){
     const angle=Math.random()*Math.PI*2,dist=10+Math.random()*20;
     const wx=P.x+Math.cos(angle)*dist,wz=P.z+Math.sin(angle)*dist;
     const roll=Math.random();
-    const kind=roll<0.45?'pig':(roll<0.7?'sheep':(roll<0.85?'chicken':'wolf'));
+    const kind=roll<0.4?'pig':(roll<0.62?'sheep':(roll<0.75?'chicken':(roll<0.88?'wolf':'horse')));
     createAnimal(wx,wz,kind);
   }
 }
@@ -3005,6 +3034,8 @@ function killMob(mob){
     meat++;msg='🥩 MEAT +1';color=0xf5f0e0;
   }else if(mob.kind==='wolf'){
     msg='🐺 オオカミを倒した…（肉で手なずけられたのに）';color=0x9aa0a8;
+  }else if(mob.kind==='horse'){
+    meat+=2;msg='🥩 MEAT +2 …（🌾小麦で手なずけて乗れたのに）';color=0xa97a55;
   }else{
     meat++;msg='🥩 MEAT x'+meat;
   }
@@ -3054,6 +3085,12 @@ function updateMobs(dt){
       mob.root.rotation.y=Math.atan2(dx,dz);
       if((meat>0||isCreative())&&dist>1.8){const l=dist||1;moveX=(dx/l)*1.8;moveZ=(dz/l)*1.8;}
       if(mob.tail)mob.tail.rotation.y=Math.sin(Date.now()*.008)*.5;
+    }
+    else if(mob.kind==='horse'&&dist<9){
+      // ウマも逃げない：小麦を持っていると寄ってくる
+      mob.root.rotation.y=Math.atan2(dx,dz);
+      if((inv.wheat>0||isCreative())&&dist>2.0){const l=dist||1;moveX=(dx/l)*1.6;moveZ=(dz/l)*1.6;}
+      if(mob.tail)mob.tail.rotation.y=Math.sin(Date.now()*.008)*.4;
     }
     else if(dist<kFleeDist){const l=dist||1;moveX=-(dx/l)*kFleeSpd;moveZ=-(dz/l)*kFleeSpd;mob.root.rotation.y=Math.atan2(-dx,-dz);if(mob.onGround&&Math.random()<.012)mob.velY=5;}
     else{mob.wanderT-=dt;if(mob.wanderT<=0){mob.wanderAngle+=(Math.random()-.5)*Math.PI;mob.wanderT=1.5+Math.random()*2;}moveX=Math.sin(mob.wanderAngle)*kWanderSpd;moveZ=Math.cos(mob.wanderAngle)*kWanderSpd;mob.root.rotation.y=mob.wanderAngle;}
@@ -3168,6 +3205,99 @@ function updatePet(dt){
   if(pet.tail)pet.tail.rotation.y=Math.sin(Date.now()*.006)*(moving?.25:.5);
 }
 
+// ═══ 🐴 騎乗（マウント） ═══
+// 野生のウマを🌾小麦×1で手なずけると自分のウマになり（サドル表示）、
+// 近くでXキー(スマホはPLACE長押し)で騎乗/降車できる。
+// 騎乗中: 移動速度アップ（歩き11 / ダッシュ15.5）・ジャンプ力アップ（2ブロック超え）・
+// ダッシュしても追加の満腹度を消費しない（走るのはウマなので）。
+let horse=null;   // 手なずけたウマ {root,body,head,legs,tail,saddle,velY,onGround,...}
+let mounted=false;
+const MOUNT_SPEED=11,MOUNT_GALLOP=15.5,MOUNT_JV=9.2,MOUNT_EYE=.85;
+const sfxNeigh=()=>{playTone(700,.08,.12,'sawtooth');setTimeout(()=>playTone(880,.1,.1,'sawtooth'),90);setTimeout(()=>playTone(620,.12,.08,'sawtooth'),200);};
+function _makeHorseState(built){
+  return{root:built.root,body:built.body,head:built.head,legs:built.legs,tail:built.tail,saddle:built.saddle,
+    velY:0,onGround:false,walkT:0,lastX:built.root.position.x,lastZ:built.root.position.z,neighT:5};
+}
+function _tameableHorseNearby(){return !horse&&mobs.some(m=>m.kind==='horse'&&!m.dead&&Math.hypot(m.root.position.x-P.x,m.root.position.z-P.z)<2.6);}
+function tameNearestHorse(){
+  if(horse)return;
+  let nearest=null,nd=2.6;
+  for(const m of mobs){if(m.kind!=='horse'||m.dead)continue;const d=Math.hypot(m.root.position.x-P.x,m.root.position.z-P.z);if(d<nd){nd=d;nearest=m;}}
+  if(!nearest)return;
+  if(!isCreative()&&inv.wheat<=0){showBonus('🌾 小麦がないと手なずけられない！');return;}
+  if(!isCreative()){inv.wheat--;updateInvHUD();}
+  const idx=mobs.indexOf(nearest);if(idx>=0)mobs.splice(idx,1);
+  horse=_makeHorseState(nearest);
+  if(horse.saddle)horse.saddle.visible=true;
+  spawnParticles(horse.root.position.x,horse.root.position.y+.8,horse.root.position.z,0xffd27a,5);
+  sfxNeigh();showBonus('🐴 ウマを手なずけた！近くでX(PLACE長押し)で騎乗');
+  unlockAchievement('firstTameHorse');
+}
+function _horseMountableNearby(){return !!horse&&!mounted&&Math.hypot(horse.root.position.x-P.x,horse.root.position.z-P.z)<2.6;}
+function mountHorse(){
+  if(!horse||mounted)return;
+  mounted=true;
+  if(P.flying)setFlying(false); // 騎乗と飛行は併用しない
+  horse.root.position.set(P.x,P.y+.5,P.z);
+  sfxNeigh();showBonus('🐴 騎乗！速く走れる（降りるのもX/PLACE長押し）');
+  unlockAchievement('firstMount');
+}
+function dismountHorse(){
+  if(!mounted)return;
+  mounted=false;
+  showBonus('🐴 降りた');playTone(500,.08,.08,'sine');
+}
+function removeHorse(){if(horse){scene.remove(horse.root);disposeObject3D(horse.root);horse=null;}mounted=false;}
+function spawnHorseAtPlayer(mnt){
+  removeHorse();
+  const built=makeHorseMesh();
+  const h=getHeight(Math.floor(P.x+1),Math.floor(P.z-1));
+  built.root.position.set(P.x+1,Math.max(P.y+.5,h+1.05),P.z-1);
+  markShadowCaster(built.root);scene.add(built.root);
+  built.saddle.visible=true;
+  horse=_makeHorseState(built);
+  mounted=!!mnt;
+}
+function updateHorse(dt){
+  if(!horse)return;
+  const hp2=horse.root.position;
+  if(mounted){
+    // 騎乗中はプレイヤーの足元に追従（物理はプレイヤー側が担当）
+    hp2.set(P.x,P.y+.5,P.z);
+    horse.root.rotation.y=yaw;
+    const movedDist=Math.hypot(hp2.x-horse.lastX,hp2.z-horse.lastZ);
+    horse.lastX=hp2.x;horse.lastZ=hp2.z;
+    if(movedDist>0.01){
+      horse.walkT+=dt*(6+movedDist*8);
+      const sw=Math.sin(horse.walkT)*.6;
+      for(let li=0;li<horse.legs.length;li++)horse.legs[li].rotation.x=(li%2===0?1:-1)*sw;
+    }else{
+      for(const l of horse.legs)l.rotation.x*=.8;
+    }
+    if(horse.tail)horse.tail.rotation.y=Math.sin(Date.now()*.006)*.3;
+    return;
+  }
+  const dx=P.x-hp2.x,dz=P.z-hp2.z,dist=Math.hypot(dx,dz);
+  // はぐれたらテレポートで合流（相棒オオカミと同じ）
+  if(dist>30||Math.abs(P.y-hp2.y)>14){hp2.set(P.x+1,P.y+.6,P.z-1);horse.velY=0;}
+  // 重力
+  horse.velY-=GRAV*dt;const fy=hp2.y-.5;const ny=fy+horse.velY*dt;
+  if(!overlaps(hp2.x,ny,hp2.z,.38,.95)){hp2.y=ny+.5;horse.onGround=false;}else{if(horse.velY<0)horse.onGround=true;horse.velY=0;}
+  let moveX=0,moveZ=0;
+  if(dist>4){
+    const spd=dist>10?6.5:3.2;
+    moveX=dx/dist*spd;moveZ=dz/dist*spd;horse.root.rotation.y=Math.atan2(dx,dz);
+    if(horse.onGround&&dist>6&&Math.random()<.02)horse.velY=6;
+  }else{
+    horse.neighT-=dt;if(horse.neighT<=0){horse.neighT=8+Math.random()*10;if(dist<12&&Math.random()<.4)sfxNeigh();}
+  }
+  const nx=hp2.x+moveX*dt;if(!overlaps(nx,hp2.y-.5,hp2.z,.38,.95))hp2.x=nx;
+  const nz=hp2.z+moveZ*dt;if(!overlaps(hp2.x,hp2.y-.5,nz,.38,.95))hp2.z=nz;
+  const moving=Math.abs(moveX)+Math.abs(moveZ)>.1;
+  if(moving){const sw=Math.sin(Date.now()*.008)*.45;for(let li=0;li<horse.legs.length;li++)horse.legs[li].rotation.x=(li%2===0?1:-1)*sw;}
+  if(horse.tail)horse.tail.rotation.y=Math.sin(Date.now()*.006)*(moving?.25:.45);
+}
+
 // ═══ MEAT HUD ═══
 function updateMeatHUD(){$meatLabel.textContent='🥩 MEAT: '+meat;if(meat>0)$eatBtn.classList.remove('disabled');else $eatBtn.classList.add('disabled');}
 function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('\ud83c\udf56 \u6e80\u8179\u5ea6+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
@@ -3268,6 +3398,7 @@ const miniCanvas=document.getElementById('miniCanvas');const miniCtx=miniCanvas.
 function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fillRect(0,0,S,S);const sc=1.2,cx=S/2,cy=S/2;for(let dx=-20;dx<=20;dx+=2)for(let dz=-20;dz<=20;dz+=2){const wx=Math.floor(P.x)+dx,wz=Math.floor(P.z)+dz,b=getBiome(wx,wz);miniCtx.fillStyle=['#3a7d3a','#c4a44a','#1b5e1b','#6a6a6a','#cc3300','#aaccee'][b];miniCtx.fillRect(cx+dx*sc-1,cy+dz*sc-1,3,3);}
   for(const mob of mobs){const mp=mob.root.position,mx2=cx+(mp.x-P.x)*sc,my2=cy+(mp.z-P.z)*sc;if(mx2>-2&&mx2<S+2&&my2>-2&&my2<S+2){miniCtx.fillStyle=mob.kind==='wolf'?'#b8c4d0':'#f4a9a8';miniCtx.fillRect(mx2-1.5,my2-1.5,3,3);}}
   if(pet){const petP=pet.root.position,ptx=cx+(petP.x-P.x)*sc,pty=cy+(petP.z-P.z)*sc;if(ptx>-2&&ptx<S+2&&pty>-2&&pty<S+2){miniCtx.fillStyle='#7fd4ff';miniCtx.fillRect(ptx-1.5,pty-1.5,3,3);}}
+  if(horse&&!mounted){const hp3=horse.root.position,htx=cx+(hp3.x-P.x)*sc,hty=cy+(hp3.z-P.z)*sc;if(htx>-2&&htx<S+2&&hty>-2&&hty<S+2){miniCtx.fillStyle='#d9a066';miniCtx.fillRect(htx-1.5,hty-1.5,3,3);}}
   for(const e of enemies){const p=e.root.position,ex=cx+(p.x-P.x)*sc,ey=cy+(p.z-P.z)*sc;if(ex<-2||ex>S+2||ey<-2||ey>S+2)continue;miniCtx.fillStyle=e.type.lava?'#ff6600':e.type.ice?'#44ddff':e.type.name==='Skeleton'?'#eeeeff':e.type.name==='Golem'?'#4488ff':'#ff4444';miniCtx.fillRect(ex-1.5,ey-1.5,3,3);}
   if(boss){const p=boss.root.position,bx=cx+(p.x-P.x)*sc,by=cy+(p.z-P.z)*sc;if(bx>-5&&bx<S+5&&by>-5&&by<S+5){miniCtx.fillStyle='#ff0066';miniCtx.fillRect(bx-3,by-3,6,6);}}
   for(const it of items){const ix=cx+(it.x-P.x)*sc,iy=cy+(it.z-P.z)*sc;if(ix>-2&&ix<S+2&&iy>-2&&iy<S+2){miniCtx.fillStyle='#ffff00';miniCtx.fillRect(ix-1,iy-1,2,2);}}
@@ -3765,11 +3896,14 @@ if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAu
 // ═══ X操作（家具・農作業） ═══
 function doFurnitureAction(){
   if(!gs.running)return;
+  if(mounted){dismountHorse();return;} // 騎乗中のXは常に降車
   if(_bedNearby())                    sleepBed();
   else if(_chestNearby())             interactChest();
   else if(_treasureNearby())          openTreasure();
+  else if(_horseMountableNearby())    mountHorse();
   else if(_tameableWolfNearby())      tameNearestWolf();
   else if(_petFeedableNearby())       feedPet();
+  else if(_tameableHorseNearby())     tameNearestHorse();
   else if(_shearableSheepNearby())    shearNearestSheep();
   else if(_cropNearby())              harvestNearestCrop();
   else if(bedCount>0)                 placeBed();
@@ -4122,7 +4256,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
-  removePet();
+  removePet();removeHorse();
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
   endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
@@ -4220,6 +4354,8 @@ async function continueGame(){
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   // 相棒オオカミ復元（ワールド生成後にプレイヤーの隣へ）
   if(d.pet)spawnPetAtPlayer(d.pet.hp!=null?d.pet.hp:PET_MAX_HP,d.pet.downT||0);
+  // ウマ復元（騎乗状態も引き継ぐ）
+  if(d.horseTamed)spawnHorseAtPlayer(!!d.mounted);
   $pauseBtn.style.display='flex';
   applyModeUI();
   spawnAnimals(8);updateInvHUD();resize();
@@ -4297,23 +4433,24 @@ function tick(now){
   if(isDesktop){fw=0;sr=0;if(keys['KeyW']||keys['ArrowUp'])fw=1;if(keys['KeyS']||keys['ArrowDown'])fw=-1;if(keys['KeyA']||keys['ArrowLeft'])sr=-1;if(keys['KeyD']||keys['ArrowRight'])sr=1;if(fw&&sr){const inv2=1/Math.SQRT2;fw*=inv2;sr*=inv2;}}
   const _wantSprint=isDesktop?(!!keys['ShiftLeft']||!!keys['ShiftRight']):Math.hypot(joy.x,joy.y)>.92;
   const sprinting=_wantSprint&&P.food>20&&!P.flying; // too hungry to sprint / shift descends while flying
-  const curSpeed=(P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED))*(blizzard?0.72:1);
+  const curSpeed=(mounted?(_wantSprint?MOUNT_GALLOP:MOUNT_SPEED):(P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED)))*(blizzard?0.72:1);
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
-  camera.position.set(P.x,P.y+EYE,P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
+  camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
   // hunger: drains over time, faster while sprinting; at 0 you slowly starve
   // (HP never drops below 10 from hunger, like Minecraft's gentler modes)
-  if(!isCreative())P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving?0.35:0)+(blizzard?0.15:0))*dt);
+  // 騎乗中のダッシュは追加の満腹度を消費しない（走るのはウマ）
+  if(!isCreative())P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving&&!mounted?0.35:0)+(blizzard?0.15:0))*dt);
   if(P.food<=0){starveT+=dt;if(starveT>=3){starveT=0;if(P.hp>10){P.hp=Math.max(10,P.hp-2*difficultyMult());playTone(160,.12,.06,'sawtooth');}}}
   else starveT=0;
   // sprint FOV kick (Minecraft-style)
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
   chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
-  updateBoss(dt);updateDragon(dt);updateMobs(dt);updatePet(dt);updateFarmPlots(dt);
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
