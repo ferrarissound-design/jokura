@@ -22,6 +22,16 @@ if(isDesktop){document.getElementById('joyWrap').style.display='none';document.g
 // ═══ INVENTORY ═══
 const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0};
 
+// ═══ ARMOR ═══
+// 鎧は敵の攻撃ダメージを cut 分軽減し、防いだ量だけ耐久(dur)が減る。0で壊れる。
+// 溶岩・寒冷・空腹ダメージには無効。再クラフトで修理・装備し直せる。
+const ARMOR_DEFS=[
+  {name:'🛡 木の鎧',   cut:.20,maxDur:60, hudColor:'#d8b07a'},
+  {name:'🛡 石の鎧',   cut:.35,maxDur:120,hudColor:'#c2cad6'},
+  {name:'💎 ダイヤの鎧',cut:.55,maxDur:250,hudColor:'#7fe9ff'},
+];
+let armor=null; // {tier,dur} 装備中の鎧（null=未装備）
+
 // ═══ GAME MODE (survival / creative) ═══
 // creative: 無敵・ブロック無限・即時破壊・飛行・敵WAVEなし（本家クリエイティブ準拠）
 let gameMode='survival';
@@ -44,17 +54,21 @@ const CRAFT_RECIPES=[
   {name:'🪜 階段×4',  wi:-13,needs:{stone:3},         desc:'🪨×3'},
   {name:'💊 ポーション',wi:-4, needs:{grass:3},        desc:'🌿×3'},
   {name:'🏹 矢束×10',  wi:-5, needs:{wood:2},          desc:'🪵×2', req:3},
+  {name:'🛡 木の鎧',   wi:-14,armorTier:0,needs:{wood:8,grass:4},   desc:'🪵×8+🌿×4'},
+  {name:'🛡 石の鎧',   wi:-15,armorTier:1,needs:{stone:15,wood:5},  desc:'🪨×15+🪵×5', req:2},
   {name:'💎 Diamond Sword',wi:-6,needs:{diamond:3,wood:1},desc:'💎×3+🪵×1'},
   {name:'💎 Diamond Bow',  wi:-7,needs:{diamond:3,wood:2},desc:'💎×3+🪵×2',req:3},
   {name:'🔮 Diamond Staff',wi:-8,needs:{diamond:5,wood:2},desc:'💎×5+🪵×2'},
   {name:'🏆 ダイヤドラゴン像',wi:-9,needs:{dragonCore:1,diamond:3},desc:'💠×1+💎×3'},
   {name:'💎 Diamond Hammer',wi:-10,needs:{diamond:4,stone:20},       desc:'💎×4+🪨×20', req:2},
+  {name:'💎 ダイヤの鎧',wi:-16,armorTier:2,needs:{diamond:4,stone:10},desc:'💎×4+🪨×10'},
 ];
 
 const ACHIEVEMENT_DEFS={
   firstSword:{title:'はじめての剣',desc:'剣をクラフトする',reward:'🥩 +1',apply(){meat+=1;updateMeatHUD();}},
   firstHammer:{title:'石の使い手',desc:'ハンマーをクラフトする',reward:'SCORE +300',apply(){gs.score+=300;}},
   firstBow:{title:'遠距離デビュー',desc:'弓をクラフトする',reward:'🏹 +10',apply(){inv.arrow+=10;updateInvHUD();}},
+  firstArmor:{title:'鉄壁の備え',desc:'鎧をクラフトする',reward:'SCORE +300',apply(){gs.score+=300;}},
   firstBase:{title:'拠点づくり',desc:'チェストかベッドを設置する',reward:'HP +30',apply(){P.hp=Math.min(P.maxHp,P.hp+30);}},
   firstDiamond:{title:'ダイヤ発見',desc:'ダイヤを初めて入手する',reward:'SCORE +500',apply(){gs.score+=500;}},
   treasureHunter:{title:'地下探検家',desc:'地下宝箱を開ける',reward:'💎 +1',apply(){inv.diamond+=1;updateInvHUD();}},
@@ -101,6 +115,25 @@ function updateInvHUD(){
   const tc=document.getElementById('torchCount');if(tc)tc.textContent=isCreative()?'∞':(inv.torch>0?inv.torch:'');
   const slc=document.getElementById('slabCount');if(slc)slc.textContent=isCreative()?'∞':(inv.slab>0?inv.slab:'');
   const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'∞':(inv.stair>0?inv.stair:'');
+}
+
+const $armorLabel=document.getElementById('armorLabel');
+function armorPct(){if(!armor)return 0;return Math.max(0,Math.ceil(armor.dur/ARMOR_DEFS[armor.tier].maxDur*100));}
+function updateArmorHUD(){
+  if(!$armorLabel)return;
+  if(!armor){$armorLabel.style.display='none';return;}
+  const def=ARMOR_DEFS[armor.tier];
+  $armorLabel.style.display='block';
+  $armorLabel.style.color=def.hudColor;
+  $armorLabel.textContent=def.name+' '+(isCreative()?'∞':armorPct()+'%');
+}
+function equipArmor(tier){
+  const def=ARMOR_DEFS[tier];if(!def)return;
+  armor={tier,dur:def.maxDur};
+  updateArmorHUD();
+  showAlert(def.name+' 装備！ 被ダメージ-'+Math.round(def.cut*100)+'%');
+  unlockAchievement('firstArmor');
+  playTone(500,.12,.12,'square');setTimeout(()=>playTone(750,.1,.1,'square'),110);
 }
 
 function addMaterial(ti){
@@ -168,6 +201,7 @@ function doCraft(idx){
   if(r.wi===-7&&hasDiamondBow)return;
   if(r.wi===-8&&hasDiamondStaff)return;
   if(r.wi===-10&&hasDiamondHammer)return;
+  if(r.armorTier!=null&&armor&&armor.tier===r.armorTier&&armor.dur>=ARMOR_DEFS[r.armorTier].maxDur)return;
   if(!isCreative()&&r.req!=null&&!unlockedWeapons[r.req]){showBonus('先に'+WEAPONS[r.req].name+'を入手しよう');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!canCraft(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');closeCraftPanel();return;}
   if(!isCreative())for(const[k,v] of Object.entries(r.needs))inv[k]-=v;
@@ -184,11 +218,12 @@ function doCraft(idx){
   else if(r.wi===-8){applyDiamondStaff();showAlert('🔮 DIAMOND STAFF CRAFTED!');playTone(2400,.2,.15,'sine');setTimeout(()=>playTone(3200,.15,.12,'sine'),120);setTimeout(()=>playTone(1800,.1,.1,'sine'),240);}
   else if(r.wi===-9){trophyCount++;updateTrophyHUD();showAlert('🏆 ダイヤドラゴン像 CRAFTED! 拠点に飾ろう！');playTone(2000,.2,.15,'sine');setTimeout(()=>playTone(2600,.15,.12,'sine'),130);setTimeout(()=>playTone(3200,.1,.1,'sine'),260);}
   else if(r.wi===-10){applyDiamondHammer();showAlert('💎 DIAMOND HAMMER CRAFTED!');playTone(900,.15,.2,'square');setTimeout(()=>playTone(700,.15,.18,'square'),120);setTimeout(()=>playTone(1100,.1,.15,'square'),240);}
+  else if(r.armorTier!=null){equipArmor(r.armorTier);}
   else{unlockedWeapons[r.wi]=true;showBonus('🛠 '+r.name+' CRAFTED!');}
   if(r.wi===1)unlockAchievement('firstSword');
   else if(r.wi===2)unlockAchievement('firstHammer');
   else if(r.wi===3)unlockAchievement('firstBow');
-  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8&&r.wi!==-9){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
+  updateInvHUD();if(r.wi!==-6&&r.wi!==-7&&r.wi!==-8&&r.wi!==-9&&r.armorTier==null){playTone(800,.15,.12,'sine');setTimeout(()=>playTone(1000,.1,.1,'sine'),120);}
   closeCraftPanel();
 }
 
@@ -203,6 +238,7 @@ function buildCraftPanel(){
     else if(r.wi===-8&&hasDiamondStaff){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-10&&hasDiamondHammer){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み)';}
     else if(r.wi===-9&&trophyCount>0){el.classList.add('done');el.textContent='✅ '+r.name+' (作成済み×'+trophyCount+')';}
+    else if(r.armorTier!=null&&armor&&armor.tier===r.armorTier&&armor.dur>=ARMOR_DEFS[r.armorTier].maxDur){el.classList.add('done');el.textContent='✅ '+r.name+' (装備中)';}
     else if(r.req!=null&&!unlockedWeapons[r.req]){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 要:'+WEAPONS[r.req].name;}
     else if(!canCraft(r)){el.classList.add('locked');const miss=getMissingMaterialsText(r);el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+miss;}
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
@@ -248,6 +284,7 @@ function resetInv(){
   hasDiamondHammer=false;
   WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';
   for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=(i===0);
+  armor=null;updateArmorHUD();
   updateInvHUD();
 }
 
@@ -343,6 +380,7 @@ async function saveGame(){
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
     inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,
+    armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
     worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
@@ -563,6 +601,7 @@ function recipeStatusText(r){
   if(r.wi===-8&&hasDiamondStaff)return '作成済み';
   if(r.wi===-10&&hasDiamondHammer)return '作成済み';
   if(r.wi===-9&&trophyCount>0)return '作成済み×'+trophyCount;
+  if(r.armorTier!=null&&armor&&armor.tier===r.armorTier)return '装備中 耐久'+armorPct()+'%';
   if(r.req!=null&&!unlockedWeapons[r.req])return '要: '+WEAPONS[r.req].name;
   return canCraft(r)?'作成可能':'不足: '+(getMissingMaterialsText(r)||r.desc);
 }
@@ -573,7 +612,8 @@ function renderQuestLog(){
       ['⚔ 剣をクラフト',unlockedWeapons[1],'現在の目標: '+getCurrentGoal()],
       ['🔨 ハンマーをクラフト',unlockedWeapons[2],'石を掘る速度と近接火力を確保'],
       ['🛏 ベッド/📦チェストで拠点準備',isBaseReady(),'夜スキップと素材保管で長期戦に備える'],
-      ['🏹 弓をクラフト',unlockedWeapons[3],'空中やボス相手の安全な攻撃手段']
+      ['🏹 弓をクラフト',unlockedWeapons[3],'空中やボス相手の安全な攻撃手段'],
+      ['🛡 鎧をクラフト',!!achievements.firstArmor||!!armor,'敵の攻撃を軽減。防ぐたび耐久が減り0で壊れる（再クラフトで修理）']
     ]},
     {title:'地下探索とダイヤ装備',items:[
       ['💎 ダイヤを入手',gotDiamond,'深く掘るほど貴重素材と危険が増える'],
@@ -607,6 +647,7 @@ function renderWorldGuide(){
   const waveText=BOSS_DEFS.filter(b=>[5,10,15,20].includes(b.wave)).map(b=>'WAVE'+b.wave+': '+b.name+(b.finalBoss?'（最終ボス）':'')).join('<br>');
   return '<div class="codexSection"><div class="codexHd">🌍 バイオーム / 地下 / WAVE</div>'+
     '<div class="codexSub">バイオーム</div><div class="codexNote">🌿草原: 基本素材集め / 🏜砂漠: 砂と開けた地形 / 🌲森林: 木材集め / 🪨岩山: 石と鉱石向き / 🌋火山: 溶岩と強敵に注意 / ❄雪原: 寒冷ダメージに注意。</div>'+
+    '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
     '<div class="codexSub">地下</div><div class="codexNote">深く掘るとダイヤ、古い宝箱、地下ドラゴンに遭遇する。危険なら階段やブロックで地上へ戻ろう。</div>'+
     '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
 }
@@ -2545,7 +2586,7 @@ function togglePause(){
 let waTimer=0,bpTimer=0;
 const showAlert=t=>{$wa.textContent=t;$wa.classList.add('show');waTimer=2.5;};
 const showBonus=t=>{$bp.textContent=t;$bp.classList.add('show');bpTimer=1.5;};
-function dmgPlayer(v){if(isCreative())return;if(P.invT>0)return;P.hp=Math.max(0,P.hp-v*difficultyMult());P.invT=.8;if(settings.flash){$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);}sfxDmg();if(P.hp<=0)gameOver();}
+function dmgPlayer(v){if(isCreative())return;if(P.invT>0)return;let dmg=v*difficultyMult();if(armor){const def=ARMOR_DEFS[armor.tier];const blocked=dmg*def.cut;dmg-=blocked;armor.dur-=blocked;if(armor.dur<=0){armor=null;showAlert('🛡 鎧が壊れた！');playTone(280,.2,.15,'sawtooth');setTimeout(()=>playTone(180,.15,.12,'sawtooth'),140);}updateArmorHUD();}P.hp=Math.max(0,P.hp-dmg);P.invT=.8;if(settings.flash){$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);}sfxDmg();if(P.hp<=0)gameOver();}
 function dmgLava(){if(isCreative())return;P.hp=Math.max(0,P.hp-8);if(settings.flash){$lavaFlash.classList.add('on');setTimeout(()=>$lavaFlash.classList.remove('on'),200);}sfxLava();if(P.hp<=0)gameOver();}
 function dmgSnow(){if(isCreative())return;P.hp=Math.max(0,P.hp-3);if(settings.flash){$snowFlash.classList.add('on');setTimeout(()=>$snowFlash.classList.remove('on'),200);}sfxSnow();if(P.hp<=0)gameOver();}
 function matProgress(mat,need){return (inv[mat]||0)+'/'+need;}
@@ -2557,6 +2598,7 @@ function getCurrentGoal(){
   if(!unlockedWeapons[2])return '🪨 石を集めてハンマー作成 STONE '+matProgress('stone',10)+' / WOOD '+matProgress('wood',4);
   if(bedCount===0&&beds.length===0)return '🛏 ベッドで夜をスキップ WOOD '+matProgress('wood',6)+' / GRASS '+matProgress('grass',4);
   if(!unlockedWeapons[3])return '🏹 弓を作って遠距離対策 WOOD '+matProgress('wood',3)+' / STONE '+matProgress('stone',3);
+  if(!armor&&gs.wave>=3)return '🛡 鎧を作って防御を固めよう WOOD '+matProgress('wood',8)+' / GRASS '+matProgress('grass',4);
   if(inv.diamond===0&&!hasDiamondSword)return '💎 地下深くでダイヤを探そう';
   if(!hasDiamondSword)return '💎 ダイヤ剣を作ろう DIAMOND '+matProgress('diamond',3)+' / WOOD '+matProgress('wood',1);
   if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
@@ -3387,6 +3429,7 @@ async function continueGame(){
   else unlockedWeapons[0]=true;
   if(isCreative())for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=true;
   meat=d.meat||0;updateMeatHUD();
+  armor=(d.armor&&ARMOR_DEFS[d.armor.tier])?{tier:d.armor.tier,dur:Math.min(ARMOR_DEFS[d.armor.tier].maxDur,Math.max(1,d.armor.dur||0))}:null;updateArmorHUD();
   if(d.hasDiamondSword)applyDiamondSword();
   if(d.hasDiamondBow)applyDiamondBow();
   if(d.hasDiamondStaff)applyDiamondStaff();
