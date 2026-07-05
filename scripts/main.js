@@ -121,6 +121,7 @@ const ACHIEVEMENT_DEFS={
   dragonSlayer:{title:'ドラゴンスレイヤー',desc:'キングダイヤモンドドラゴンを倒す',reward:'🏆 CLEAR BONUS',apply(){gs.score+=3000;}},
   firstEnchant:{title:'エンチャントの力',desc:'強化台で武器を強化する',reward:'SCORE +500',apply(){gs.score+=500;}},
   firstSmelt:{title:'鉄の時代',desc:'かまどで鉄を精錬する',reward:'SCORE +300',apply(){gs.score+=300;}},
+  thunderStruck:{title:'雷に打たれても',desc:'落雷の直撃を受けて生き延びる',reward:'SCORE +200',apply(){gs.score+=200;}},
   biomeCollector:{title:'バイオームコレクター',desc:'6バイオームの固有素材をすべて所持する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   endless25:{title:'終わらない戦い',desc:'エンドレスモードでWAVE25に到達',reward:'SCORE +2000',apply(){gs.score+=2000;}},
   endless30:{title:'伝説の生存者',desc:'エンドレスモードでWAVE30に到達',reward:'SCORE +5000',apply(){gs.score+=5000;}},
@@ -868,6 +869,7 @@ function renderWorldGuide(){
     '<div class="codexSub">♾ エンドレスモード</div><div class="codexNote">WAVE20のキングドラゴンを倒すと、クリア画面からそのままエンドレスモードへ突入できる。WAVEは無限に続き敵は強くなり続ける。5WAVEごとに歴代ボスの強化版（EXボス）が出現し、倒すと💎を落とす。ハイスコアはランキングに♾クリア済みとして記録される。</div>'+
     '<div class="codexSub">防具</div><div class="codexNote">鎧は敵の攻撃を軽減する（🛡木20% / 🛡石35% / 🔩鉄45% / 💎ダイヤ55%）。ダメージを防ぐたび耐久が減り、0で壊れる。再クラフトで修理・装備し直せる。溶岩・寒冷・空腹ダメージには無効。</div>'+
     '<div class="codexSub">🔥 精錬（かまど）</div><div class="codexNote">地下の深さ13以降に🔶鉄鉱石が生成される。🪨×12でかまどをクラフトしてXキー(スマホはPLACE長押し)で設置し、近くでクラフトメニューを開くと精錬メニューが現れる。鉄鉱石＋🪵木(燃料)で🔩鉄インゴットを作り、🔩鉄の剣(🔩×3+🪵×1・攻撃5)や🔩鉄の鎧(🔩×5・軽減45%)にできる。石装備とダイヤ装備の間をつなぐ中間ティア。</div>'+
+    '<div class="codexSub">🌦 天気</div><div class="codexNote">🌧雨・⛈雷雨は見た目だけでなく戦況に影響する。屋外で雨に濡れていると🔥炎上(DoT)の消化が早まる。❄雪原で⛈雷雨が重なると吹雪になり、移動速度が低下し満腹度の消費が増え、寒冷ダメージの間隔も短くなる。⛈雷雨では白い光の柱が現れたら数秒後に落雷する予告。範囲内にいるとプレイヤー・敵・ボスいずれもダメージを受けるので、柱を見たら離れよう。</div>'+
     '<div class="codexSub">動物・牧畜</div><div class="codexNote">🐷豚: 倒すと🥩肉 / 🐑羊: Xキーで刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。倒すと肉とウールの両方 / 🐔鶏: 時々🥚卵を産み落とす。歩いて拾うと満腹度が回復。倒すと肉。</div>'+
     '<div class="codexSub">🐺 相棒（ペット）</div><div class="codexNote">野生のオオカミは🥩肉を持っていると寄ってくる。近づいてXキー(スマホはPLACE長押し)で肉を1つあげると手なずけられ、相棒として付いてきて敵と戦ってくれる。HPが0になっても倒れるだけで、時間経過か肉をあげると復活。肉をあげればHP回復もできる。</div>'+
     '<div class="codexSub">農業</div><div class="codexNote">🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキーで植える。時間とともに育ち、成熟したらXキーで収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復できる。</div>'+
@@ -2545,7 +2547,8 @@ function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;c
   // 状態異常（火矢/炎上エンチャント=DoT、氷矢/氷結エンチャント=鈍足）
   if(boss.slowT>0)boss.slowT-=dt;
   if(boss.burnT>0){
-    boss.burnT-=dt;boss.burnAcc=(boss.burnAcc||0)+dt;
+    boss.burnT-=dt*(weatherWet?2.2:1); // 雨天は消火が早い
+    boss.burnAcc=(boss.burnAcc||0)+dt;
     if(boss.burnAcc>=.7){boss.burnAcc=0;boss.hp-=3;spawnParticles(bp.x,bp.y+sc*.5,bp.z,0xff6622,3);
       boss.hpBar.scale.x=Math.max(.01,boss.hp/boss.maxHp);
       if(boss.hp<=0){killBoss();return;}}
@@ -3350,18 +3353,25 @@ function updateCelestial(t,dt){
   }
 }
 
-// ─── WEATHER STATE (visual + audio only; no gameplay effect) ───
+// ─── WEATHER STATE ───
+// 天気は見た目/音だけでなく以下のゲームプレイに接続する:
+//  雨・雷雨(屋外時): 炎上(DoT)の消化が早まる(weatherWet)
+//  吹雪(雪原+雷雨tier): 移動速度低下・満腹度消費増加・寒冷ダメージ間隔短縮(blizzard)
+//  雷雨: 落雷が予告付きでプレイヤー/敵/ボスにダメージを与えることがある
 let weather=0;              // 0 clear, 1 rain, 2 thunderstorm
 let weatherT=45+Math.random()*60;
 let LIGHTNING=0,lightningT=6;
+let weatherWet=false;  // 屋外で雨/雷雨が降っている（炎上ダメージ減衰に使用）
+let blizzard=false;    // 雪原での吹雪（移動速度・満腹度・寒冷ダメージに影響）
 const $lightning=document.getElementById('lightning');
 function weatherIcon(){return weather===2?'⛈':weather===1?'🌧':'';}
 function setWeather(w){
   weather=w;
   weatherT=w===0?(55+Math.random()*70):w===1?(42+Math.random()*48):(26+Math.random()*30);
 }
-function resetWeather(){weather=0;weatherT=45+Math.random()*60;LIGHTNING=0;lightningT=6;WEATHER_DIM=0;
-  for(const grp of[rainGroup,snowGroup]){grp.visible=false;grp.userData.mat.opacity=0;}}
+function resetWeather(){weather=0;weatherT=45+Math.random()*60;LIGHTNING=0;lightningT=6;WEATHER_DIM=0;weatherWet=false;blizzard=false;
+  for(const grp of[rainGroup,snowGroup]){grp.visible=false;grp.userData.mat.opacity=0;}
+  clearLightningStrikes();}
 function sfxThunder(){
   if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
   try{
@@ -3400,13 +3410,82 @@ function updateWeather(dt,inVolcano,inSnow,isUnder,nowSec){
     else if(weather===1)showAlert('🌧 雨が降り出した');
   }
   const active=weather>=1&&!isUnder&&!inVolcano;
+  weatherWet=active; // 屋外の雨/雷雨: 炎上の消化を早める（updateBoss/敵ループで参照）
   const dimTarget=isUnder||inVolcano?0:(weather===2?0.5:weather===1?0.2:0);
   WEATHER_DIM+=(dimTarget-WEATHER_DIM)*Math.min(1,dt*1.4);
   const gy=P.y-6;
   _updatePrecip(rainGroup,active&&!inSnow,P.x,gy,P.z,nowSec,weather===2?17:13,weather===2?.6:.45,dt);
-  _updatePrecip(snowGroup,active&&inSnow,P.x,gy,P.z,nowSec,2.6,.85,dt);
-  if(weather===2&&!isUnder){lightningT-=dt;if(lightningT<=0){lightningT=4+Math.random()*9;triggerLightning();}}
+  // 吹雪(雪原+雷雨tier)はより濃く速い降雪にして視覚的にも危険を伝える
+  _updatePrecip(snowGroup,active&&inSnow,P.x,gy,P.z,nowSec,weather===2?4.4:2.6,weather===2?.95:.75,dt);
+  const wasBlizzard=blizzard;
+  blizzard=active&&inSnow&&weather===2;
+  if(blizzard&&!wasBlizzard&&!isCreative())showAlert('❄ 吹雪だ！動きが鈍り満腹度も早く減る');
+  if(weather===2&&!isUnder){lightningT-=dt;if(lightningT<=0){lightningT=4+Math.random()*9;triggerLightning();if(!inVolcano)maybeSpawnLightningStrike();}}
   if(LIGHTNING>0){LIGHTNING=Math.max(0,LIGHTNING-dt*5);hemLight.intensity+=LIGHTNING;} // applied after updateSky this frame
+  updateLightningStrikes(dt);
+}
+
+// ─── 落雷（雷雨中、予告付きでダメージを与える環境ハザード） ───
+// 警告(warnT)の間はビームとリングが徐々に濃くなり、逃げる猶予を与える。
+// 経過後にプレイヤー/敵/ボスへ水平距離判定でダメージを与える（他のAoE攻撃と同じ判定方式）。
+let lightningStrikes=[]; // {mesh,ring,x,z,warnT,totalWarn}
+const _strikeBeamGeo=new THREE.CylinderGeometry(.05,.05,34,6);
+const _strikeRingGeo=new THREE.RingGeometry(.5,.9,16);
+function maybeSpawnLightningStrike(){
+  if(isCreative()||!gs.running)return;
+  let tx,tz;
+  const nearby=[];
+  for(const e of enemies){const d=Math.hypot(e.root.position.x-P.x,e.root.position.z-P.z);if(d<16)nearby.push(e.root.position);}
+  if(boss){const d=Math.hypot(boss.root.position.x-P.x,boss.root.position.z-P.z);if(d<16)nearby.push(boss.root.position);}
+  if(nearby.length&&Math.random()<0.55){
+    const t=nearby[Math.floor(Math.random()*nearby.length)];tx=t.x;tz=t.z;
+  }else if(Math.random()<0.45){
+    tx=P.x;tz=P.z; // プレイヤー自身を狙う（警告時間中に逃げれば回避できる）
+  }else{
+    const ang=Math.random()*Math.PI*2,dist=6+Math.random()*8;
+    tx=P.x+Math.cos(ang)*dist;tz=P.z+Math.sin(ang)*dist;
+  }
+  const gy=getHeight(Math.floor(tx),Math.floor(tz));
+  const mat=new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0});
+  const mesh=new THREE.Mesh(_strikeBeamGeo,mat);
+  mesh.position.set(tx,gy+17,tz);scene.add(mesh);
+  const ringMat=new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0,side:THREE.DoubleSide});
+  const ring=new THREE.Mesh(_strikeRingGeo,ringMat);
+  ring.rotation.x=-Math.PI/2;ring.position.set(tx,gy+.05,tz);scene.add(ring);
+  lightningStrikes.push({mesh,ring,x:tx,z:tz,warnT:0.9,totalWarn:0.9});
+  playTone(1400,.15,.06,'sine'); // 落雷予告の高音（雷鳴とは別音）
+}
+function _resolveLightningStrike(s){
+  const gy=getHeight(Math.floor(s.x),Math.floor(s.z));
+  spawnParticles(s.x,gy+1,s.z,0xeaf6ff,8);
+  sfxThunder();
+  const R=2.6;
+  if(Math.hypot(s.x-P.x,s.z-P.z)<R){
+    dmgPlayer(14);
+    if(P.hp>0)unlockAchievement('thunderStruck');
+  }
+  if(boss){const bp=boss.root.position;if(Math.hypot(s.x-bp.x,s.z-bp.z)<R*boss.sc)hitBoss(10);}
+  for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(s.x-ep.x,s.z-ep.z)<R)hitEnemy(en,8);}
+}
+function updateLightningStrikes(dt){
+  for(let i=lightningStrikes.length-1;i>=0;i--){
+    const s=lightningStrikes[i];
+    s.warnT-=dt;
+    const p=Math.max(0,1-s.warnT/s.totalWarn);
+    s.mesh.material.opacity=p*0.55;
+    s.ring.material.opacity=p*0.6;
+    s.ring.scale.setScalar(1+p*.3);
+    if(s.warnT<=0){
+      _resolveLightningStrike(s);
+      scene.remove(s.mesh);s.mesh.material.dispose();
+      scene.remove(s.ring);s.ring.material.dispose();
+      lightningStrikes.splice(i,1);
+    }
+  }
+}
+function clearLightningStrikes(){
+  for(const s of lightningStrikes){scene.remove(s.mesh);s.mesh.material.dispose();scene.remove(s.ring);s.ring.material.dispose();}
+  lightningStrikes.length=0;
 }
 
 // ─── TARGET BLOCK OUTLINE (Minecraft-style block cursor) ───
@@ -4211,14 +4290,14 @@ function tick(now){
   if(bpTimer>0){bpTimer-=dt;if(bpTimer<=0)$bp.classList.remove('show');}
   P.invT=Math.max(0,P.invT-dt);if(attackCD>0)attackCD=Math.max(0,attackCD-dt);
   lavaDmgTimer=Math.max(0,lavaDmgTimer-dt);if(lavaDmgTimer<=0&&checkLava()){dmgLava();lavaDmgTimer=0.8;}
-  if(inSnow){snowDmgTimer=Math.max(0,snowDmgTimer-dt);if(snowDmgTimer<=0){dmgSnow();snowDmgTimer=3.0;}}
+  if(inSnow){snowDmgTimer=Math.max(0,snowDmgTimer-dt);if(snowDmgTimer<=0){dmgSnow();snowDmgTimer=blizzard?2.2:3.0;}}
   lavaParticleT+=dt;if(lavaParticleT>.15){lavaParticleT=0;for(const k of lavaBlocks){if(Math.random()<.04){const[lx,ly,lz]=k.split('|').map(Number);if(Math.abs(lx-P.x)<20&&Math.abs(lz-P.z)<20)spawnLavaParticles(lx+.5,ly+1,lz+.5);}}}
   if(inSnow){snowParticleT+=dt;if(snowParticleT>.3){snowParticleT=0;spawnSnowParticles(P.x,P.y,P.z);}}
   let fw=joy.y,sr=joy.x;
   if(isDesktop){fw=0;sr=0;if(keys['KeyW']||keys['ArrowUp'])fw=1;if(keys['KeyS']||keys['ArrowDown'])fw=-1;if(keys['KeyA']||keys['ArrowLeft'])sr=-1;if(keys['KeyD']||keys['ArrowRight'])sr=1;if(fw&&sr){const inv2=1/Math.SQRT2;fw*=inv2;sr*=inv2;}}
   const _wantSprint=isDesktop?(!!keys['ShiftLeft']||!!keys['ShiftRight']):Math.hypot(joy.x,joy.y)>.92;
   const sprinting=_wantSprint&&P.food>20&&!P.flying; // too hungry to sprint / shift descends while flying
-  const curSpeed=P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED);
+  const curSpeed=(P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED))*(blizzard?0.72:1);
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE,P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
@@ -4227,7 +4306,7 @@ function tick(now){
   updateHand(dt,_moving,sprinting);
   // hunger: drains over time, faster while sprinting; at 0 you slowly starve
   // (HP never drops below 10 from hunger, like Minecraft's gentler modes)
-  if(!isCreative())P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving?0.35:0))*dt);
+  if(!isCreative())P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving?0.35:0)+(blizzard?0.15:0))*dt);
   if(P.food<=0){starveT+=dt;if(starveT>=3){starveT=0;if(P.hp>10){P.hp=Math.max(10,P.hp-2*difficultyMult());playTone(160,.12,.06,'sawtooth');}}}
   else starveT=0;
   // sprint FOV kick (Minecraft-style)
@@ -4245,7 +4324,8 @@ function tick(now){
     // 状態異常: 炎上（0.7秒ごとに2ダメージ）/ 氷結（移動速度45%）
     if(e.slowT>0)e.slowT-=dt;
     if(e.burnT>0){
-      e.burnT-=dt;e.burnAcc=(e.burnAcc||0)+dt;
+      e.burnT-=dt*(weatherWet?2.2:1); // 雨天は消火が早い
+      e.burnAcc=(e.burnAcc||0)+dt;
       if(e.burnAcc>=.7){e.burnAcc=0;e.hp-=2;spawnParticles(ep.x,ep.y+.5,ep.z,0xff6622,2);
         const br=Math.max(0,e.hp/e.maxHp);e.hpBar.scale.x=Math.max(.01,br);}
     }
