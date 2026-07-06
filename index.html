@@ -208,6 +208,35 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="scripts/main.js?v=20260719a"></script>
+<script>
+// ゲーム本体は scripts/game/*.js に機能別分割されている。各ファイルは同一の
+// グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
+// boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
+(function(){
+  var V='20260719a';
+  var PARTS=['state','achievements','crafting','save','ui','audio',
+             'world','combat','entities','hud','input','main'];
+  function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
+  function loadParts(){
+    // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）
+    for(var i=0;i<PARTS.length;i++){
+      var s=document.createElement('script');
+      s.src='scripts/game/'+PARTS[i]+'.js?v='+V;
+      s.async=false;
+      s.onerror=fail;
+      document.head.appendChild(s);
+    }
+  }
+  if(typeof THREE==='undefined'){
+    var fallback=document.createElement('script');
+    fallback.src='https://unpkg.com/three@0.128.0/build/three.min.js';
+    fallback.onload=loadParts;
+    fallback.onerror=fail;
+    document.head.appendChild(fallback);
+  }else{
+    loadParts();
+  }
+})();
+</script>
 </body>
 </html>
