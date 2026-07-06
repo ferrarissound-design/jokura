@@ -86,7 +86,7 @@ canvas#c{display:block;touch-action:none}
 #overlay.hide{display:none}
 /* ovContent が画面より縦に長くなっても(長文追加時など)タイトルが safe-area の外に
    はみ出て見えなくならないよう、.menuCard と同じ「内側で縦スクロール」方式にする。 */
-#ovContent{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;box-sizing:border-box;padding:calc(10px + var(--safeT)) calc(12px + var(--safeR)) calc(10px + var(--safeB)) calc(12px + var(--safeL))}
+#ovContent{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;box-sizing:border-box;padding:calc(10px + var(--safeT)) calc(12px + var(--safeR)) calc(10px + var(--safeB)) calc(12px + var(--safeL))}
 #ovTitle{font-family:'Press Start 2P',monospace;font-size:min(38px,9.5vw);color:#f9d342;text-shadow:3px 3px 0 #a86c00,6px 6px 0 #4a3000,0 0 30px #f9d34266;text-align:center;line-height:1.3;letter-spacing:2px}
 #ovSplash{font-family:'Press Start 2P',monospace;font-size:min(8px,2.3vw);color:#ffff55;text-shadow:1px 1px 0 #888800;transform:rotate(-4deg);letter-spacing:.5px;margin:-4px 0 2px}
 #ovSub{font-family:'Press Start 2P',monospace;font-size:min(9px,2.5vw);color:#aaa;letter-spacing:2px;text-shadow:1px 1px 0 #000}
