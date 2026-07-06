@@ -1982,6 +1982,13 @@ const staffOrbGeo=new THREE.OctahedronGeometry(.22,0);const staffOrbMat=new THRE
 // エンチャント込みの実効ダメージ / 射程
 function wDmg(w){return w.dmg+enchants.atk;}
 function wRange(w){return w.range*(1+enchants.rng*.15);}
+function ensureUnlockedWeaponSelected(){
+  if(unlockedWeapons[weaponIdx])return;
+  const fallback=unlockedWeapons.findIndex(Boolean);
+  if(fallback>=0)weaponIdx=fallback;
+  else{unlockedWeapons[0]=true;weaponIdx=0;}
+  attackCD=0;
+}
 // ─── 状態異常（炎上=DoT / 氷結=鈍足）: 火矢・氷矢と属性エンチャントが付与 ───
 function igniteEnemy(en){if(!en||en.dead)return;en.burnT=3;}
 function chillEnemy(en){if(!en||en.dead)return;en.slowT=3;}
@@ -4215,6 +4222,7 @@ function undergroundDeath(){
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;}}
     if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;}}
     if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';}}
+    ensureUnlockedWeaponSelected();
     chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;furnaceCount=undergroundSnapshot.furnaceCount!=null?undergroundSnapshot.furnaceCount:furnaceCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();updateFurnaceHUD();
     undergroundSnapshot=null;
   }
@@ -4336,6 +4344,7 @@ async function continueGame(){
   if(d.hasDiamondBow)applyDiamondBow();
   if(d.hasDiamondStaff)applyDiamondStaff();
   if(d.hasDiamondHammer)applyDiamondHammer();
+  ensureUnlockedWeaponSelected();
   if(d.worldSeed)initWorldNoise(d.worldSeed);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();Object.assign(worldEdits.placed,d.worldEdits.placed||{});Object.assign(worldEdits.removed,d.worldEdits.removed||{});}
