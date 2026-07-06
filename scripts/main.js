@@ -2886,7 +2886,7 @@ function plantSeed(){
   if(!gs.running)return false;
   if(!isCreative()&&inv.seed<=0)return false;
   const bh=castVoxel();if(!bh)return false;
-  if(bh.ti!==0||bh.ny<=0)return false; // 草ブロック(ti===0)の上面を見ている場合のみ植えられる
+  if(!((bh.ti===0||bh.ti===5)&&bh.ny>0))return false; // 草ブロック(草原/森林)の上面を見ている場合のみ植えられる
   const px=bh.x,py=bh.y+1,pz=bh.z;
   for(const f of farmPlots){if(Math.floor(f.x)===px&&Math.floor(f.y)===py&&Math.floor(f.z)===pz)return false;}
   if(px<P.x+.4&&px+1>P.x-.4&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.4&&pz+1>P.z-.4)return false;
