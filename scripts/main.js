@@ -3033,7 +3033,7 @@ function spawnAnimals(count=8){
   }
 }
 function killMob(mob){
-  scene.remove(mob.root);mob.dead=true;
+  scene.remove(mob.root);disposeObject3D(mob.root);mob.dead=true;
   let msg,color=0xf4a9a8;
   if(mob.kind==='sheep'){
     meat++;const wool=mob.sheared?(1+Math.floor(Math.random()*2)):(2+Math.floor(Math.random()*2));
@@ -3154,7 +3154,7 @@ function hitPet(dmg){
   pet.hp-=dmg;pet.hitFlash=.15;pet.root.scale.set(1.25,.75,1.25);playTone(300,.1,.1,'square');
   if(pet.hp<=0){pet.hp=0;pet.downT=PET_REVIVE_T;pet.target=null;pet.root.rotation.z=1.35;showAlert('🐺 相棒が倒れた… しばらくすると復活');playTone(200,.25,.15,'sawtooth');}
 }
-function removePet(){if(pet){scene.remove(pet.root);pet=null;}updatePetHUD();}
+function removePet(){if(pet){scene.remove(pet.root);disposeObject3D(pet.root);pet=null;}updatePetHUD();}
 function spawnPetAtPlayer(hp,downT){
   removePet();
   const built=makeWolfMesh();
@@ -4263,7 +4263,7 @@ function gameOver(){
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
-  for(const mob of mobs)scene.remove(mob.root);mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
+  for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   removePet();removeHorse();
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
   endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
