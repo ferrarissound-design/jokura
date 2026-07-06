@@ -2308,8 +2308,8 @@ function spawnUnderEnemy(){
   }
 }
 function spawnDiamondDragon(){
-  if(dragon||P.y>=-1)return;
   dragonWarnPending=false;
+  if(dragon||P.y>=-1)return;
   const angle=Math.random()*Math.PI*2,dist=12+Math.random()*6;
   const sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
   const built=buildDiamondDragon();
