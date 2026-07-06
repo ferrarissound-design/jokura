@@ -2294,10 +2294,12 @@ function spawnUnderEnemy(){
       const vf=voxels[vKey(sx,sy-1,sz)];
       if(!vf||!vf.active||vf.ti===WATER_BLOCK||vf.ti===LAVA_BLOCK)continue;
       const depth=-sy;
-      let et;
-      if(depth>=22){et=ENEMY_TYPES[8];}
-      else if(depth>=12){et=Math.random()<.4?ENEMY_TYPES[6]:ENEMY_TYPES[8];}
-      else et=ENEMY_TYPES[6];
+      let et,r=Math.random();
+      // Underground enemy tiers: bats/slimes in shallow caves, abyss bats in
+      // mid/deep caves, and crystal golems only in the deepest layer.
+      if(depth>=22){et=r<.65?ENEMY_TYPES[7]:ENEMY_TYPES[8];}
+      else if(depth>=12){et=r<.45?ENEMY_TYPES[7]:r<.75?ENEMY_TYPES[6]:ENEMY_TYPES[5];}
+      else et=r<.55?ENEMY_TYPES[5]:ENEMY_TYPES[6];
       const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
       const built=et.builder(mat);
       built.root.position.set(sx+.5,sy+.85,sz+.5);markShadowCaster(built.root);scene.add(built.root);
