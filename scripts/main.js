@@ -298,6 +298,10 @@ function applyIronSword(){
   WEAPONS[1].name='🔩 Iron Sword';WEAPONS[1].dmg=5;WEAPONS[1].cd=0.38;
   if(weaponIdx===1){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='🔩 Iron Sword';}
 }
+function resetSwordStats(){
+  WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
+  if(weaponIdx===1){const wl=document.getElementById('weaponLabel');if(wl)wl.textContent='⚔ Sword';}
+}
 function applyDiamondSword(){
   hasDiamondSword=true;
   WEAPONS[1].name='💎 Diamond Sword';WEAPONS[1].dmg=8;WEAPONS[1].cd=0.35;
@@ -1978,6 +1982,13 @@ const staffOrbGeo=new THREE.OctahedronGeometry(.22,0);const staffOrbMat=new THRE
 // エンチャント込みの実効ダメージ / 射程
 function wDmg(w){return w.dmg+enchants.atk;}
 function wRange(w){return w.range*(1+enchants.rng*.15);}
+function ensureUnlockedWeaponSelected(){
+  if(unlockedWeapons[weaponIdx])return;
+  const fallback=unlockedWeapons.findIndex(Boolean);
+  if(fallback>=0)weaponIdx=fallback;
+  else{unlockedWeapons[0]=true;weaponIdx=0;}
+  attackCD=0;
+}
 // ─── 状態異常（炎上=DoT / 氷結=鈍足）: 火矢・氷矢と属性エンチャントが付与 ───
 function igniteEnemy(en){if(!en||en.dead)return;en.burnT=3;}
 function chillEnemy(en){if(!en||en.dead)return;en.slowT=3;}
@@ -4203,13 +4214,15 @@ function undergroundDeath(){
   if(undergroundSnapshot){
     for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}
     unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
-    if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;}}
+    if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;resetSwordStats();}}
     // 鉄の剣もスナップショットへ巻き戻す（ダイヤ剣が無いときだけ性能を反映）
     hasIronSword=!!undergroundSnapshot.hasIronSword;
     if(hasIronSword){unlockedWeapons[1]=true;if(!hasDiamondSword){WEAPONS[1].name='🔩 Iron Sword';WEAPONS[1].dmg=5;WEAPONS[1].cd=0.38;}}
+    else if(!hasDiamondSword){resetSwordStats();}
     if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;}}
     if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;}}
     if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';}}
+    ensureUnlockedWeaponSelected();
     chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;furnaceCount=undergroundSnapshot.furnaceCount!=null?undergroundSnapshot.furnaceCount:furnaceCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();updateFurnaceHUD();
     undergroundSnapshot=null;
   }
@@ -4331,6 +4344,7 @@ async function continueGame(){
   if(d.hasDiamondBow)applyDiamondBow();
   if(d.hasDiamondStaff)applyDiamondStaff();
   if(d.hasDiamondHammer)applyDiamondHammer();
+  ensureUnlockedWeaponSelected();
   if(d.worldSeed)initWorldNoise(d.worldSeed);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();Object.assign(worldEdits.placed,d.worldEdits.placed||{});Object.assign(worldEdits.removed,d.worldEdits.removed||{});}
