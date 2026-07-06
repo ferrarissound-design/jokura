@@ -509,6 +509,11 @@ function applyWorldEdits(){
   for(const k in worldEdits.placed){
     if(!voxels[k]){
       const[x,y,z]=k.split('|').map(Number);
+      // Do not replay edits into chunks that are not currently generated.
+      // applyWorldEdits() runs after chunk generation, so the edit will be
+      // applied once its owning chunk record exists instead of creating an
+      // invisible orphan voxel with collision but no merged-mesh membership.
+      if(!recAt(x,y,z))continue;
       // placed values are packed ti|(meta<<5); legacy saves store plain ti (≤16, meta 0)
       const raw=worldEdits.placed[k];
       addBlock(x,y,z,raw&31,true,true,raw>>5);
