@@ -3933,7 +3933,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code>='Digit1'&&e.code<='Digit8')setType(parseInt(e.code[5])-1);
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='KeyR')cycleArrowMode();
-  if(e.code==='F5'){e.preventDefault();if(gs.running)saveGame();}
+  if(e.code==='F5'&&gs.running){e.preventDefault();saveGame();}
   if(e.code==='KeyC'){if(gs.running)toggleCraftPanel();}
   if(e.code==='KeyQ'||e.code==='KeyG')openQuest();
   if(e.code==='KeyX')doFurnitureAction();
