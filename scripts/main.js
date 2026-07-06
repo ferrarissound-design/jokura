@@ -509,6 +509,11 @@ function applyWorldEdits(){
   for(const k in worldEdits.placed){
     if(!voxels[k]){
       const[x,y,z]=k.split('|').map(Number);
+      // Do not replay edits into chunks that are not currently generated.
+      // applyWorldEdits() runs after chunk generation, so the edit will be
+      // applied once its owning chunk record exists instead of creating an
+      // invisible orphan voxel with collision but no merged-mesh membership.
+      if(!recAt(x,y,z))continue;
       // placed values are packed ti|(meta<<5); legacy saves store plain ti (≤16, meta 0)
       const raw=worldEdits.placed[k];
       addBlock(x,y,z,raw&31,true,true,raw>>5);
@@ -2303,8 +2308,8 @@ function spawnUnderEnemy(){
   }
 }
 function spawnDiamondDragon(){
-  if(dragon||P.y>=-1)return;
   dragonWarnPending=false;
+  if(dragon||P.y>=-1)return;
   const angle=Math.random()*Math.PI*2,dist=12+Math.random()*6;
   const sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
   const built=buildDiamondDragon();
@@ -2411,17 +2416,18 @@ function buildKingDragon(sc,def){
 }
 function buildBoss(def,sc){
   if(def.finalBoss)return buildKingDragon(sc,def);
+  const visualWave=def.baseWave||def.wave;
   const root=new THREE.Object3D();
   const mat=new THREE.MeshStandardMaterial({color:def.color,roughness:.5,emissive:def.emissive,emissiveIntensity:.35});
   const body=new THREE.Mesh(new THREE.BoxGeometry(.85*sc,1.7*sc,.85*sc),mat.clone());
   const head=new THREE.Mesh(new THREE.BoxGeometry(.7*sc,.7*sc,.7*sc),mat.clone());head.position.y=1.15*sc;
   const glow=(w,h,d,c)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:c}));
-  if(def.wave===5||def.wave===13){
+  if(visualWave===5||visualWave===13){
     // 骸骨共通: 眼窩＋光る瞳＋鼻孔＋歯＋肋骨＋背骨＋骨の腕
     const boneM=()=>makeMat(0xe8e0cc,0x444455,.25,.55);
     const sockL=glow(.2*sc,.22*sc,.06*sc,0x05050a);sockL.position.set(-.17*sc,.12*sc,.33*sc);head.add(sockL);
     const sockR=sockL.clone();sockR.position.x=.17*sc;head.add(sockR);
-    const pupL=glow(.1*sc,.1*sc,.05*sc,def.wave===5?0xff2200:0x44ddff);pupL.position.set(-.17*sc,.12*sc,.36*sc);head.add(pupL);
+    const pupL=glow(.1*sc,.1*sc,.05*sc,visualWave===5?0xff2200:0x44ddff);pupL.position.set(-.17*sc,.12*sc,.36*sc);head.add(pupL);
     const pupR=pupL.clone();pupR.position.x=.17*sc;head.add(pupR);
     const nose=glow(.08*sc,.12*sc,.05*sc,0x05050a);nose.position.set(0,-.06*sc,.35*sc);head.add(nose);
     const jaw=glow(.44*sc,.05*sc,.05*sc,0x05050a);jaw.position.set(0,-.21*sc,.35*sc);head.add(jaw);
@@ -2432,7 +2438,7 @@ function buildBoss(def,sc){
     const armG=new THREE.BoxGeometry(.15*sc,1.15*sc,.15*sc);
     const aL=new THREE.Mesh(armG,boneM());aL.position.set(-.56*sc,-.08*sc,0);aL.rotation.z=.12;root.add(aL);
     const aR=new THREE.Mesh(armG,boneM());aR.position.set(.56*sc,-.08*sc,0);aR.rotation.z=-.12;root.add(aR);
-    if(def.wave===5){
+    if(visualWave===5){
       // 王: 黄金の王冠＋宝石＋真紅のマント
       const crownM=new THREE.MeshStandardMaterial({color:0xffd700,emissive:0x886600,emissiveIntensity:.5});
       const band=new THREE.Mesh(new THREE.BoxGeometry(.56*sc,.12*sc,.56*sc),crownM);band.position.y=.38*sc;head.add(band);
@@ -2458,7 +2464,7 @@ function buildBoss(def,sc){
       const edgeR=edgeL.clone();edgeR.position.z=-.5*sc;haft.add(edgeR);
     }
   }
-  else if(def.wave===10){
+  else if(visualWave===10){
     // ゴーレム: 岩の巨体＋溶岩の亀裂＋燃える頭と拳
     body.scale.x=1.3;body.scale.z=1.2;head.scale.set(.85,.8,.85);head.position.y=1.08*sc;
     const rockM=()=>makeMat(0x332112,0x441100,.3,.95);
@@ -2482,7 +2488,7 @@ function buildBoss(def,sc){
     const kL=glow(.4*sc,.08*sc,.08*sc,0xff5500);kL.position.set(0,.05*sc,.29*sc);fL.add(kL);
     const kR=kL.clone();fR.add(kR);
   }
-  else if(def.wave===15){
+  else if(visualWave===15){
     // 巨大な単眼: 白目＋虹彩＋血管、影の胴体と8本の触手
     body.scale.set(.7,1,.7);
     head.scale.set(1.7,1.7,1.7);head.position.y=1.35*sc;
@@ -2496,7 +2502,7 @@ function buildBoss(def,sc){
     const wL=glow(.08*sc,.08*sc,.05*sc,0xcc00ff);wL.position.set(-.15*sc,.35*sc,.31*sc);body.add(wL);
     const wR=wL.clone();wR.position.x=.15*sc;body.add(wR);
   }
-  else if(def.wave===17){
+  else if(visualWave===17){
     // 魔導士: とんがり帽子＋ローブ＋白髭＋魔法の杖
     const robeM=()=>new THREE.MeshStandardMaterial({color:def.color,roughness:.6,emissive:def.emissive,emissiveIntensity:.25});
     const brim=makeBox(1.0*sc,.09*sc,1.0*sc,robeM());brim.position.y=.38*sc;head.add(brim);
@@ -3315,7 +3321,7 @@ let endlessMode=false;
 function makeEndlessBossDef(){
   const base=BOSS_DEFS[Math.floor(Math.random()*(BOSS_DEFS.length-1))]; // 最終ボスは除外
   const over=gs.wave-20;
-  return{...base,wave:gs.wave,finalBoss:false,miniBoss:false,
+  return{...base,wave:gs.wave,baseWave:base.wave,finalBoss:false,miniBoss:false,
     name:base.name+' EX',
     baseHp:Math.round(base.baseHp*(1+over*.12)),
     dmg:base.dmg+Math.floor(over*.7),
@@ -4195,13 +4201,13 @@ function undergroundDeath(){
   if(undergroundSnapshot){
     for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}
     unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
-    if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;unlockedWeapons[1]=false;}}
+    if(undergroundSnapshot.hasDiamondSword){if(!hasDiamondSword)applyDiamondSword();}else{if(hasDiamondSword){hasDiamondSword=false;WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;}}
     // 鉄の剣もスナップショットへ巻き戻す（ダイヤ剣が無いときだけ性能を反映）
     hasIronSword=!!undergroundSnapshot.hasIronSword;
     if(hasIronSword){unlockedWeapons[1]=true;if(!hasDiamondSword){WEAPONS[1].name='🔩 Iron Sword';WEAPONS[1].dmg=5;WEAPONS[1].cd=0.38;}}
-    if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;unlockedWeapons[3]=false;}}
-    if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;unlockedWeapons[5]=false;}}
-    if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';unlockedWeapons[2]=false;}}
+    if(undergroundSnapshot.hasDiamondBow){if(!hasDiamondBow)applyDiamondBow();}else{if(hasDiamondBow){hasDiamondBow=false;WEAPONS[3].name='🏹 Bow';WEAPONS[3].dmg=4;WEAPONS[3].cd=0.7;}}
+    if(undergroundSnapshot.hasDiamondStaff){if(!hasDiamondStaff)applyDiamondStaff();}else{if(hasDiamondStaff){hasDiamondStaff=false;}}
+    if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';}}
     chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;furnaceCount=undergroundSnapshot.furnaceCount!=null?undergroundSnapshot.furnaceCount:furnaceCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();updateFurnaceHUD();
     undergroundSnapshot=null;
   }
