@@ -1,0 +1,212 @@
+// ============================================================================
+// jokura / save.js
+// scripts/main.js を機能別に分割したファイルの一部。index.html から three.js の
+// 読み込み完了後、下記の順序で <script> として読み込まれ、すべて同一のグローバル
+// スコープを共有する（元は単一の boot() 関数だったため、この順序と共有スコープが前提）。
+// 読み込み順: state → achievements → crafting → save → ui → audio → world →
+//             combat → entities → hud → input → main
+// ============================================================================
+
+// ═══ WORLD EDITS ═══
+const worldEdits={placed:{},removed:{}};
+function resetWorldEdits(){
+  for(const k in worldEdits.placed)delete worldEdits.placed[k];
+  for(const k in worldEdits.removed)delete worldEdits.removed[k];
+}
+function applyWorldEdits(){
+  _deferDirty=true; // batch chunk rebuilds: one per touched chunk, not per edit
+  for(const k in worldEdits.removed){
+    if(voxels[k]&&voxels[k].active){
+      const[x,y,z]=k.split('|').map(Number);
+      removeBlock(x,y,z);
+    }
+  }
+  for(const k in worldEdits.placed){
+    if(!voxels[k]){
+      const[x,y,z]=k.split('|').map(Number);
+      // Do not replay edits into chunks that are not currently generated.
+      // applyWorldEdits() runs after chunk generation, so the edit will be
+      // applied once its owning chunk record exists instead of creating an
+      // invisible orphan voxel with collision but no merged-mesh membership.
+      if(!recAt(x,y,z))continue;
+      // placed values are packed ti|(meta<<5); legacy saves store plain ti (≤16, meta 0)
+      const raw=worldEdits.placed[k];
+      addBlock(x,y,z,raw&31,true,true,raw>>5);
+    }
+  }
+  _deferDirty=false;flushDirtyChunks();
+}
+
+// ═══ SAVE ═══
+const SAVE_VERSION=6;
+const SAVE_SLOT_COUNT=3;
+const SAVE_BASE_KEY='jokura-save-v6';
+const SAVE_KEY=SAVE_BASE_KEY; // legacy single-slot key kept for migration
+const LEGACY_SAVE_KEYS=['jokura-save-v5'];
+const ACTIVE_SAVE_SLOT_KEY='jokura-active-save-slot';
+function getStoredActiveSaveSlot(){
+  try{const n=Number(localStorage.getItem(ACTIVE_SAVE_SLOT_KEY)||1);return Math.max(1,Math.min(SAVE_SLOT_COUNT,n||1));}
+  catch(e){return 1;}
+}
+let activeSaveSlot=getStoredActiveSaveSlot();
+function saveKeyForSlot(slot){return SAVE_BASE_KEY+'-slot-'+slot;}
+function setActiveSaveSlot(slot){
+  activeSaveSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  try{localStorage.setItem(ACTIVE_SAVE_SLOT_KEY,String(activeSaveSlot));}catch(e){}
+}
+function migrateSaveData(data){
+  if(!data||typeof data!=='object')return null;
+  const migrated={...data};
+  const version=Number(migrated.version||0);
+  if(version<6)migrated.version=6;
+  return migrated;
+}
+async function loadSaveData(slot=activeSaveSlot){
+  const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  const keys=[saveKeyForSlot(safeSlot)];
+  if(safeSlot===1)keys.push(SAVE_KEY,...LEGACY_SAVE_KEYS);
+  for(const key of keys){
+    try{
+      const r=await window.storage.get(key);
+      if(!r||!r.value)continue;
+      const parsed=JSON.parse(r.value);
+      const migrated=migrateSaveData(parsed);
+      if(!migrated)continue;
+      migrated.saveSlot=safeSlot;
+      if(key!==saveKeyForSlot(safeSlot)||migrated.version!==SAVE_VERSION){
+        await window.storage.set(saveKeyForSlot(safeSlot),JSON.stringify(migrated));
+      }
+      return migrated;
+    }catch(e){
+      continue;
+    }
+  }
+  return null;
+}
+async function getAllSaveSlots(){
+  const rows=[];
+  for(let slot=1;slot<=SAVE_SLOT_COUNT;slot++)rows.push({slot,data:await loadSaveData(slot)});
+  return rows;
+}
+async function deleteSave(slot=activeSaveSlot){
+  const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  try{await window.storage.delete(saveKeyForSlot(safeSlot));}catch(e){}
+  if(safeSlot===1){
+    try{await window.storage.delete(SAVE_KEY);}catch(e){}
+    for(const key of LEGACY_SAVE_KEYS){try{await window.storage.delete(key);}catch(e){}}
+  }
+}
+async function saveGame(){
+  const data={
+    version:SAVE_VERSION,saveSlot:activeSaveSlot,
+    gameMode,flying:!!P.flying,
+    score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
+    nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
+    px:P.x,py:P.y,pz:P.z,yaw,pitch,
+    inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,
+    arrowMode,enchants:{...enchants},
+    enchTableCount,enchTables:enchTables.map(t=>({x:t.x,y:t.y,z:t.z})),
+    furnaceCount,furnaces:furnaces.map(f=>({x:f.x,y:f.y,z:f.z})),
+    pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
+    horseTamed:!!horse,mounted,
+    armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
+    worldSeed:WORLD_SEED,
+    worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
+    chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
+    bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
+    trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),
+    farmPlots:farmPlots.map(f=>({x:f.x,y:f.y,z:f.z,stage:f.stage,growT:f.growT})),
+    openedTreasures:[...openedTreasureKeys],
+    achievements:{...achievements},
+    savedAt:Date.now()
+  };
+  try{
+    const r=await window.storage.set(saveKeyForSlot(activeSaveSlot),JSON.stringify(data));
+    showSaveToast(r?'💾 SLOT '+activeSaveSlot+' SAVED!':'⚠ 保存失敗');
+    updateOverlaySaveInfo();
+    if($saveSlotPanel&&$saveSlotPanel.classList.contains('show'))renderSaveSlots();
+  }
+  catch(e){showSaveToast('⚠ 保存失敗');}
+}
+const $contBtn=document.getElementById('contBtn'),$saveInfo=document.getElementById('saveInfo');
+const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=document.getElementById('saveSlotList'),$saveSlotCloseBtn=document.getElementById('saveSlotCloseBtn');
+function formatSaveMeta(d){
+  if(!d)return 'EMPTY';
+  const dt=new Date(d.savedAt||Date.now());
+  const mode=d.gameMode==='creative'?'🪄CREATIVE ':d.endlessMode?'♾ENDLESS ':'';
+  return `${mode}DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
+async function updateOverlaySaveInfo(options={}){
+  const rows=await getAllSaveSlots();
+  const filled=rows.filter(r=>r.data);
+  const keepContState=options===true||options.enableContinueButton===false;
+  const isEndOverlay=!gs.running&&!overlay.classList.contains('hide')&&(ovTitle.textContent==='GAME OVER'||ovTitle.textContent==='GAME CLEAR!!');
+  // game-over / clear screens disable the continue button on purpose; don't override that
+  // even when save-slot actions refresh this info while the end overlay is visible.
+  if(!keepContState&&!isEndOverlay)$contBtn.classList.remove('disabled');
+  if(filled.length){$saveInfo.textContent=`💾 SLOT ${activeSaveSlot}: ${formatSaveMeta(rows[activeSaveSlot-1].data)}　(${filled.length}/${SAVE_SLOT_COUNT})`;}
+  else{$saveInfo.textContent='セーブデータなし / セーブスロットから空スロットを選べます';}
+}
+async function renderSaveSlots(){
+  if(!$saveSlotList)return;
+  const rows=await getAllSaveSlots();
+  $saveSlotList.innerHTML='';
+  rows.forEach(({slot,data})=>{
+    const wrap=document.createElement('div');
+    wrap.className='saveSlot'+(slot===activeSaveSlot?' active':'');
+    const title=document.createElement('div');title.className='saveSlotTitle';title.textContent='SLOT '+slot+(slot===activeSaveSlot?'  ★ SELECTED':'');wrap.appendChild(title);
+    const meta=document.createElement('div');meta.className='saveSlotMeta';meta.textContent=formatSaveMeta(data);wrap.appendChild(meta);
+    const btns=document.createElement('div');btns.className='saveSlotBtns';
+    const main=document.createElement('button');main.className='slotBtn';main.textContent=data?'LOAD':'NEW GAME';main.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);closeSaveSlots();data?continueGame():startGame();});btns.appendChild(main);
+    const use=document.createElement('button');use.className='slotBtn secondary';use.textContent='SELECT';use.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' SELECTED');});btns.appendChild(use);
+    if(data){
+      const fresh=document.createElement('button');fresh.className='slotBtn danger';fresh.textContent='NEW';fresh.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();await startNewGameWithConfirm(slot);});btns.appendChild(fresh);
+      const del=document.createElement('button');del.className='slotBtn danger';del.textContent='DELETE';del.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();if(confirm('SLOT '+slot+' を削除しますか？')){await deleteSave(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' DELETED');}});btns.appendChild(del);
+    }
+    wrap.appendChild(btns);$saveSlotList.appendChild(wrap);
+  });
+}
+function openSaveSlots(){renderSaveSlots();if($saveSlotPanel)$saveSlotPanel.classList.add('show');}
+function closeSaveSlots(){if($saveSlotPanel)$saveSlotPanel.classList.remove('show');}
+async function startNewGameWithConfirm(slot=activeSaveSlot){
+  const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
+  const existing=await loadSaveData(safeSlot);
+  if(existing&&!confirm('SLOT '+safeSlot+' のセーブデータを上書きして新しく始めますか？'))return;
+  setActiveSaveSlot(safeSlot);
+  closeSaveSlots();
+  await startGame();
+}
+// 初回の updateOverlaySaveInfo() 呼び出しは main.js の末尾（全モジュール読込後）に移動。
+// async 継続部が gs / overlay / ovTitle（後続モジュールで定義）を参照するため。
+const SPLASHES=['ダイヤを掘れ！','クリーパーじゃないよ！','地下ドラゴン注意！','素材を集めろ！','100% 本物！','ピクセルアート！','モバイル対応！','ブロックを積め！','WAVE20まで生き残れ！','地下が怖い…','無限に遊べる！','ジョークラへようこそ！','採掘が楽しい！','宝箱を探せ！','キングダイヤモンドドラゴンを倒せ！','武器をエンチャントしろ！','氷の上は滑るぞ！','黒曜石は壊されない！','エンドレスに挑め！','火矢で敵を燃やせ！','鉄を精錬しろ！','かまどを作ろう！','ウマに乗って駆けろ！','小麦でウマを手なずけろ！'];
+const $ovSplash=document.getElementById('ovSplash');
+function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];}
+rotateSplash();
+const SCORE_KEY='jokura_scores';
+function saveScore(cleared){
+  if(isCreative())return; // creative runs don't enter the ranking
+  try{
+    const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
+    const now=new Date();
+    arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,date:(now.getMonth()+1)+'/'+(now.getDate())});
+    arr.sort((a,b)=>b.score-a.score);arr.splice(5);
+    localStorage.setItem(SCORE_KEY,JSON.stringify(arr));
+  }catch(e){}
+}
+const $rankInfo=document.getElementById('rankInfo');
+function renderRankHUD(){
+  if(!$rankInfo)return;
+  try{
+    const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
+    if(!arr.length){$rankInfo.innerHTML='<div style="color:#f9d34299;font-size:min(9px,2.5vw);letter-spacing:1px">🏆 BEST SCORE: 0</div>';return;}
+    const medals=['🥇','🥈','🥉','',''];
+    const best=arr[0];
+    let h='<div style="color:#f9d342;font-size:min(10px,2.8vw);font-weight:900;letter-spacing:2px;margin-bottom:3px">🏆 BEST SCORE: '+best.score.toLocaleString()+'pt</div>';
+    arr.forEach((r,i)=>{h+='<div style="font-size:min(9px,2.6vw);color:#ccc;letter-spacing:.4px;line-height:1.75">'+(medals[i]||'　')+(r.cleared?'💎':'　')+' #'+(i+1)+'　'+r.score.toLocaleString()+'pt　W'+r.wave+'　'+r.kills+'kill　'+r.day+'日　<span style="color:#7ecfff66">'+r.date+'</span></div>';});
+    $rankInfo.innerHTML=h;
+  }catch(e){$rankInfo.innerHTML='';}
+}
+renderRankHUD();
+const $saveToast=document.getElementById('saveToast');let saveToastTimer=0;
+function showSaveToast(msg){$saveToast.textContent=msg;$saveToast.classList.add('show');saveToastTimer=2;}
+
