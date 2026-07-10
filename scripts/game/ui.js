@@ -155,7 +155,9 @@ function renderQuestLog(){
       ['💎 Diamond Swordを作成',hasDiamondSword,'WAVE中盤以降の主力武器'],
       ['🔮 Diamond Staff / Bow / Hammerを強化',hasDiamondStaff||hasDiamondBow||hasDiamondHammer,'戦い方に合わせてダイヤ装備を追加'],
       ['⚒ 強化台で武器をエンチャント',!!achievements.firstEnchant,'余った💎や💠で攻撃+1/射程+15%/🔥炎上/❄氷結を付与'],
-      ['🌍 バイオーム固有素材をコンプリート',!!achievements.biomeCollector,'🧊氷(雪原)・⬛黒曜石(火山)・🔮水晶(岩山)・🌵サボテン(砂漠)・🍄キノコ(森林)・🟤粘土(草原)']
+      ['🌍 バイオーム固有素材をコンプリート',!!achievements.biomeCollector,'🧊氷(雪原)・⬛黒曜石(火山)・🔮水晶(岩山)・🌵サボテン(砂漠)・🍄キノコ(森林)・🟤粘土(草原)'],
+      ['🗝 地上構造物の宝箱を開ける',!!achievements.structureRaider,'🏜ピラミッド・❄イグルー・🌲遺跡を探索。ピラミッドの宝は中心に埋まっている'],
+      ['🗺 宝の地図の宝を発見',!!achievements.mapMaster,'地下祭壇の宝箱から入手した地図のコンパスを辿ろう']
     ]},
     {title:'WAVE進行',items:[
       ['🌊 WAVE5に到達',gs.wave>=5,'スケルトンキングが出現'],
@@ -197,6 +199,7 @@ function renderWorldGuide(){
     '<div class="codexSub">🐴 騎乗（マウント）</div><div class="codexNote">草原などに野生のウマが群れている。🌾小麦を持っていると寄ってきて、近くでXキー(スマホはPLACE長押し)で小麦×1をあげると手なずけられる（サドル付きに）。もう一度Xで騎乗！移動速度が大幅に上がり、ジャンプで2ブロックの段差も越えられる。ダッシュしても追加の満腹度を消費しない（走るのはウマ）。降りるのもX。降りている間はオオカミのように付いてくる。</div>'+
     '<div class="codexSub">農業</div><div class="codexNote">🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキーで植える。時間とともに育ち、成熟したらXキーで収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復できる。</div>'+
     '<div class="codexSub">地下</div><div class="codexNote">深く掘るとダイヤ、古い宝箱、地下ドラゴンに遭遇する。危険なら階段やブロックで地上へ戻ろう。</div>'+
+    '<div class="codexSub">🗺 地上構造物と宝の地図</div><div class="codexNote">世界の各地にバイオーム固有の構造物が生成される。🏜砂漠のピラミッド（宝は中心に埋まっているので掘り進もう） / ❄雪原のイグルー / 🌲森・🌿草原の遺跡。中心には🗝金の宝箱があり、💎ダイヤ・🔩鉄インゴット・🏹矢など豪華な報酬が入っている。地下祭壇の宝箱からは時々🗺宝の地図が手に入り、所持中は画面上部のコンパスが最寄りの構造物の宝を指し示す。矢印を頼りに遠征し、目標の宝箱を開けると特大ボーナス！</div>'+
     '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
 }
 function renderCodex(){
