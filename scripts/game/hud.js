@@ -60,6 +60,8 @@ function getCurrentGoal(){
   if(!gs.running)return '🎯 NEW GAMEで冒険開始';
   if(isCreative())return isDesktop?'🪄 クリエイティブ：自由に建築！Space2回で飛行':'🪄 クリエイティブ：自由に建築！FLYで飛行';
   if(P.hp<=35&&meat>0)return '🍖 HPが低い！肉で回復しよう';
+  if(fullMoonNight&&gs.time>=.4&&gs.time<=.9)return '🌕 満月の夜！敵が増え、キルスコアが2倍に';
+  if(merchant)return '🧙 行商人が近くにいる！Xキーで交易しよう';
   if(!unlockedWeapons[1])return '🪵 木を集めて剣を作ろう WOOD '+matProgress('wood',5);
   if(!unlockedWeapons[2])return '🪨 石を集めてハンマー作成 STONE '+matProgress('stone',10)+' / WOOD '+matProgress('wood',4);
   if(bedCount===0&&beds.length===0)return '🛏 ベッドで夜をスキップ WOOD '+matProgress('wood',6)+' / GRASS '+matProgress('grass',4);
@@ -105,7 +107,7 @@ function updateHUD(){
   $wl.textContent=w.name+arrowIcon+enchSuffix()+(unlockedWeapons[weaponIdx]?'':'🔒');
   updateGoalHUD();updatePetHUD();updateTreasureCompass();
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
-  updateChestInfo();_updateTreasureInfo();
+  updateChestInfo();_updateTreasureInfo();updateMerchantInfo();
   const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);
   let isBossNext=!!nextDef&&!nextDef.miniBoss;const isMiniBossNext=!!nextDef&&!!nextDef.miniBoss;
   if(endlessMode&&gs.wave>=20&&(gs.wave+1)%5===0)isBossNext=true; // エンドレスは5WAVEごとにEXボス
@@ -121,6 +123,7 @@ function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fi
   for(const mob of mobs){const mp=mob.root.position,mx2=cx+(mp.x-P.x)*sc,my2=cy+(mp.z-P.z)*sc;if(mx2>-2&&mx2<S+2&&my2>-2&&my2<S+2){miniCtx.fillStyle=mob.kind==='wolf'?'#b8c4d0':'#f4a9a8';miniCtx.fillRect(mx2-1.5,my2-1.5,3,3);}}
   if(pet){const petP=pet.root.position,ptx=cx+(petP.x-P.x)*sc,pty=cy+(petP.z-P.z)*sc;if(ptx>-2&&ptx<S+2&&pty>-2&&pty<S+2){miniCtx.fillStyle='#7fd4ff';miniCtx.fillRect(ptx-1.5,pty-1.5,3,3);}}
   if(horse&&!mounted){const hp3=horse.root.position,htx=cx+(hp3.x-P.x)*sc,hty=cy+(hp3.z-P.z)*sc;if(htx>-2&&htx<S+2&&hty>-2&&hty<S+2){miniCtx.fillStyle='#d9a066';miniCtx.fillRect(htx-1.5,hty-1.5,3,3);}}
+  if(merchant){const mp3=merchant.root.position,mtx=cx+(mp3.x-P.x)*sc,mty=cy+(mp3.z-P.z)*sc;if(mtx>-2&&mtx<S+2&&mty>-2&&mty<S+2){miniCtx.fillStyle='#c9a0ff';miniCtx.fillRect(mtx-2,mty-2,4,4);}}
   for(const e of enemies){const p=e.root.position,ex=cx+(p.x-P.x)*sc,ey=cy+(p.z-P.z)*sc;if(ex<-2||ex>S+2||ey<-2||ey>S+2)continue;miniCtx.fillStyle=e.type.lava?'#ff6600':e.type.ice?'#44ddff':e.type.name==='Skeleton'?'#eeeeff':e.type.name==='Golem'?'#4488ff':'#ff4444';miniCtx.fillRect(ex-1.5,ey-1.5,3,3);}
   if(boss){const p=boss.root.position,bx=cx+(p.x-P.x)*sc,by=cy+(p.z-P.z)*sc;if(bx>-5&&bx<S+5&&by>-5&&by<S+5){miniCtx.fillStyle='#ff0066';miniCtx.fillRect(bx-3,by-3,6,6);}}
   for(const it of items){const ix=cx+(it.x-P.x)*sc,iy=cy+(it.z-P.z)*sc;if(ix>-2&&ix<S+2&&iy>-2&&iy<S+2){miniCtx.fillStyle='#ffff00';miniCtx.fillRect(ix-1,iy-1,2,2);}}
@@ -162,7 +165,7 @@ if(WEATHER_DIM>0.01&&!inVolcano){
   scene.fog.color.multiplyScalar(k);skyMesh.material.color.multiplyScalar(k);
   renderer.setClearColor(scene.fog.color);
 }
-$di.textContent=b>.5?'🌙':'☀️';}
+$di.textContent=b>.5?(fullMoonNight?'🌕':'🌙'):'☀️';}
 
 // ─── CELESTIAL: sun/moon orbit, drifting clouds, sky follows player ───
 function updateCelestial(t,dt){
@@ -186,6 +189,10 @@ function updateCelestial(t,dt){
   const skyVis=skyMesh.visible;
   sunSprite.visible=skyVis&&isDayNow&&sunDir.y>.02;
   moonSprite.visible=skyVis&&!isDayNow&&moonDir.y>.02;
+  // 🌕満月の夜: 月を大きく赤みがかった色にして視覚的に警告する
+  const moonBig=!isDayNow&&fullMoonNight;
+  moonSprite.scale.set(moonBig?13:9,moonBig?13:9,1);
+  moonSprite.material.color.setHex(moonBig?0xffb060:0xffffff);
   cloudGroup.visible=skyVis;
   sun.castShadow=SHADOWS_ON&&skyVis;
   starPivot.position.set(px,py,pz);
@@ -340,6 +347,85 @@ function clearLightningStrikes(){
   for(const s of lightningStrikes){scene.remove(s.mesh);s.mesh.material.dispose();scene.remove(s.ring);s.ring.material.dispose();}
   lightningStrikes.length=0;
 }
+
+// ─── ☄ 隕石落下（ランダムイベント: 地上でまれに発生する環境ハザード） ───
+// 落雷と同じ「警告ビーム→着弾」の仕組みを流用。着弾すると小さなクレーターができ、
+// 周囲の敵・ボス・プレイヤーにダメージを与えたあと、レア素材が数個降ってくる。
+let meteorStrikes=[]; // {mesh,ring,x,z,warnT,totalWarn}
+let meteorEventT=90+Math.random()*90;
+const _meteorBeamGeo=new THREE.CylinderGeometry(.09,.09,40,6);
+const _meteorRingGeo=new THREE.RingGeometry(.6,1.1,16);
+function maybeSpawnMeteor(){
+  if(isCreative()||!gs.running)return;
+  const ang=Math.random()*Math.PI*2,dist=10+Math.random()*14;
+  const tx=P.x+Math.cos(ang)*dist,tz=P.z+Math.sin(ang)*dist;
+  const gy=getHeight(Math.floor(tx),Math.floor(tz));
+  const mat=new THREE.MeshBasicMaterial({color:0xff8844,transparent:true,opacity:0});
+  const mesh=new THREE.Mesh(_meteorBeamGeo,mat);
+  mesh.position.set(tx,gy+20,tz);scene.add(mesh);
+  const ringMat=new THREE.MeshBasicMaterial({color:0xffaa44,transparent:true,opacity:0,side:THREE.DoubleSide});
+  const ring=new THREE.Mesh(_meteorRingGeo,ringMat);
+  ring.rotation.x=-Math.PI/2;ring.position.set(tx,gy+.05,tz);scene.add(ring);
+  meteorStrikes.push({mesh,ring,x:tx,z:tz,warnT:2.2,totalWarn:2.2});
+  showAlert('☄ 隕石が接近中！退避しろ！');
+  playTone(90,.4,.3,'sawtooth');setTimeout(()=>playTone(70,.35,.3,'sawtooth'),200);
+}
+// 着弾地点の周囲の地表ブロックを浅く吹き飛ばして小クレーターを作る（耐爆ブロック・水・溶岩は除く）
+function meteorCrater(cx,gy,cz){
+  for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
+    if(dx*dx+dz*dz>5)continue;
+    for(let dy=0;dy>=-1;dy--){
+      const x=cx+dx,y=gy+dy,z=cz+dz;
+      const k=vKey(x,y,z);const v=voxels[k];
+      if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK||v.ti===OBSIDIAN_BLOCK)continue;
+      spawnBlockDebris(x+.5,y+.5,z+.5,v.ti);
+      if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
+      removeBlock(x,y,z);
+    }
+  }
+}
+function _resolveMeteor(m){
+  const gy=getHeight(Math.floor(m.x),Math.floor(m.z));
+  spawnParticles(m.x,gy+1,m.z,0xff6622,10);
+  sfxThunder(); // 着弾音として雷鳴音を流用
+  const R=3.4;
+  if(Math.hypot(m.x-P.x,m.z-P.z)<R){
+    dmgPlayer(22);
+    if(P.hp>0)unlockAchievement('meteorStruck');
+  }
+  if(boss){const bp=boss.root.position;if(Math.hypot(m.x-bp.x,m.z-bp.z)<R*boss.sc)hitBoss(14);}
+  for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(m.x-ep.x,m.z-ep.z)<R)hitEnemy(en,16);}
+  meteorCrater(Math.floor(m.x),gy,Math.floor(m.z));
+  spawnMeteorLoot(m.x,gy+1.5,m.z);
+  showBonus('☄ 隕石が着弾！ 資源が降ってきた');
+}
+function updateMeteorStrikes(dt){
+  for(let i=meteorStrikes.length-1;i>=0;i--){
+    const m=meteorStrikes[i];
+    m.warnT-=dt;
+    const p=Math.max(0,1-m.warnT/m.totalWarn);
+    m.mesh.material.opacity=p*.6;
+    m.ring.material.opacity=p*.65;
+    m.ring.scale.setScalar(1+p*.4);
+    if(m.warnT<=0){
+      _resolveMeteor(m);
+      scene.remove(m.mesh);m.mesh.material.dispose();
+      scene.remove(m.ring);m.ring.material.dispose();
+      meteorStrikes.splice(i,1);
+    }
+  }
+}
+function clearMeteorStrikes(){
+  for(const m of meteorStrikes){scene.remove(m.mesh);m.mesh.material.dispose();scene.remove(m.ring);m.ring.material.dispose();}
+  meteorStrikes.length=0;
+}
+function updateMeteorEvent(dt,isUnder){
+  updateMeteorStrikes(dt);
+  if(isUnder||isCreative()||!gs.running)return;
+  meteorEventT-=dt;
+  if(meteorEventT<=0){meteorEventT=140+Math.random()*160;maybeSpawnMeteor();}
+}
+function resetMeteorEvent(){clearMeteorStrikes();meteorEventT=90+Math.random()*90;}
 
 // ─── TARGET BLOCK OUTLINE (Minecraft-style block cursor) ───
 const cursorBox=new THREE.LineSegments(

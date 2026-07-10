@@ -180,7 +180,8 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
-  removePet();removeHorse();
+  removePet();removeHorse();removeMerchant();merchantSpawnT=60+Math.random()*60;
+  resetMeteorEvent();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
   endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
@@ -225,6 +226,7 @@ async function continueGame(){
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
   gameMode=d.gameMode==='creative'?'creative':'survival';
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
+  _wasDayPhase=(gs.time<.4||gs.time>.9); // ロード直後に夜開始イベント（満月抽選）が誤発火しないよう同期
   endlessMode=!isCreative()&&!!d.endlessMode;
   resetWeather();
   finalBossPending=!isCreative()&&!!d.finalBossPending;
@@ -293,6 +295,7 @@ function pickupItem(info){
   else if(info.type==='weapon'){unlockWeaponByDrop(info.wi);showBonus(info.name+' GET!');playTone(900,.15,.1);}
   else if(info.type==='score'){gs.score+=info.value;showBonus(info.name);playTone(1000,.1,.08);}
   else if(info.type==='egg'){P.food=Math.min(100,P.food+info.value);showBonus(info.name+' FOOD+'+info.value);playTone(650,.12,.08,'sine');}
+  else if(info.type==='mat'){inv[info.key]=(inv[info.key]||0)+info.value;updateInvHUD();showBonus(info.name+' +'+info.value);playTone(750,.15,.1,'sine');}
 }
 let _ovBtnLastT=0;
 function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startNewGameWithConfirm();}
@@ -312,6 +315,7 @@ bindTapSafe($pauseSaveBtn,_onPauseSaveBtnTap);
 
 // ═══ MAIN LOOP ═══
 let lavaParticleT=0,snowParticleT=0,lastT=0,minimapT=0,hudT=0,chunkT=0,autoSaveT=0;
+let _wasDayPhase=true,fullMoonSpawnT=0;
 const AUTOSAVE_INTERVAL=60;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)lastT=performance.now();});
 function tick(now){
@@ -323,6 +327,18 @@ function tick(now){
   if(gs.paused){renderer.render(scene,camera);return;}
   const prevTime=gs.time;gs.time=(gs.time+dt/DAY_DUR)%1;
   if(gs.time<prevTime){gs.day++;showAlert('🌅 DAY '+gs.day);}
+  const isDay=(gs.time<.4||gs.time>.9);
+  // 🌕満月の夜: 夜が始まる瞬間に抽選し、夜明けまで生き延びると実績
+  if(!isCreative()&&_wasDayPhase&&!isDay){
+    fullMoonNight=Math.random()<0.24;
+    if(fullMoonNight){
+      showAlert('🌕 満月の夜だ！敵が増え、キルスコアが2倍に！');
+      playTone(200,.3,.25,'sawtooth');setTimeout(()=>playTone(150,.3,.25,'sawtooth'),220);
+      fullMoonSpawnT=6;
+    }
+  }
+  if(!isCreative()&&!_wasDayPhase&&isDay&&fullMoonNight){unlockAchievement('fullMoonSurvivor');fullMoonNight=false;}
+  _wasDayPhase=isDay;
   const curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
   const inVolcano=curBiome===BIOMES.VOLCANO,inSnow=curBiome===BIOMES.SNOW;
   const _isUnder=P.y<0;
@@ -331,6 +347,7 @@ function tick(now){
   else{scene.fog.near=DRAW_R*CHUNK*0.7;scene.fog.far=DRAW_R*CHUNK*0.98;skyMesh.visible=true;}
   updateCelestial(gs.time,dt);
   updateWeather(dt,inVolcano,inSnow,_isUnder,now/1000);
+  updateMeteorEvent(dt,_isUnder);
   updateTorchLights();
   updateBlockCursor();
   if(_waterUniforms)_waterUniforms.uTime.value=now/1000;
@@ -339,9 +356,12 @@ function tick(now){
   // cracks heal if you stop mining a block (Minecraft-style)
   if(miningKey&&performance.now()/1000-miningLastT>0.7)resetMining();
   if(isCreative()){P.hp=P.maxHp;P.food=100;} // creative: always full
-  const isDay=(gs.time<.4||gs.time>.9);
   if(isDay&&!inVolcano&&!inSnow&&P.hp<P.maxHp&&P.invT<=0&&P.food>60){P.hp=Math.min(P.maxHp,P.hp+2.5*dt);P.food=Math.max(0,P.food-.5*dt);}
   if(!isCreative()){gs.nextWave-=dt;if(gs.nextWave<=0)startWave();}
+  // 🌕満月の夜: 通常WAVEとは別に、地上でアンビエントな追加湧きを発生させる
+  if(fullMoonNight&&!_isUnder&&!isCreative()&&enemies.length<(isTouch?18:30)){
+    fullMoonSpawnT-=dt;if(fullMoonSpawnT<=0){fullMoonSpawnT=5+Math.random()*4;spawnEnemy();}
+  }
   if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,chestCount,bedCount,trophyCount,enchTableCount,furnaceCount};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
@@ -377,12 +397,12 @@ function tick(now){
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
   chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
-  updateBoss(dt);updateDragon(dt);updateMobs(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);updateMerchant(dt,_isUnder);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
-    if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1);sfxKill();continue;}
+    if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1)*fullMoonScoreMult();sfxKill();continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
     if(dist>50){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
     // 状態異常: 炎上（0.7秒ごとに2ダメージ）/ 氷結（移動速度45%）
