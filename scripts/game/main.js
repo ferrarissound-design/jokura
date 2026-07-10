@@ -414,7 +414,29 @@ function tick(now){
         const br=Math.max(0,e.hp/e.maxHp);e.hpBar.scale.x=Math.max(.01,br);}
     }
     const statusSpd=e.slowT>0?.45:1;
+    // 💣 クリーパー: 近づくと点火し、白く点滅・膨張しながら約1秒後に爆発する。
+    // 点火中は移動しないので、走って距離を取れば爆発をやり過ごせる。
+    if(e.type.creeper){
+      if(e.fuseT==null&&dist<2.7&&Math.abs(P.y+1-ep.y)<2.6&&hasLOS(ep.x,ep.y,ep.z,P.x,P.y+1,P.z)){
+        e.fuseT=1.15;
+        playTone(1500,.5,.07,'sawtooth');setTimeout(()=>playTone(1100,.4,.06,'sawtooth'),120);
+      }
+      if(e.fuseT!=null){
+        e.fuseT-=dt;
+        const fl=Math.floor(e.fuseT*12)%2===0;
+        for(const m of[e.body,e.head]){m.material.emissive.setHex(fl?0xffffff:e.type.emissive);m.material.emissiveIntensity=fl?1.5:.15;}
+        e.root.scale.setScalar(1+(1.15-Math.max(0,e.fuseT))/1.15*.3);
+        if(e.fuseT<=0){creeperExplode(e);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
+        e.hpBar.lookAt(camera.position);
+        continue;
+      }
+    }
     if(e.type.bat){
+      // 👻 ファントム: 夜明けの日光を浴びると燃えて消滅していく
+      if(e.type.phantom&&(gs.time<.4||gs.time>.9)&&ep.y>=0){
+        e.sunT=(e.sunT||0)+dt;
+        if(e.sunT>=.5){e.sunT=0;e.hp-=2;spawnParticles(ep.x,ep.y+.3,ep.z,0xffaa33,2);e.hpBar.scale.x=Math.max(.01,Math.max(0,e.hp/e.maxHp));}
+      }
       const dy3=P.y+0.8-ep.y,dist3=Math.hypot(dx,dy3,dz);
       e.root.rotation.y=Math.atan2(dx,dz);
       if(dist3>0.6){const spd=(3.5+gs.wave*.15)*statusSpd*dt;ep.x+=dx/dist3*spd;ep.y+=dy3/dist3*spd;ep.z+=dz/dist3*spd;}
@@ -427,8 +449,15 @@ function tick(now){
       e.hpBar.lookAt(camera.position);
       continue;
     }
-    e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,endlessMode?8:6.5)*statusSpd;
+    e.root.rotation.y=Math.atan2(dx,dz);const spd=Math.min(2.5+gs.wave*.3,endlessMode?8:6.5)*statusSpd*(e.type.spdMul||1);
     if(dist>1)moveEnemy(e,(dx/dist)*spd,(dz/dist)*spd,dt);
+    // 🕷 クモ: 進行方向に壁があるとよじ登る（高い壁だけでは防げない）
+    if(e.type.spider&&dist>1.2){
+      const wx2=Math.floor(ep.x+(dx/(dist||1))*.8),wz2=Math.floor(ep.z+(dz/(dist||1))*.8);
+      const wy2=Math.floor(ep.y-.85);
+      const w1=voxels[vKey(wx2,wy2,wz2)],w2=voxels[vKey(wx2,wy2+1,wz2)];
+      if((w1&&w1.active)||(w2&&w2.active)){e.velY=Math.max(e.velY,3.4);e.onGround=false;}
+    }
     // walk cycle: swing legs (and arms unless held in a fixed pose)
     if(e.legL){const moving=dist>1&&e.onGround;e.walkT=(e.walkT||0)+(moving?dt*7:0);const sw=moving?Math.sin(e.walkT)*.5:THREE.MathUtils.lerp(e.legL.rotation.x,0,.2);e.legL.rotation.x=sw;e.legR.rotation.x=-sw;if(e.armSwing!==false){if(e.armL)e.armL.rotation.x=-sw;if(e.armR)e.armR.rotation.x=sw;}}
     e.stuckT+=dt;if(e.stuckT>1.2){const mv=Math.abs(ep.x-e.lastX)+Math.abs(ep.z-e.lastZ);if(mv<.3&&e.onGround&&dist<14){e.velY=6.5;if(e.breakCd<=0)tryEnemyBreakBlock(e);}e.lastX=ep.x;e.lastZ=ep.z;e.stuckT=0;}
