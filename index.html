@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260723a">
+<link rel="stylesheet" href="styles/main.css?v=20260724a">
 
 </head>
 <body>
@@ -146,6 +146,7 @@
       <b>🐺相棒</b>: 野生のオオカミは🥩肉を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で肉をあげると手なずけられ、付いてきて敵と戦ってくれる。倒れても時間か肉で復活。肉でHP回復。<br>
       <b>🐴騎乗</b>: 野生のウマは🌾小麦を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で小麦をあげると手なずけられ、もう一度Xで騎乗。移動速度アップ・ジャンプ強化・ダッシュの満腹度消費なし。降りるのもX。<br>
       <b>農業</b>: 🌿草×3で🌱種をクラフトし、草ブロックの上を見てXキー(スマホはPLACE長押し)で植える。時間で育ち、成熟したら同じ操作で収穫（🌾小麦＋時々🌱種）。🌾小麦×4で🍞パンを作ると満腹度とHPを回復。<br>
+      <b>🕷 新たな敵</b>: 💣クリーパーは近づくと点火して爆発する(点火中は動かないので走って逃げろ)。🕷クモは壁をよじ登る。👻ファントムは夜に空から襲来し、朝日を浴びると燃えて消える。<br>
       <b>🌦 天気</b>: 屋外で🌧雨/⛈雷雨に濡れていると🔥炎上ダメージの消化が早まる。❄雪原で⛈雷雨が重なると吹雪になり、移動速度低下・満腹度消費増加・寒冷ダメージ間隔短縮が起きる。⛈雷雨中は白い光の柱が落雷の予告。数秒後に直撃するので離れよう（プレイヤーだけでなく敵・ボスにも当たる）。<br>
       <b>バイオーム素材</b>: 各バイオームに固有素材がある。🧊氷(❄雪原・上を歩くと滑る) / ⬛黒曜石(🌋火山・超硬い＆敵に壊されない) / 🔮水晶(🪨岩山) / 🌵サボテン(🏜砂漠) / 🍄キノコ(🌲森林) / 🟤粘土(🌿草原)。<br>
       <b>⚒ 武器強化</b>: 🪨×15＋💎×1で強化台をクラフトして設置。近くでクラフトメニューを開くと、余った💎ダイヤや💠ドラゴンコアで「攻撃+1」「射程+15%」「🔥炎上付与」「❄氷結付与」を付けられる。<br>
@@ -228,7 +229,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260723a';
+  var V='20260724a';
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world','combat','entities','hud','input','main'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}

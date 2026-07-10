@@ -314,6 +314,73 @@ function buildCrystalGolem(mat){
   root.add(body,head,armL,armR,hp.bg,hp.fg,lb);
   return{root,body,head,hpBar:hp.fg};
 }
+function buildCreeper(mat){
+  const root=new THREE.Object3D();
+  const green=mat.clone();
+  const body=makeBox(.5,.85,.32,green);body.position.y=.42;
+  const head=makeBox(.55,.55,.55,mat.clone());head.position.y=1.12;
+  // 悲しげな目と口
+  const faceM=new THREE.MeshBasicMaterial({color:0x0d1f08});
+  const el=makeBox(.13,.13,.06,faceM);el.position.set(-.14,.08,.28);head.add(el);
+  const er=makeBox(.13,.13,.06,faceM.clone());er.position.set(.14,.08,.28);head.add(er);
+  const mouth=makeBox(.14,.2,.06,faceM.clone());mouth.position.set(0,-.12,.28);head.add(mouth);
+  const mL=makeBox(.07,.14,.06,faceM.clone());mL.position.set(-.105,-.17,.28);head.add(mL);
+  const mR=makeBox(.07,.14,.06,faceM.clone());mR.position.set(.105,-.17,.28);head.add(mR);
+  // 4本の短い脚（前後2対。後脚はarmL/armRに割り当てて既存の歩行アニメで交互に動かす）
+  const legFL=makeLimb(.2,.4,.2,mat.clone(),-.14,.02,.14);
+  const legFR=makeLimb(.2,.4,.2,mat.clone(), .14,.02,.14);
+  const legBL=makeLimb(.2,.4,.2,mat.clone(),-.14,.02,-.14);
+  const legBR=makeLimb(.2,.4,.2,mat.clone(), .14,.02,-.14);
+  const hp=makeHpBar(.8);hp.bg.position.y=1.62;hp.fg.position.y=1.62;
+  const lb=makeLabelSprite('Creeper','#66ff44');lb.position.y=1.84;
+  root.add(body,head,legFL,legFR,legBL,legBR,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg,legL:legFL,legR:legFR,armL:legBR,armR:legBL};
+}
+function buildSpider(mat){
+  const root=new THREE.Object3D();
+  const fur=mat.clone();
+  const body=makeBox(.8,.42,.95,fur);body.position.set(0,.42,-.2);
+  const head=makeBox(.5,.42,.45,mat.clone());head.position.set(0,.44,.45);
+  const eyeM=new THREE.MeshBasicMaterial({color:0xff2222});
+  const e1=makeBox(.09,.09,.05,eyeM);e1.position.set(-.16,.06,.23);head.add(e1);
+  const e2=makeBox(.09,.09,.05,eyeM.clone());e2.position.set(.16,.06,.23);head.add(e2);
+  const e3=makeBox(.06,.06,.05,eyeM.clone());e3.position.set(-.06,.14,.23);head.add(e3);
+  const e4=makeBox(.06,.06,.05,eyeM.clone());e4.position.set(.06,.14,.23);head.add(e4);
+  const fangM=new THREE.MeshBasicMaterial({color:0xd8d8c8});
+  const f1=makeBox(.06,.12,.05,fangM);f1.position.set(-.08,-.18,.22);head.add(f1);
+  const f2=makeBox(.06,.12,.05,fangM.clone());f2.position.set(.08,-.18,.22);head.add(f2);
+  // 左右4本ずつの脚（グループごと揺らす）
+  const legLG=new THREE.Object3D();legLG.position.set(-.4,.42,-.1);
+  const legRG=new THREE.Object3D();legRG.position.set(.4,.42,-.1);
+  for(let i=0;i<4;i++){
+    const ll=makeBox(.55,.07,.09,fur.clone());ll.position.set(-.28,-.06,-.32+i*.22);ll.rotation.z=.45;legLG.add(ll);
+    const rl=makeBox(.55,.07,.09,fur.clone());rl.position.set(.28,-.06,-.32+i*.22);rl.rotation.z=-.45;legRG.add(rl);
+  }
+  const hp=makeHpBar(.85);hp.bg.position.y=1.0;hp.fg.position.y=1.0;hp.fg.material.color.setHex(0xff6644);
+  const lb=makeLabelSprite('Spider','#ff8866');lb.position.y=1.2;
+  root.add(body,head,legLG,legRG,hp.bg,hp.fg,lb);
+  return{root,body,head,hpBar:hp.fg,legL:legLG,legR:legRG,armSwing:false};
+}
+function buildPhantom(mat){
+  const root=new THREE.Object3D();
+  const skin=mat.clone();
+  const body=makeBox(.5,.2,1.0,skin);
+  const head=makeBox(.34,.18,.3,mat.clone());head.position.set(0,.02,.55);
+  const eyeM=new THREE.MeshBasicMaterial({color:0x66ff88});
+  const el=makeBox(.09,.07,.05,eyeM);el.position.set(-.1,.04,.14);head.add(el);
+  const er=makeBox(.09,.07,.05,eyeM.clone());er.position.set(.1,.04,.14);head.add(er);
+  const lWingG=new THREE.Object3D();lWingG.position.set(-.25,.05,0);
+  const lW1=makeBox(.6,.06,.7,skin.clone());lW1.position.set(-.3,0,0);lWingG.add(lW1);
+  const lW2=makeBox(.35,.05,.45,skin.clone());lW2.position.set(-.62,.02,-.05);lWingG.add(lW2);
+  const rWingG=new THREE.Object3D();rWingG.position.set(.25,.05,0);
+  const rW1=makeBox(.6,.06,.7,skin.clone());rW1.position.set(.3,0,0);rWingG.add(rW1);
+  const rW2=makeBox(.35,.05,.45,skin.clone());rW2.position.set(.62,.02,-.05);rWingG.add(rW2);
+  const tail=makeBox(.2,.08,.4,skin.clone());tail.position.set(0,0,-.62);
+  const hp=makeHpBar(.6);hp.bg.position.y=.5;hp.fg.position.y=.5;hp.fg.material.color.setHex(0x88aaff);
+  const lb=makeLabelSprite('Phantom','#88aaff');lb.position.y=.7;
+  root.add(body,head,lWingG,rWingG,tail,hp.bg,hp.fg,lb);
+  return{root,body,head:body,hpBar:hp.fg,lWing:lWingG,rWing:rWingG};
+}
 function buildDiamondDragon(){
   const root=new THREE.Object3D();
   const bMat=makeMat(0xc2f7ff,0x22d6ff,1.35,.02);
@@ -373,8 +440,38 @@ const ENEMY_TYPES=[
   {name:'CaveSlime',  color:0x331155,emissive:0x660099,emissiveIntensity:.3, hp:2,dmg:5, score:35, builder:buildCaveSlime,              breakPow:0},
   {name:'AbyssBat',   color:0x050010,emissive:0x440088,emissiveIntensity:.25,hp:3,dmg:9, score:55, builder:buildAbyssBat,  bat:true,   breakPow:0},
   {name:'CrystalGolem',color:0x1e3040,emissive:0x00aacc,emissiveIntensity:.3,hp:10,dmg:22,score:120,builder:buildCrystalGolem,crystal:true,breakPow:3,breakCd0:3.5},
+  // ─── 地上の新敵バリエーション ───
+  // Creeper: 近づくと点火→膨張→爆発(ブロック破壊)。点火中は動かない=走れば逃げられる
+  // Spider: 高速で壁をよじ登る。高い壁だけでは防げない
+  // Phantom: 夜だけ出現する飛行敵(bat AI)。朝日を浴びると燃えて消滅
+  {name:'Creeper', color:0x4fae3d,emissive:0x123b0a,hp:4,dmg:6, score:90,builder:buildCreeper,creeper:true,spdMul:.9, breakPow:0},
+  {name:'Spider',  color:0x3a2b28,emissive:0x1a0d0d,hp:3,dmg:9, score:60,builder:buildSpider, spider:true, spdMul:1.3,breakPow:0},
+  {name:'Phantom', color:0x46608c,emissive:0x2244aa,emissiveIntensity:.3,hp:3,dmg:12,score:75,builder:buildPhantom,bat:true,phantom:true,breakPow:0},
 ];
+const ET_CREEPER=9,ET_SPIDER=10,ET_PHANTOM=11;
 let enemies=[];
+// 💣 クリーパーの爆発: プレイヤー・相棒・他の敵にダメージを与え、周囲のブロックを
+// 吹き飛ばす（⬛黒曜石・水・溶岩は壊れない）。爆発による自滅にはスコアが入らない。
+function creeperExplode(e){
+  const ep=e.root.position;
+  spawnParticles(ep.x,ep.y+.3,ep.z,0xffaa33,8);
+  spawnParticles(ep.x,ep.y+.6,ep.z,0x88ff66,6);
+  sfxThunder();playTone(120,.25,.3,'square');
+  const R=3.2;
+  const pd=Math.hypot(ep.x-P.x,ep.z-P.z);
+  if(pd<R&&Math.abs(P.y+1-ep.y)<3.2)dmgPlayer(Math.min(24+gs.wave*1.2,endlessMode?60:40)*(1-(pd/R)*.55));
+  for(const en of[...enemies]){if(en===e)continue;const p2=en.root.position;if(Math.hypot(p2.x-ep.x,p2.z-ep.z)<R)hitEnemy(en,12);}
+  if(pet&&pet.downT<=0){const pp=pet.root.position;if(Math.hypot(pp.x-ep.x,pp.z-ep.z)<R)hitPet(10);}
+  const bx=Math.floor(ep.x),by=Math.floor(ep.y-.4),bz=Math.floor(ep.z);
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+    if(dx*dx+dy*dy+dz*dz>2)continue;
+    const x=bx+dx,y=by+dy,z=bz+dz,k=vKey(x,y,z);const v=voxels[k];
+    if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK||v.ti===OBSIDIAN_BLOCK)continue;
+    spawnBlockDebris(x+.5,y+.5,z+.5,v.ti);
+    if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
+    removeBlock(x,y,z);
+  }
+}
 function spawnEnemy(){
   let angle=Math.random()*Math.PI*2,dist=20+Math.random()*10;
   let sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
@@ -383,12 +480,19 @@ function spawnEnemy(){
   let et;
   if(biome===BIOMES.VOLCANO&&Math.random()<.55)et=ENEMY_TYPES[3];
   else if(biome===BIOMES.SNOW&&Math.random()<.55)et=ENEMY_TYPES[4];
-  else et=ENEMY_TYPES[Math.floor(Math.random()*3)];
+  else{
+    // WAVEが進むほど新顔が混ざる。ファントムは夜（または満月の夜）限定
+    const r=Math.random(),isNightNow=gs.time>=.4&&gs.time<=.9;
+    if(gs.wave>=4&&r<.16)et=ENEMY_TYPES[ET_CREEPER];
+    else if(gs.wave>=3&&r<.32)et=ENEMY_TYPES[ET_SPIDER];
+    else if((gs.wave>=6||fullMoonNight)&&isNightNow&&r<.52)et=ENEMY_TYPES[ET_PHANTOM];
+    else et=ENEMY_TYPES[Math.floor(Math.random()*3)];
+  }
   const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
   const built=et.builder(mat);
-  built.root.position.set(sx,h+1.85,sz);markShadowCaster(built.root);scene.add(built.root);
+  built.root.position.set(sx,h+(et.bat?4.5:1.85),sz);markShadowCaster(built.root);scene.add(built.root);
   const mhp=et.hp+Math.floor(gs.wave*.7);
-  enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx,lastZ:sz,flashMeshes:[built.body,built.head],dead:false,breakCd:0});
+  enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:sx,lastZ:sz,flashMeshes:[built.body,built.head],dead:false,breakCd:0,lWing:built.lWing,rWing:built.rWing});
 }
 const UNDER_SPAWN_CD=isTouch?10:8,UNDER_MAX=5;
 let dragon=null,dragonSpawnT=90,dragonWarnPending=false;
