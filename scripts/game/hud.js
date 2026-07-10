@@ -8,8 +8,16 @@
 // ============================================================================
 
 // ═══ MEAT HUD ═══
-function updateMeatHUD(){$meatLabel.textContent='🥩 MEAT: '+meat;if(meat>0)$eatBtn.classList.remove('disabled');else $eatBtn.classList.add('disabled');}
-function eatMeat(){if(meat<=0||!gs.running)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('\ud83c\udf56 \u6e80\u8179\u5ea6+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
+function updateMeatHUD(){
+  const steak=inv.steak||0;
+  $meatLabel.textContent='🥩 MEAT: '+meat+(steak>0?'  🍖 STEAK: '+steak:'');
+  if(meat>0||steak>0)$eatBtn.classList.remove('disabled');else $eatBtn.classList.add('disabled');
+}
+// EAT: \u713c\u3044\u305f\u30b9\u30c6\u30fc\u30ad\u304c\u3042\u308c\u3070\u512a\u5148\u3057\u3066\u98df\u3079\u308b\uff08\u56de\u5fa9\u91cf\u304c\u591a\u3044\uff09\u3002\u306a\u3051\u308c\u3070\u751f\u8089\u3002
+function eatMeat(){
+  if(!gs.running)return;
+  if((inv.steak||0)>0){inv.steak--;P.food=Math.min(100,P.food+60);P.hp=Math.min(P.maxHp,P.hp+25);gs.score+=MEAT_SCORE;updateMeatHUD();updateInvHUD();showBonus('\ud83c\udf56 \u30b9\u30c6\u30fc\u30ad \u6e80\u8179\u5ea6+60 HP+25  +'+MEAT_SCORE);playTone(760,.15,.1,'sine');setTimeout(()=>playTone(1000,.1,.08,'sine'),100);return;}
+  if(meat<=0)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('\ud83c\udf56 \u6e80\u8179\u5ea6+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
 let _eatBtnLastT=0;
 function _onEatBtnTap(){const now=Date.now();if(now-_eatBtnLastT<100)return;_eatBtnLastT=now;eatMeat();}
 bindTapSafe($eatBtn,_onEatBtnTap);

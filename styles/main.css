@@ -60,6 +60,7 @@ canvas#c{display:block;touch-action:none}
 .dot{width:16px;height:16px;border-radius:3px}
 /* 8 slots need to fit narrow portrait screens */
 @media (max-width:400px){.hslot{width:33px;height:33px;font-size:6px}.dot{width:13px;height:13px}}
+@media (max-width:370px){#hotbar{gap:3px}.hslot{width:29px;height:29px;font-size:0}.hslot .dot{width:15px;height:15px}.hcount{font-size:7px}}
 #joyWrap{position:absolute;left:calc(10px + var(--safeL));bottom:calc(14px + var(--safeB));width:120px;height:120px;pointer-events:auto;touch-action:none;z-index:10}
 #joyBase{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04)}
 #joyKnob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.2),rgba(255,255,255,.06));will-change:left,top}

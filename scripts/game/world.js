@@ -185,14 +185,16 @@ const DRAW_RY=isTouch?1:2;
 // memory stays bounded no matter how far the player wanders (Minecraft-style
 // chunk loading/unloading rather than a hard world border)
 const UNLOAD_R=DRAW_R+4;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1];
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1];
 const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16,SLAB_BLOCK=17,STAIR_BLOCK=18;
 // バイオーム固有素材ブロック（そのバイオームの地表にだけ生成される）
 // 氷=滑る / 黒曜石=超硬い+敵に壊されない(耐爆) / 水晶・サボテン・キノコ・粘土=クラフト素材
 const ICE_BLOCK=19,OBSIDIAN_BLOCK=20,CRYSTAL_BLOCK=21,CACTUS_BLOCK=22,MUSHROOM_BLOCK=23,CLAY_BLOCK=24;
-const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK];
+// 建築ブロック: 🪟ガラス(半透明・かまどで砂を焼く) / 🧶ウールブロック(柔らかい建材)
+const GLASS_BLOCK=25,WOOL_BLOCK=26;
+const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK,GLASS_BLOCK,WOOL_BLOCK];
 // ─── PARTIAL BLOCKS (slabs & stairs) ───
 // Shapes are described as 1-2 sub-boxes in local cell coords [x0,y0,z0,x1,y1,z1].
 // meta — slab: 0 bottom half / 1 top half; stair: 0-3 = which side the tall
@@ -227,7 +229,7 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
 // (custom geometry/shader). Editing a block rebuilds only the touched chunks.
 const AO_LEVEL=[1,.76,.58,.45];
 boxGeo.computeBoundingSphere();boxGeo.computeBoundingBox();
-function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK&&!isPartial(v.ti))?1:0;}
+function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK&&v.ti!==GLASS_BLOCK&&!isPartial(v.ti))?1:0;}
 const _FACE_UV=[[0,0],[1,0],[1,1],[0,1]];
 // face order matches blockMats material arrays: +x,-x,+y(top),-y(bottom),+z,-z
 const FACE_DEF=(()=>{
@@ -288,7 +290,7 @@ function buildChunkMesh(rec){
   const buckets=new Map();
   for(const k of rec.keys){
     const v=voxels[k];if(!v)continue;
-    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK)continue;
+    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK)continue;
     const p=k.split('|');const x=+p[0],y=+p[1],z=+p[2];
     const bm=blockMats[ti];
     if(isPartial(ti)){
@@ -460,6 +462,7 @@ const _T={
   iron:oreTex(0x8a8f98,0xcaa472,32), diamond:oreTex(0x7fb6c8,0x3fe0ff,33), lava:noisyTex(0xff4500,34,.22),
   ice:noisyTex(0xbfe6ff,61,.07), obsidian:noisyTex(0x1b0b2e,62,.35), crystal:oreTex(0x8a8f98,0xcc66ff,63),
   cactus:noisyTex(0x2e9e4f,64,.16), mushroom:oreTex(0xd0483e,0xffe9d0,65), clay:noisyTex(0xb0a08c,66,.1),
+  woolBlk:noisyTex(0xf4f4ec,71,.05),
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
@@ -491,6 +494,8 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case CACTUS_BLOCK: return smat(_T.cactus);
     case MUSHROOM_BLOCK: return smat(_T.mushroom,{emissive:0x441111,emissiveIntensity:.12});
     case CLAY_BLOCK: return smat(_T.clay);
+    case GLASS_BLOCK: return new THREE.MeshStandardMaterial({color:0xbfe6ff,roughness:.05,metalness:.15,transparent:true,opacity:.32,emissive:0x113344,emissiveIntensity:.06,vertexColors:true});
+    case WOOL_BLOCK: return smat(_T.woolBlk,{roughness:1});
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
@@ -517,6 +522,11 @@ waterGeo.computeBoundingSphere();waterGeo.computeBoundingBox();
 // slim torch post that rests on the cell floor (non-solid, glows + casts light)
 const torchGeo=new THREE.BoxGeometry(.16,.62,.16);torchGeo.translate(0,-.19,0);
 torchGeo.computeBoundingSphere();torchGeo.computeBoundingBox();
+// 🪟 ガラス: 半透明なので水と同じく個別メッシュで描画する（マージメッシュに入れると
+// 透過と面カリングが破綻するため）。当たり判定は通常ブロックと同じで固体。
+const glassGeo=new THREE.BoxGeometry(1,1,1);
+glassGeo.setAttribute('color',boxGeo.getAttribute('color')); // reuse face shading (same 24-vert layout)
+glassGeo.computeBoundingSphere();glassGeo.computeBoundingBox();
 let _waterUniforms=null;
 blockMats[WATER_BLOCK].onBeforeCompile=(sh)=>{
   sh.uniforms.uTime={value:0};
@@ -577,8 +587,9 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced,meta){
   // live placement (player build / world-edit replay): world-gen sets tint
   // itself via tintAt() for its own blend-cache reuse, this covers the rest
   if(addToScene&&(ti===0||ti===5))v.tint=computeGrassTint(x,z);
-  if(ti===WATER_BLOCK||ti===TORCH_BLOCK){
-    const m=new THREE.Mesh(ti===WATER_BLOCK?waterGeo:torchGeo,blockMats[ti]);
+  if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK){
+    const geo=ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:glassGeo;
+    const m=new THREE.Mesh(geo,blockMats[ti]);
     m.position.set(x+.5,y+.5,z+.5);
     m.castShadow=false;m.receiveShadow=ti!==TORCH_BLOCK;
     m.userData={x,y,z,isBlock:true,ti};

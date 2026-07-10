@@ -60,6 +60,8 @@ function updateInvHUD(){
   const tc=document.getElementById('torchCount');if(tc)tc.textContent=isCreative()?'∞':(inv.torch>0?inv.torch:'');
   const slc=document.getElementById('slabCount');if(slc)slc.textContent=isCreative()?'∞':(inv.slab>0?inv.slab:'');
   const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'∞':(inv.stair>0?inv.stair:'');
+  const glc=document.getElementById('glassCount');if(glc)glc.textContent=isCreative()?'∞':(inv.glass>0?inv.glass:'');
+  const wbc=document.getElementById('woolBlockCount');if(wbc)wbc.textContent=isCreative()?'∞':(inv.woolBlock>0?inv.woolBlock:'');
 }
 
 // ─── 矢の切替（通常/火矢/氷矢）: 左のARROW行タップ or Rキー ───
@@ -144,7 +146,11 @@ const MATERIAL_LABELS={
   mushroom:'🍄 MUSHROOM',
   clay:'🟤 CLAY',
   ironOre:'🔶 IRON ORE',
-  ironIngot:'🔩 IRON INGOT'
+  ironIngot:'🔩 IRON INGOT',
+  glass:'🪟 GLASS',
+  woolBlock:'🧶 WOOL BLOCK',
+  steak:'🍖 STEAK',
+  meat:'🥩 MEAT'
 };
 
 function getMissingMaterialsText(recipe){
@@ -217,6 +223,7 @@ function doCraft(idx){
   else if(r.wi===-22){P.hp=Math.min(P.maxHp,P.hp+20);P.food=Math.min(100,P.food+35);showBonus('🍄 シチュー FOOD+35 HP+20!');}
   else if(r.wi===-23){P.food=Math.min(100,P.food+25);showBonus('🌵 ジュース FOOD+25!');}
   else if(r.wi===-24){inv.brick+=4;showBonus('🧱 レンガ×4 CRAFTED!');}
+  else if(r.wi===-28){inv.woolBlock+=4;showBonus('🧶 ウールブロック×4 CRAFTED!');}
   else if(r.wi===-19){enchTableCount++;updateEnchTableHUD();showBonus('⚒ 強化台×'+enchTableCount+'  X/PLACE長押しで設置！');}
   else if(r.wi===-25){furnaceCount++;updateFurnaceHUD();showBonus('🔥 かまど×'+furnaceCount+'  X/PLACE長押しで設置！');}
   else if(r.wi===-26){applyIronSword();showAlert('🔩 IRON SWORD CRAFTED!');playTone(1000,.18,.18,'square');setTimeout(()=>playTone(1300,.14,.16,'square'),140);setTimeout(()=>playTone(1600,.1,.14,'square'),280);}
@@ -253,13 +260,20 @@ function buildCraftPanel(){
     else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
     $craftPanel.appendChild(el);
   });
-  // 🔥かまどの近くにいるときだけ精錬メニューを追加
+  // 🔥かまどの近くにいるときだけ精錬・調理メニューを追加
   if(_furnaceNearby()){
     const hd=document.createElement('div');hd.className='citem header';hd.textContent='🔥 精錬（かまど）';$craftPanel.appendChild(hd);
     SMELT_RECIPES.forEach((r,i)=>{
       const el=document.createElement('div');el.className='citem';
       if(canCraft(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doSmelt(i);});}
       else{el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+getMissingMaterialsText(r);}
+      $craftPanel.appendChild(el);
+    });
+    const chd=document.createElement('div');chd.className='citem header';chd.textContent='🍖 調理（かまど）';$craftPanel.appendChild(chd);
+    COOK_RECIPES.forEach((r,i)=>{
+      const el=document.createElement('div');el.className='citem';
+      if(canCook(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCook(i);});}
+      else{el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+getMissingFoodText(r);}
       $craftPanel.appendChild(el);
     });
   }
@@ -292,6 +306,27 @@ function doSmelt(i){
   showBonus(r.name+' 精錬完了！');
   playTone(600,.12,.12,'square');setTimeout(()=>playTone(900,.1,.1,'square'),110);
   buildCraftPanel(); // 連続精錬できるようパネルは開いたまま更新
+}
+// 調理: 'meat' はインベントリ外のカウンタなので専用アクセサ経由で扱う
+function foodGet(k){return k==='meat'?meat:(inv[k]||0);}
+function foodAdd(k,v){if(k==='meat'){meat=Math.max(0,meat+v);updateMeatHUD();}else{inv[k]=(inv[k]||0)+v;}}
+function canCook(r){if(isCreative())return true;for(const[k,v]of Object.entries(r.needs)){if(foodGet(k)<v)return false;}return true;}
+function getMissingFoodText(r){
+  const lacks=[];
+  for(const[k,v]of Object.entries(r.needs)){const cur=foodGet(k);if(cur<v){const label=MATERIAL_LABELS[k]||k.toUpperCase();lacks.push(label+' '+cur+'/'+v);}}
+  return lacks.join('  ');
+}
+function doCook(i){
+  const r=COOK_RECIPES[i];if(!r)return;
+  if(!_furnaceNearby()){showBonus('🔥 かまどの近くでのみ調理できる');return;}
+  if(!canCook(r)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');return;}
+  if(!isCreative())for(const[k,v]of Object.entries(r.needs))foodAdd(k,-v);
+  for(const[k,v]of Object.entries(r.give))foodAdd(k,v);
+  unlockAchievement('firstCook');
+  updateInvHUD();updateMeatHUD();
+  showBonus(r.name+' 調理完了！');
+  playTone(700,.12,.1,'sine');setTimeout(()=>playTone(950,.1,.08,'sine'),100);
+  buildCraftPanel(); // 連続調理できるようパネルは開いたまま更新
 }
 function doEnchant(i){
   const d=ENCHANT_DEFS[i];if(!d)return;
@@ -347,7 +382,7 @@ document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains
 function resetInv(){
   inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.fireArrow=0;inv.iceArrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
   inv.ice=0;inv.obsidian=0;inv.crystal=0;inv.cactus=0;inv.mushroom=0;inv.clay=0;
-  inv.ironOre=0;inv.ironIngot=0;
+  inv.ironOre=0;inv.ironIngot=0;inv.glass=0;inv.woolBlock=0;inv.steak=0;
   arrowMode='normal';resetEnchants();
   hasDiamondSword=false;hasIronSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;
