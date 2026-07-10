@@ -73,6 +73,7 @@ function getCurrentGoal(){
   if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
   if(boss)return '👑 ボスを倒せ！攻撃後は距離を取ろう';
   if(dragon)return '💎 地下ドラゴン戦！ダイヤ武器が有効';
+  if(treasureMap)return '🗺 宝の地図: コンパスの先の地上の宝を探そう（'+Math.round(Math.hypot(treasureMap.wx-P.x,treasureMap.wz-P.z))+'m）';
   if(endlessMode)return '♾ エンドレスWAVE'+gs.wave+'  どこまで生き残れるか！';
   if(gs.wave<5)return '⚔ WAVE5のボスまで生き残ろう 現在WAVE '+gs.wave;
   if(!achievements.firstEnchant&&hasDiamondSword&&gs.wave>=8)return '⚒ 強化台(🪨×15+💎×1)で武器を強化しよう';
@@ -80,6 +81,18 @@ function getCurrentGoal(){
   return '🏆 キングダイヤモンドドラゴンを倒してクリア！';
 }
 function updateGoalHUD(){if($goalLabel)$goalLabel.textContent=getCurrentGoal();}
+// ─── 宝の地図コンパス: 所持中は最寄りの地上構造物の宝を指す ───
+const $treasureCompass=document.getElementById('treasureCompass'),$tcArrow=document.getElementById('tcArrow'),$tcText=document.getElementById('tcText');
+function updateTreasureCompass(){
+  if(!$treasureCompass)return;
+  if(!treasureMap||!gs.running){$treasureCompass.style.display='none';return;}
+  const dx=treasureMap.wx-P.x,dz=treasureMap.wz-P.z,dist=Math.hypot(dx,dz);
+  // ミニマップと同じ画面座標系（+x=右,+z=下,上=前方）で目標への相対角を求める
+  const ang=Math.atan2(dx,-dz)-yaw;
+  if($tcArrow)$tcArrow.style.transform='rotate('+(ang*180/Math.PI)+'deg)';
+  if($tcText)$tcText.textContent=dist<7?'🗺 宝は目前！掘って探せ':'🗺 '+Math.round(dist)+'m';
+  $treasureCompass.style.display='';
+}
 function updateHUD(){
   $sv.textContent=gs.score;$kv.textContent=gs.kills;$dv.textContent='DAY '+gs.day;
   const pct=Math.max(0,Math.min(100,P.hp));$hf.style.width=pct+'%';
@@ -90,7 +103,7 @@ function updateHUD(){
   const w=WEAPONS[weaponIdx];
   const arrowIcon=weaponIdx===3&&arrowMode!=='normal'?(arrowMode==='fire'?'🔥':'🧊'):'';
   $wl.textContent=w.name+arrowIcon+enchSuffix()+(unlockedWeapons[weaponIdx]?'':'🔒');
-  updateGoalHUD();updatePetHUD();
+  updateGoalHUD();updatePetHUD();updateTreasureCompass();
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();_updateTreasureInfo();
   const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);

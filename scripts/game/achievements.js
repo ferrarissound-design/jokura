@@ -28,6 +28,8 @@ const ACHIEVEMENT_DEFS={
   firstTameHorse:{title:'ウマ使い',desc:'ウマを小麦で手なずける',reward:'SCORE +200',apply(){gs.score+=200;}},
   firstMount:{title:'名騎手',desc:'ウマに騎乗する',reward:'SCORE +300',apply(){gs.score+=300;}},
   biomeCollector:{title:'バイオームコレクター',desc:'6バイオームの固有素材をすべて所持する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
+  structureRaider:{title:'遺跡荒らし',desc:'地上構造物の宝箱を開ける',reward:'SCORE +400',apply(){gs.score+=400;}},
+  mapMaster:{title:'トレジャーハンター',desc:'宝の地図の宝を発見する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   endless25:{title:'終わらない戦い',desc:'エンドレスモードでWAVE25に到達',reward:'SCORE +2000',apply(){gs.score+=2000;}},
   endless30:{title:'伝説の生存者',desc:'エンドレスモードでWAVE30に到達',reward:'SCORE +5000',apply(){gs.score+=5000;}},
 };

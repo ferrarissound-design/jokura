@@ -276,6 +276,8 @@ async function continueGame(){
   if(d.farmPlots){for(const fd of d.farmPlots){const st=Math.max(0,Math.min(2,fd.stage||0));const mesh=makeFarmMesh(st);mesh.position.set(fd.x+.5,fd.y,fd.z+.5);scene.add(mesh);farmPlots.push({mesh,x:fd.x,y:fd.y,z:fd.z,stage:st,growT:fd.growT||0});}}
   // 地下宝箱の開封済み復元（宝箱メッシュはchunk再生成時に _spawnRoomContent が担当）
   if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
+  // 宝の地図の復元（目標がすでに開封済みなら破棄）
+  treasureMap=(d.treasureMap&&d.treasureMap.key&&!openedTreasureKeys.has(d.treasureMap.key))?d.treasureMap:null;
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   // 相棒オオカミ復元（ワールド生成後にプレイヤーの隣へ）
   if(d.pet)spawnPetAtPlayer(d.pet.hp!=null?d.pet.hp:PET_MAX_HP,d.pet.downT||0);

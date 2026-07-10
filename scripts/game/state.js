@@ -42,6 +42,12 @@ const ARMOR_DEFS=[
 ];
 let armor=null; // {tier,dur} 装備中の鎧（null=未装備）
 
+// ═══ 宝の地図（地上構造物への案内） ═══
+// 地下祭壇の宝箱から入手することがある。所持中はコンパスHUDが最寄りの
+// 未開封の地上構造物（ピラミッド/イグルー/遺跡）の宝箱を指し示す。
+// 目標の宝箱を開けると大報酬とともに消費される。null=未所持。
+let treasureMap=null; // {wx,wz,key,type} 目標構造物の中心座標と宝箱voxelキー
+
 // ═══ GAME MODE (survival / creative) ═══
 // creative: 無敵・ブロック無限・即時破壊・飛行・敵WAVEなし（本家クリエイティブ準拠）
 let gameMode='survival';

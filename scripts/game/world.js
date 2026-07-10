@@ -694,6 +694,7 @@ function generateChunk(cx,cz){
     // 砂漠限定: サボテン（1〜3段の柱）
     if(biome===BIOMES.DESERT&&rand2(wx,wz,48)<0.02){const ch=1+Math.floor(rand2(wx,wz,49)*3);for(let cy=1;cy<=ch;cy++){const mc=addBlock(wx,h+cy,wz,CACTUS_BLOCK,false);if(mc)meshes.add(mc);}}
   }
+  _spawnSurfaceStructures(cx,cz,meshes);
   const rec=makeChunkRec(false);
   for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
   chunks[key]=rec;
@@ -867,8 +868,13 @@ function generateUnderChunk(cx,cy,cz){
 let underTreasures={},openedTreasureKeys=new Set();
 function _makeTreasureMesh(type){
   const root=new THREE.Object3D();
-  const bMat=new THREE.MeshStandardMaterial({color:type===2?0x1a3a50:0x4a2c0a,roughness:.7});
-  const lMat=new THREE.MeshStandardMaterial({color:type===2?0x0088cc:0x7a4a10,roughness:.5,emissive:type===2?0x005588:0,emissiveIntensity:type===2?.5:0});
+  // type 1=古い宝箱(茶) / 2=地下祭壇(青) / 3=地上構造物(金)
+  const bodyCol=type===2?0x1a3a50:type===3?0x6a4a12:0x4a2c0a;
+  const lidCol=type===2?0x0088cc:type===3?0xcaa032:0x7a4a10;
+  const emCol=type===2?0x005588:type===3?0x6a5010:0;
+  const emI=type===2?.5:type===3?.45:0;
+  const bMat=new THREE.MeshStandardMaterial({color:bodyCol,roughness:.7,metalness:type===3?.3:0});
+  const lMat=new THREE.MeshStandardMaterial({color:lidCol,roughness:.5,metalness:type===3?.4:0,emissive:emCol,emissiveIntensity:emI});
   const lockMat=new THREE.MeshStandardMaterial({color:0xddcc44,roughness:.4,metalness:.6});
   const body=new THREE.Mesh(new THREE.BoxGeometry(.78,.5,.58),bMat);body.position.y=.25;
   const lid=new THREE.Mesh(new THREE.BoxGeometry(.78,.18,.58),lMat);lid.position.y=.59;
@@ -905,12 +911,12 @@ function _spawnRoomContent(cx,cy,cz,meshes){
   }
 }
 function _disposeTreasureMesh(mesh){mesh.traverse(o=>{if(o.isMesh){o.geometry.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});}
-function resetTreasures(){for(const k in underTreasures){scene.remove(underTreasures[k].mesh);_disposeTreasureMesh(underTreasures[k].mesh);}underTreasures={};openedTreasureKeys=new Set();$treasureInfo.classList.remove('show');}
+function resetTreasures(){for(const k in underTreasures){scene.remove(underTreasures[k].mesh);_disposeTreasureMesh(underTreasures[k].mesh);}underTreasures={};openedTreasureKeys=new Set();treasureMap=null;$treasureInfo.classList.remove('show');const tc=document.getElementById('treasureCompass');if(tc)tc.style.display='none';}
 function _treasureNearby(){for(const k in underTreasures){const t=underTreasures[k];if(t.opened)continue;const[tx,ty,tz]=k.split('|').map(Number);if(Math.hypot(tx+.5-P.x,ty+.3-(P.y+.8),tz+.5-P.z)<2.5)return true;}return false;}
 function _updateTreasureInfo(){
   let near=null,nearD=2.5;
   for(const k in underTreasures){const t=underTreasures[k];if(t.opened)continue;const[tx,ty,tz]=k.split('|').map(Number);const d=Math.hypot(tx+.5-P.x,ty+.3-(P.y+.8),tz+.5-P.z);if(d<nearD){nearD=d;near={k,t};}}
-  if(near){$treasureInfo.textContent=near.t.type===2?'💠 地下祭壇の宝箱！ 長押しで開ける':'📦 古い宝箱！ 長押しで開ける';$treasureInfo.classList.add('show');}
+  if(near){$treasureInfo.textContent=near.t.type===2?'💠 地下祭壇の宝箱！ 長押しで開ける':near.t.type===3?'🗺 構造物の宝箱！ 長押しで開ける':'📦 古い宝箱！ 長押しで開ける';$treasureInfo.classList.add('show');}
   else $treasureInfo.classList.remove('show');
 }
 function openTreasure(){
@@ -921,10 +927,28 @@ function openTreasure(){
   const t=underTreasures[nearK];t.opened=true;openedTreasureKeys.add(nearK);scene.remove(t.mesh);_disposeTreasureMesh(t.mesh);
   const hadDiamond=inv.diamond>0;
   let msg='';
-  if(t.type===2){
+  let mapCompleted=false;
+  if(t.type===3){
+    // 地上構造物の宝箱: 豪華な報酬。構造物の種類ごとに味付けする
+    const d=2+Math.floor(Math.random()*3);inv.diamond+=d;msg='💎×'+d;
+    if(Math.random()<0.5){const a=8+Math.floor(Math.random()*8);inv.arrow+=a;msg+=' 🏹×'+a;}
+    if(Math.random()<0.4){const ii=1+Math.floor(Math.random()*3);inv.ironIngot+=ii;msg+=' 🔩×'+ii;}
+    if(t.struct==='pyramid'&&Math.random()<0.35){inv.dragonCore+=1;msg+=' 💠×1';}
+    if(t.struct==='igloo'&&Math.random()<0.6){const ic=2+Math.floor(Math.random()*3);inv.ice+=ic;msg+=' 🧊×'+ic;}
+    if(t.struct==='ruins'&&Math.random()<0.5){const m=1+Math.floor(Math.random()*3);meat+=m;updateMeatHUD();msg+=' 🥩×'+m;}
+    gs.score+=400;
+    unlockAchievement('structureRaider');
+    // 宝の地図が指していた宝ならクリア報酬
+    if(treasureMap&&nearK===treasureMap.key){treasureMap=null;mapCompleted=true;gs.score+=600;inv.diamond+=2;msg+=' +💎×2(地図ボーナス)';unlockAchievement('mapMaster');const tc=document.getElementById('treasureCompass');if(tc)tc.style.display='none';}
+  }else if(t.type===2){
     const d=1+Math.floor(Math.random()*2);inv.diamond+=d;msg='💎×'+d;
     if(Math.random()<0.08){inv.dragonCore+=1;msg+=' 💠×1';}
     if(Math.random()<0.35){const a=5+Math.floor(Math.random()*6);inv.arrow+=a;msg+=' 🏹×'+a;}
+    // 地下祭壇では時々🗺宝の地図が手に入る（地上の構造物へ導く）
+    if(!treasureMap){
+      const target=findNearestStructure(P.x,P.z,64);
+      if(target){treasureMap=target;msg+=' 🗺宝の地図';setTimeout(()=>{if(gs.running)showAlert('🗺 宝の地図を発見！ コンパスが示す地上の宝を探せ');},1400);}
+    }
   }else{
     const roll=Math.random();
     if(roll<0.30){const w=2+Math.floor(Math.random()*3);inv.wood+=w;msg='🪵×'+w;}
@@ -935,9 +959,89 @@ function openTreasure(){
   }
   updateInvHUD();
   if(!hadDiamond&&inv.diamond>0)unlockAchievement('firstDiamond');
-  showBonus('📦 宝箱を開けた！ '+msg);
+  showBonus((t.type===3?'🗝 宝箱を開けた！ ':'📦 宝箱を開けた！ ')+msg);
+  if(mapCompleted)setTimeout(()=>{if(gs.running)showAlert('🗺 地図の宝を発見！ 大量の財宝を手に入れた');},600);
   unlockAchievement('treasureHunter');
   playTone(900,.12,.1,'sine');setTimeout(()=>playTone(1300,.08,.08,'sine'),90);
   _updateTreasureInfo();saveGame();
+}
+
+// ─── 地上構造物（バイオーム別の建造物 + 宝箱） ───
+// 世界シードから決定的に生成される。グリッド1マスにつき最大1つ、対応バイオーム
+// （🏜砂漠=ピラミッド / ❄雪原=イグルー / 🌲森・🌿草原=遺跡）にのみ出現する。
+// 各構造物の中心には🗝金の宝箱（type 3）が入っており、豪華な報酬が手に入る。
+const STRUCT_GRID=80;   // 構造物グリッドの1マスのブロック数
+const STRUCT_PAD=5;     // 構造物の最大フットプリント半径（チャンク重なり判定用）
+function _structSeed(a){return((WORLD_SEED^0x5bd1e9)>>>0)+a;}
+// グリッドマス(gx,gz)に構造物があるか判定し、あれば中心座標と種類を返す
+function structAt(gx,gz){
+  if(rand2(gx,gz,_structSeed(1))>=0.5)return null;        // 半分のマスにのみ抽選
+  const jx=8+Math.floor(rand2(gx,gz,_structSeed(2))*(STRUCT_GRID-16));
+  const jz=8+Math.floor(rand2(gx,gz,_structSeed(3))*(STRUCT_GRID-16));
+  const wx=gx*STRUCT_GRID+jx,wz=gz*STRUCT_GRID+jz;
+  if(Math.abs(wx)<14&&Math.abs(wz)<14)return null;        // 開始地点の真上は避ける
+  const biome=getBiome(wx,wz);
+  let type;
+  if(biome===BIOMES.DESERT)type='pyramid';
+  else if(biome===BIOMES.SNOW)type='igloo';
+  else if(biome===BIOMES.FOREST||biome===BIOMES.PLAINS)type='ruins';
+  else return null; // 火山・岩山には生成しない
+  return{type,wx,wz,biome};
+}
+// 構造物の宝箱voxelキー（生成側と地図側で同じ位置を指すよう一元化）
+function structChestKey(s){return vKey(s.wx,getHeight(s.wx,s.wz)+1,s.wz);}
+// このチャンクに重なる構造物のブロックと宝箱を配置する
+function _spawnSurfaceStructures(cx,cz,meshes){
+  const ox=cx*CHUNK,oz=cz*CHUNK;
+  const gA=Math.floor((ox-STRUCT_PAD)/STRUCT_GRID),gB=Math.floor((ox+CHUNK+STRUCT_PAD)/STRUCT_GRID);
+  const gzA=Math.floor((oz-STRUCT_PAD)/STRUCT_GRID),gzB=Math.floor((oz+CHUNK+STRUCT_PAD)/STRUCT_GRID);
+  const pb=(wx,wy,wz,ti)=>{if(wx<ox||wx>=ox+CHUNK||wz<oz||wz>=oz+CHUNK)return;const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);};
+  for(let gx=gA;gx<=gB;gx++)for(let gz=gzA;gz<=gzB;gz++){
+    const s=structAt(gx,gz);if(!s)continue;
+    const h=getHeight(s.wx,s.wz);
+    const cxw=s.wx,czw=s.wz;
+    if(s.type==='pyramid'){
+      // 段々ピラミッド（砂）: 5x5→3x3→1x1。中心底に宝箱、宝箱セルは空ける
+      for(let t=0;t<3;t++){const e=2-t;for(let dx=-e;dx<=e;dx++)for(let dz=-e;dz<=e;dz++){if(t===0&&dx===0&&dz===0)continue;pb(cxw+dx,h+1+t,czw+dz,2);}}
+    }else if(s.type==='igloo'){
+      // 雪のドーム（半球シェル）: 入口を1つ空ける。中心床は空けて宝箱を置く
+      for(let dx=-3;dx<=3;dx++)for(let dy=0;dy<=3;dy++)for(let dz=-3;dz<=3;dz++){
+        const r2=dx*dx+dy*dy+dz*dz;if(r2<4.8||r2>10.5)continue;
+        if(dz>=2&&dx===0&&dy<=1)continue; // 入口
+        pb(cxw+dx,h+1+dy,czw+dz,SNOW_BLOCK);
+      }
+    }else{ // ruins: 崩れたレンガの壁 + 四隅の石柱。中心に宝箱
+      for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
+        if(Math.max(Math.abs(dx),Math.abs(dz))!==2)continue; // 外周のみ
+        const rr=rand2(cxw+dx,czw+dz,_structSeed(7));
+        const wh=rr<0.35?0:rr<0.7?1:2; // 崩れ具合で高さがまばら
+        for(let dy=1;dy<=wh;dy++)pb(cxw+dx,h+dy,czw+dz,4);
+      }
+      [[-2,-2],[2,-2],[-2,2],[2,2]].forEach(([dx,dz])=>{for(let dy=1;dy<=3;dy++)pb(cxw+dx,h+dy,czw+dz,1);});
+    }
+    // 宝箱（このチャンクが宝箱セルを含む場合のみ登録）
+    const tx=cxw,ty=h+1,tz=czw,tk=vKey(tx,ty,tz);
+    if(!underTreasures[tk]&&tx>=ox&&tx<ox+CHUNK&&tz>=oz&&tz<oz+CHUNK){
+      const mesh=_makeTreasureMesh(3);mesh.position.set(tx+.5,ty,tz+.5);
+      if(!openedTreasureKeys.has(tk))scene.add(mesh);
+      underTreasures[tk]={mesh,opened:openedTreasureKeys.has(tk),type:3,struct:s.type};
+    }
+  }
+}
+// プレイヤーから minDist 以上離れた最寄りの未開封構造物を探す（宝の地図の目標用）
+function findNearestStructure(px,pz,minDist){
+  const pgx=Math.floor(px/STRUCT_GRID),pgz=Math.floor(pz/STRUCT_GRID);
+  let best=null,bestD=Infinity;
+  for(let ring=0;ring<=6;ring++){
+    for(let gx=pgx-ring;gx<=pgx+ring;gx++)for(let gz=pgz-ring;gz<=pgz+ring;gz++){
+      if(Math.max(Math.abs(gx-pgx),Math.abs(gz-pgz))!==ring)continue; // リング外周のみ
+      const s=structAt(gx,gz);if(!s)continue;
+      const key=structChestKey(s);if(openedTreasureKeys.has(key))continue;
+      const d=Math.hypot(s.wx-px,s.wz-pz);if(d<minDist)continue;
+      if(d<bestD){bestD=d;best={wx:s.wx,wz:s.wz,key,type:s.type};}
+    }
+    if(best&&ring>=2)break; // 数リング先まで見つかれば十分
+  }
+  return best;
 }
 

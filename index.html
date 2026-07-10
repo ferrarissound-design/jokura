@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260720a">
+<link rel="stylesheet" href="styles/main.css?v=20260721a">
 
 </head>
 <body>
@@ -67,6 +67,7 @@
   <div id="bonusPopup"></div>
   <div id="chestInfo"></div>
   <div id="treasureInfo"></div>
+  <div id="treasureCompass" style="display:none"><div id="tcArrow">⬆</div><div id="tcText">🗺</div></div>
   <button id="pauseBtn">⏸</button>
   <div id="pauseOverlay">
     <div id="pauseTitle">⏸ PAUSE</div>
@@ -215,7 +216,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260720a';
+  var V='20260721a';
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world','combat','entities','hud','input','main'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
