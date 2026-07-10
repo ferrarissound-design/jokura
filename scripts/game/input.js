@@ -18,7 +18,8 @@ if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAu
 function doFurnitureAction(){
   if(!gs.running)return;
   if(mounted){dismountHorse();return;} // 騎乗中のXは常に降車
-  if(_bedNearby())                    sleepBed();
+  if(_merchantNearby())               openMerchantPanel();
+  else if(_bedNearby())                    sleepBed();
   else if(_chestNearby())             interactChest();
   else if(_treasureNearby())          openTreasure();
   else if(_horseMountableNearby())    mountHorse();
@@ -70,7 +71,7 @@ function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPO
 // materials, so they must be disposed on removal to avoid GPU memory leaks
 function disposeObject3D(root){root.traverse(o=>{if(o.isMesh){if(o.geometry)o.geometry.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else if(o.material)o.material.dispose();}else if(o.isSprite&&o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});}
 function flashEnemy(e){for(const m of e.flashMeshes||[e.body,e.head]){m.material.emissive.setHex(0xffffff);m.material.emissiveIntensity=1.5;}setTimeout(()=>{try{for(const m of e.flashMeshes||[e.body,e.head]){m.material.emissive.setHex(e.type.emissive);m.material.emissiveIntensity=e.type.emissiveIntensity||.15;}}catch(x){}},100);}
-function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0,en.hp/en.maxHp);en.hpBar.scale.x=Math.max(.01,ratio);en.hpBar.material.color.setHex(ratio>.5?0x44ff44:ratio>.25?0xffaa00:0xff2222);if(en.hp<=0&&!en.dead){en.dead=true;const ep=en.root.position;spawnParticles(ep.x,ep.y,ep.z,en.type.color,4);dropItem(ep.x,ep.y,ep.z,en.type);scene.remove(en.root);disposeObject3D(en.root);const idx=enemies.indexOf(en);if(idx>=0)enemies.splice(idx,1);gs.kills++;const pts=en.type.score*(gs.wave||1);gs.score+=pts;sfxKill();showBonus('+'+pts);}}
+function hitEnemy(en,dmgVal){en.hp-=dmgVal;flashEnemy(en);const ratio=Math.max(0,en.hp/en.maxHp);en.hpBar.scale.x=Math.max(.01,ratio);en.hpBar.material.color.setHex(ratio>.5?0x44ff44:ratio>.25?0xffaa00:0xff2222);if(en.hp<=0&&!en.dead){en.dead=true;const ep=en.root.position;spawnParticles(ep.x,ep.y,ep.z,en.type.color,4);dropItem(ep.x,ep.y,ep.z,en.type);scene.remove(en.root);disposeObject3D(en.root);const idx=enemies.indexOf(en);if(idx>=0)enemies.splice(idx,1);gs.kills++;const pts=en.type.score*(gs.wave||1)*fullMoonScoreMult();gs.score+=pts;sfxKill();showBonus('+'+pts);}}
 
 // ブロック破壊共通処理
 function breakBlock(bh){

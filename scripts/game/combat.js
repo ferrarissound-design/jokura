@@ -65,6 +65,8 @@ const WEAPONS=[
   {name:'🪄 Magic', dmg:5,range:8,  cd:1.4,type:'aoe',    sfx:sfxMagic},
   {name:'🔮 Diamond Staff',dmg:15,range:35,cd:1.5,type:'staff',sfx:sfxDiamondStaff},
 ];
+// 🌕 満月の夜: 通常の雑魚キルスコアを2倍にする（ボス/ドラゴンのスコアには適用しない）
+function fullMoonScoreMult(){return fullMoonNight?2:1;}
 let weaponIdx=0,attackCD=0;
 const $wl=document.getElementById('weaponLabel');
 const $cdFill=document.getElementById('cdFill');

@@ -32,6 +32,9 @@ const ACHIEVEMENT_DEFS={
   mapMaster:{title:'トレジャーハンター',desc:'宝の地図の宝を発見する',reward:'💎 +2',apply(){inv.diamond+=2;updateInvHUD();}},
   endless25:{title:'終わらない戦い',desc:'エンドレスモードでWAVE25に到達',reward:'SCORE +2000',apply(){gs.score+=2000;}},
   endless30:{title:'伝説の生存者',desc:'エンドレスモードでWAVE30に到達',reward:'SCORE +5000',apply(){gs.score+=5000;}},
+  meteorStruck:{title:'隕石サバイバー',desc:'隕石の直撃を受けて生き延びる',reward:'SCORE +300',apply(){gs.score+=300;}},
+  firstTrade:{title:'商談成立',desc:'行商人と取引する',reward:'SCORE +300',apply(){gs.score+=300;}},
+  fullMoonSurvivor:{title:'満月を越えて',desc:'満月の夜を生き延びる',reward:'SCORE +500',apply(){gs.score+=500;}},
 };
 const achievements={};
 function resetAchievements(){for(const key of Object.keys(ACHIEVEMENT_DEFS))achievements[key]=false;}

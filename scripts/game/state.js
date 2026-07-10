@@ -48,6 +48,24 @@ let armor=null; // {tier,dur} 装備中の鎧（null=未装備）
 // 目標の宝箱を開けると大報酬とともに消費される。null=未所持。
 let treasureMap=null; // {wx,wz,key,type} 目標構造物の中心座標と宝箱voxelキー
 
+// ═══ 🌕 満月の夜（ランダムイベント） ═══
+// 夜が始まる瞬間に確率で発生。発生中は敵が追加で湧き、キル時のスコアが2倍になる。
+// 夜明けまで生き延びると実績。セーブはせず、夜ごとに再抽選される。
+let fullMoonNight=false;
+
+// ═══ 🧙 行商人の交易品（ランダムイベント） ═══
+// 一定間隔でワールドに出現する行商人が提示する交換レート。stockは出現ごとにリセットされる
+// 個数制限（無限に素材をダイヤ化できないようにするため）。
+const MERCHANT_TRADES=[
+  {give:{wood:24},   get:{diamond:1},    desc:'🪵×24 → 💎×1',  stock:2},
+  {give:{stone:30},  get:{diamond:1},    desc:'🪨×30 → 💎×1',  stock:2},
+  {give:{wool:6},    get:{arrow:24},     desc:'🧶×6 → 🏹×24',  stock:3},
+  {give:{wheat:12},  get:{crystal:2},    desc:'🌾×12 → 🔮×2',  stock:2},
+  {give:{clay:6},    get:{brick:10},     desc:'🟤×6 → 🧱×10',  stock:3},
+  {give:{ironOre:6}, get:{ironIngot:4},  desc:'🔶×6 → 🔩×4',   stock:2},
+  {give:{diamond:3}, get:{dragonCore:1}, desc:'💎×3 → 💠×1',   stock:1},
+];
+
 // ═══ GAME MODE (survival / creative) ═══
 // creative: 無敵・ブロック無限・即時破壊・飛行・敵WAVEなし（本家クリエイティブ準拠）
 let gameMode='survival';

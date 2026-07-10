@@ -19,12 +19,36 @@ const ITEM_DEFS=[
 ];
 const itemGeo=new THREE.BoxGeometry(.35,.35,.35);
 function dropItem(x,y,z,etype){
-  if(Math.random()>.45)return;
+  if(Math.random()>(fullMoonNight?.65:.45))return; // 🌕満月の夜はドロップ率アップ
   const pool=ITEM_DEFS.filter(i=>i.type!=='weapon');
   const it=pool[Math.floor(Math.random()*pool.length)];
   const mat=new THREE.MeshBasicMaterial({color:it.color,transparent:true,opacity:.9});
   const m=new THREE.Mesh(itemGeo,mat);m.position.set(x,y+.5,z);scene.add(m);
   items.push({mesh:m,mat,info:it,x,y:y+.5,z,time:0});
+}
+
+// ☄ 隕石落下の戦利品: 着弾地点にランダムな素材アイテムをばらまく（重み付き抽選）
+const METEOR_LOOT_DEFS=[
+  {name:'🔶 隕石の鉄鉱石',   key:'ironOre',   value:2,color:0xcaa472,weight:35},
+  {name:'💎 隕石のダイヤ',   key:'diamond',   value:1,color:0x3fe0ff,weight:20},
+  {name:'🔮 隕石の水晶',     key:'crystal',   value:2,color:0xcc66ff,weight:20},
+  {name:'⬛ 隕石の黒曜石',   key:'obsidian',  value:2,color:0x30105a,weight:18},
+  {name:'💠 隕石のドラゴンコア',key:'dragonCore',value:1,color:0x00e5ff,weight:7},
+];
+function _pickWeighted(pool){
+  const total=pool.reduce((s,p)=>s+p.weight,0);let r=Math.random()*total;
+  for(const p of pool){if((r-=p.weight)<=0)return p;}
+  return pool[pool.length-1];
+}
+function spawnMeteorLoot(x,y,z){
+  const n=2+Math.floor(Math.random()*2);
+  for(let i=0;i<n;i++){
+    const def=_pickWeighted(METEOR_LOOT_DEFS);
+    const mat=new THREE.MeshBasicMaterial({color:def.color,transparent:true,opacity:.9});
+    const ox=(Math.random()-.5)*1.6,oz=(Math.random()-.5)*1.6;
+    const m=new THREE.Mesh(itemGeo,mat);m.position.set(x+ox,y,z+oz);scene.add(m);
+    items.push({mesh:m,mat,info:{type:'mat',key:def.key,value:def.value,name:def.name},x:x+ox,y,z:z+oz,time:0});
+  }
 }
 
 // ═══ CHESTS ═══
@@ -696,4 +720,118 @@ function updateHorse(dt){
   if(moving){const sw=Math.sin(Date.now()*.008)*.45;for(let li=0;li<horse.legs.length;li++)horse.legs[li].rotation.x=(li%2===0?1:-1)*sw;}
   if(horse.tail)horse.tail.rotation.y=Math.sin(Date.now()*.006)*(moving?.25:.45);
 }
+
+// ═══ 🧙 行商人（ランダムイベント: トレーダー） ═══
+// 一定間隔でランダムにワールドへ出現する移動商人。その場に留まり、近くでXキー
+// (スマホはPLACE長押し)で話しかけると交易パネルが開く。取引ごとの在庫(stock)は
+// 出現ごとにリセットされ、無限に素材を変換できないようにしてある。
+// 一定時間で立ち去るか、次回開始時にリセットされる（セーブはしない一時的な存在）。
+let merchant=null; // {root,head,armL,armR,baseY,bobT,life,stockLeft:[...]}
+const MERCHANT_LIFE=180;
+let merchantSpawnT=60+Math.random()*60;
+const _merchantGeos={
+  robe:new THREE.BoxGeometry(.62,1.0,.5),head:new THREE.BoxGeometry(.34,.34,.34),
+  hood:new THREE.BoxGeometry(.4,.22,.42),arm:new THREE.BoxGeometry(.16,.55,.16),
+  pack:new THREE.BoxGeometry(.32,.4,.24),eye:new THREE.BoxGeometry(.06,.06,.04),
+  trim:new THREE.BoxGeometry(.66,.1,.54),
+};
+const _merchantMatBase={
+  robe:new THREE.MeshStandardMaterial({color:0x5a3a7a,roughness:.85}),
+  trim:new THREE.MeshStandardMaterial({color:0xd8b04a,roughness:.6,metalness:.3}),
+  skin:new THREE.MeshStandardMaterial({color:0xd8b088,roughness:.8}),
+  pack:new THREE.MeshStandardMaterial({color:0x6d4a2a,roughness:.85}),
+  eye:new THREE.MeshBasicMaterial({color:0x111111}),
+};
+function makeMerchantMesh(){
+  const root=new THREE.Object3D();
+  const robe=new THREE.Mesh(_merchantGeos.robe,_merchantMatBase.robe.clone());robe.position.y=.62;
+  const trim=new THREE.Mesh(_merchantGeos.trim,_merchantMatBase.trim.clone());trim.position.y=.16;
+  const head=new THREE.Mesh(_merchantGeos.head,_merchantMatBase.skin.clone());head.position.y=1.28;
+  const hood=new THREE.Mesh(_merchantGeos.hood,_merchantMatBase.robe.clone());hood.position.set(0,1.42,-.02);
+  const eyeL=new THREE.Mesh(_merchantGeos.eye,_merchantMatBase.eye.clone());eyeL.position.set(-.09,1.28,.17);
+  const eyeR=new THREE.Mesh(_merchantGeos.eye,_merchantMatBase.eye.clone());eyeR.position.set(.09,1.28,.17);
+  const armL=new THREE.Mesh(_merchantGeos.arm,_merchantMatBase.robe.clone());armL.position.set(-.38,.7,0);armL.rotation.z=.2;
+  const armR=new THREE.Mesh(_merchantGeos.arm,_merchantMatBase.robe.clone());armR.position.set(.38,.7,0);armR.rotation.z=-.2;
+  const pack=new THREE.Mesh(_merchantGeos.pack,_merchantMatBase.pack.clone());pack.position.set(0,.75,-.32);
+  root.add(robe,trim,head,hood,eyeL,eyeR,armL,armR,pack);
+  markShadowCaster(root);
+  return{root,head,armL,armR};
+}
+function spawnMerchant(){
+  if(merchant)return;
+  const angle=Math.random()*Math.PI*2,dist=10+Math.random()*8;
+  const wx=P.x+Math.cos(angle)*dist,wz=P.z+Math.sin(angle)*dist;
+  const h=getHeight(Math.floor(wx),Math.floor(wz));
+  const built=makeMerchantMesh();
+  const baseY=h+1.01;
+  built.root.position.set(wx,baseY,wz);
+  scene.add(built.root);
+  merchant={root:built.root,head:built.head,armL:built.armL,armR:built.armR,baseY,
+    bobT:Math.random()*10,life:MERCHANT_LIFE,stockLeft:MERCHANT_TRADES.map(t=>t.stock)};
+  showAlert('🧙 行商人が近くにやってきた！Xキー(スマホはPLACE長押し)で話しかけよう');
+  playTone(500,.1,.1,'triangle');setTimeout(()=>playTone(650,.1,.1,'triangle'),110);
+}
+function removeMerchant(){
+  if(!merchant)return;
+  scene.remove(merchant.root);disposeObject3D(merchant.root);merchant=null;
+  closeMerchantPanel();
+}
+function _merchantNearby(){return !!merchant&&Math.hypot(merchant.root.position.x-P.x,merchant.root.position.z-P.z)<2.8;}
+function updateMerchant(dt,isUnder){
+  if(!merchant){
+    if(!isCreative()&&!isUnder){merchantSpawnT-=dt;if(merchantSpawnT<=0)spawnMerchant();}
+    return;
+  }
+  merchant.life-=dt;
+  if(merchant.life<=0){
+    const wasNear=Math.hypot(merchant.root.position.x-P.x,merchant.root.position.z-P.z)<30;
+    removeMerchant();merchantSpawnT=100+Math.random()*80;
+    if(wasNear)showBonus('🧙 行商人が立ち去った');
+    return;
+  }
+  merchant.bobT+=dt;
+  merchant.root.position.y=merchant.baseY+Math.sin(merchant.bobT*1.4)*.05;
+  merchant.root.rotation.y=Math.sin(merchant.bobT*.5)*.5;
+  if(merchant.armL)merchant.armL.rotation.z=.2+Math.sin(merchant.bobT*.9)*.08;
+  if(merchant.armR)merchant.armR.rotation.z=-.2-Math.sin(merchant.bobT*.9)*.08;
+}
+// ─── 交易パネル ───
+const $merchantPanel=document.getElementById('merchantPanel'),$merchantBody=document.getElementById('merchantBody'),$merchantCloseBtn=document.getElementById('merchantCloseBtn');
+const $merchantInfo=document.getElementById('merchantInfo');
+function updateMerchantInfo(){
+  if(!$merchantInfo)return;
+  if(_merchantNearby()){$merchantInfo.textContent='🧙 行商人がいる！Xキー(スマホはPLACE長押し)で話しかける';$merchantInfo.classList.add('show');}
+  else $merchantInfo.classList.remove('show');
+}
+function canAffordTrade(t){return Object.entries(t.give).every(([k,v])=>(inv[k]||0)>=v);}
+function doTrade(i){
+  if(!merchant)return;
+  const t=MERCHANT_TRADES[i];if(!t)return;
+  if(merchant.stockLeft[i]<=0){showBonus('🧙 この品はもう在庫がない');return;}
+  if(!canAffordTrade(t)){showBonus('素材が足りない…');playTone(200,.1,.08,'sawtooth');return;}
+  for(const[k,v]of Object.entries(t.give))inv[k]-=v;
+  for(const[k,v]of Object.entries(t.get))inv[k]=(inv[k]||0)+v;
+  merchant.stockLeft[i]--;
+  updateInvHUD();
+  unlockAchievement('firstTrade');
+  showBonus('🧙 取引成立！ '+t.desc);
+  playTone(700,.12,.1,'sine');setTimeout(()=>playTone(950,.1,.08,'sine'),100);
+  buildMerchantPanel(); // 連続取引できるようパネルは開いたまま更新
+}
+function buildMerchantPanel(){
+  if(!$merchantBody)return;
+  $merchantBody.innerHTML='';
+  if(!merchant){$merchantBody.innerHTML='<div class="citem locked">行商人はいない</div>';return;}
+  MERCHANT_TRADES.forEach((t,i)=>{
+    const el=document.createElement('div');el.className='citem';
+    const left=merchant.stockLeft[i];
+    if(left<=0){el.classList.add('done');el.textContent='✅ '+t.desc+' (在庫切れ)';}
+    else if(!canAffordTrade(t)){el.classList.add('locked');el.textContent='🔒 '+t.desc+' (残り'+left+')';}
+    else{el.textContent='🔵 '+t.desc+' (残り'+left+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doTrade(i);});}
+    $merchantBody.appendChild(el);
+  });
+}
+function openMerchantPanel(){if(!merchant)return;buildMerchantPanel();setPanel($merchantPanel,true);}
+function closeMerchantPanel(){setPanel($merchantPanel,false);}
+if($merchantCloseBtn)bindTapSafe($merchantCloseBtn,closeMerchantPanel);
 

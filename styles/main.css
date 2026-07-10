@@ -111,6 +111,8 @@ canvas#c{display:block;touch-action:none}
 #treasureCompass{position:absolute;top:calc(52px + var(--safeT));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;background:rgba(20,10,0,.7);border:1px solid rgba(240,200,90,.55);border-radius:10px;padding:3px 10px 3px 6px;z-index:11;pointer-events:none;box-shadow:0 0 10px rgba(240,180,60,.25)}
 #tcArrow{font-size:15px;line-height:1;color:#ffdf7a;text-shadow:0 0 6px #ffb32488;transition:transform .12s linear;will-change:transform}
 #tcText{font-size:10px;font-weight:800;color:#ffe9b0;text-shadow:1px 1px 0 #000;letter-spacing:.4px;white-space:nowrap}
+#merchantInfo{position:absolute;bottom:calc(192px + var(--safeB));left:50%;transform:translateX(-50%);background:rgba(30,10,40,.85);border:1px solid rgba(200,140,255,.4);border-radius:8px;padding:4px 12px;font-size:10px;font-weight:700;color:#e0b0ff;text-shadow:0 0 6px #aa66ff88;letter-spacing:.3px;z-index:10;pointer-events:none;white-space:nowrap;display:none}
+#merchantInfo.show{display:block}
 #bossHpWrap{position:absolute;bottom:calc(120px + var(--safeB));left:50%;transform:translateX(-50%);width:min(320px,85vw);pointer-events:none;z-index:15;opacity:0;transition:opacity .5s}
 #bossHpWrap.show{opacity:1}
 #bossName{text-align:center;font-size:13px;font-weight:900;color:#ff6666;text-shadow:0 0 10px #ff0000,1px 1px 0 #000;letter-spacing:2px;margin-bottom:4px}
