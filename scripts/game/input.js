@@ -44,7 +44,8 @@ const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
   if(e.code==='Space'&&gs.running){e.preventDefault();if(!e.repeat)doJump();}
-  if(e.code>='Digit1'&&e.code<='Digit8')setType(parseInt(e.code[5])-1);
+  if(e.code>='Digit1'&&e.code<='Digit9')setType(parseInt(e.code[5])-1);
+  if(e.code==='Digit0')setType(9);
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='KeyR')cycleArrowMode();
   if(e.code==='F5'&&gs.running){e.preventDefault();saveGame();}

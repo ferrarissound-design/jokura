@@ -26,7 +26,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0};
 // 弓に装填する矢の種類: 'normal' | 'fire'(炎上) | 'ice'(鈍足)
 let arrowMode='normal';
 
@@ -73,8 +73,8 @@ const isCreative=()=>gameMode==='creative';
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 let hasIronSword=false; // 鉄の剣: 石とダイヤの中間ティア（ダイヤ剣を作ると上書きされる）
 const unlockedWeapons=[true,false,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay'];
-const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair'];
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay','glass','woolBlock'];
+const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair','glass','woolBlock'];
 
 const CRAFT_RECIPES=[
   {name:'⚔ Sword',  wi:1,  needs:{wood:5},          desc:'🪵×5'},
@@ -107,6 +107,7 @@ const CRAFT_RECIPES=[
   {name:'🍄 キノコシチュー',wi:-22,needs:{mushroom:2},   desc:'🍄×2'},
   {name:'🌵 サボテンジュース',wi:-23,needs:{cactus:2},   desc:'🌵×2'},
   {name:'🧱 レンガ×4(粘土)',wi:-24,needs:{clay:2},      desc:'🟤×2'},
+  {name:'🧶 ウールブロック×4',wi:-28,needs:{wool:2},     desc:'🧶×2'},
   {name:'⚒ 強化台',   wi:-19,needs:{stone:15,diamond:1},desc:'🪨×15+💎×1', req:2},
 ];
 
@@ -132,5 +133,15 @@ function enchSuffix(){let s='';if(enchants.atk)s+=' ⚔+'+enchants.atk;if(enchan
 const SMELT_RECIPES=[
   {name:'🔩 鉄インゴット',   needs:{ironOre:1,wood:1},  desc:'🔶×1+🪵×1(燃料)', give:{ironIngot:1}},
   {name:'🔩 鉄インゴット×3', needs:{ironOre:3,wood:2},  desc:'🔶×3+🪵×2(燃料)', give:{ironIngot:3}},
+  {name:'🪟 ガラス',         needs:{sand:1,wood:1},     desc:'🏖×1+🪵×1(燃料)', give:{glass:1}},
+  {name:'🪟 ガラス×3',       needs:{sand:3,wood:2},     desc:'🏖×3+🪵×2(燃料)', give:{glass:3}},
+];
+
+// ═══ 🍖 調理（かまど） ═══
+// 🔥かまどの近くでクラフトパネルを開くと調理メニューが出る。生肉を焼いて回復量の
+// 高いステーキにできる。'meat' はインベントリ外のカウンタなので foodGet/foodAdd 経由で扱う。
+const COOK_RECIPES=[
+  {name:'🍖 ステーキ',   needs:{meat:1,wood:1},  desc:'🥩×1+🪵×1(燃料)', give:{steak:1}},
+  {name:'🍖 ステーキ×3', needs:{meat:3,wood:2},  desc:'🥩×3+🪵×2(燃料)', give:{steak:3}},
 ];
 

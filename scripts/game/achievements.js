@@ -24,6 +24,7 @@ const ACHIEVEMENT_DEFS={
   dragonSlayer:{title:'ドラゴンスレイヤー',desc:'キングダイヤモンドドラゴンを倒す',reward:'🏆 CLEAR BONUS',apply(){gs.score+=3000;}},
   firstEnchant:{title:'エンチャントの力',desc:'強化台で武器を強化する',reward:'SCORE +500',apply(){gs.score+=500;}},
   firstSmelt:{title:'鉄の時代',desc:'かまどで鉄を精錬する',reward:'SCORE +300',apply(){gs.score+=300;}},
+  firstCook:{title:'料理人',desc:'かまどで肉を焼いてステーキを作る',reward:'🥩 +2',apply(){meat+=2;updateMeatHUD();}},
   thunderStruck:{title:'雷に打たれても',desc:'落雷の直撃を受けて生き延びる',reward:'SCORE +200',apply(){gs.score+=200;}},
   firstTameHorse:{title:'ウマ使い',desc:'ウマを小麦で手なずける',reward:'SCORE +200',apply(){gs.score+=200;}},
   firstMount:{title:'名騎手',desc:'ウマに騎乗する',reward:'SCORE +300',apply(){gs.score+=300;}},
