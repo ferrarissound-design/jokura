@@ -134,7 +134,11 @@ canvas#c{display:block;touch-action:none}
    content is tall it genuinely overflows and can be scrolled to reach CLOSE. */
 .menuPanel{position:fixed;left:0;top:0;width:100%;height:100vh;height:100svh;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);z-index:1200;pointer-events:auto;padding:12px;box-sizing:border-box}
 .menuPanel.show{display:flex}
-.menuCard{position:relative;width:min(560px,92vw);max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:2px solid rgba(255,255,255,.2);border-radius:14px;background:linear-gradient(180deg,rgba(25,28,40,.96),rgba(8,10,16,.98));box-shadow:0 20px 60px rgba(0,0,0,.55),inset 0 0 24px rgba(126,207,255,.08);padding:18px;box-sizing:border-box;text-align:center;color:#eee}
+.menuCard{position:relative;width:min(560px,92vw);max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;border:2px solid rgba(255,255,255,.2);border-radius:14px;background:linear-gradient(180deg,rgba(25,28,40,.96),rgba(8,10,16,.98));box-shadow:0 20px 60px rgba(0,0,0,.55),inset 0 0 24px rgba(126,207,255,.08);padding:18px;box-sizing:border-box;text-align:center;color:#eee}
+/* グローバルの *{touch-action:none} を打ち消し、メニューカード内はどこを掴んでも
+   縦スクロールできるようにする（見出し・ボタン間の隙間で掴んでも効くように子孫にも付与）。
+   ボタンは各自 touch-action:manipulation を持つが、これも縦パンを許可するので問題ない。 */
+.menuCard *{touch-action:pan-y}
 /* always-visible corner close: pinned to the panel (screen), never scrolls away */
 .menuCloseX{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:14px;width:46px;height:46px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:rgba(20,24,34,.92);color:#fff;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:1301;box-shadow:0 2px 12px rgba(0,0,0,.55)}
 .menuCloseX:active{background:rgba(60,70,90,.95)}
@@ -179,7 +183,7 @@ canvas#c{display:block;touch-action:none}
 .slotBtn.danger{background:linear-gradient(135deg,#8e3b3b,#4a1c1c)}
 .slotBtn:active{transform:scale(.96)}
 
-#achievementsList{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#achievementsList{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .achievementItem{border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);padding:9px 10px;text-align:left}
 .achievementItem.done{border-color:rgba(249,211,66,.55);background:rgba(249,211,66,.09);box-shadow:0 0 12px rgba(249,211,66,.12)}
 .achievementTitle{font-size:12px;font-weight:900;color:#f9d342;text-shadow:1px 1px 0 #000;margin-bottom:3px}
