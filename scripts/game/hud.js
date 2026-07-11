@@ -60,9 +60,9 @@ function togglePause(){
 let waTimer=0,bpTimer=0;
 const showAlert=t=>{$wa.textContent=t;$wa.classList.add('show');waTimer=2.5;};
 const showBonus=t=>{$bp.textContent=t;$bp.classList.add('show');bpTimer=1.5;};
-function dmgPlayer(v){if(isCreative())return;if(P.invT>0)return;let dmg=v*difficultyMult();if(armor){const def=ARMOR_DEFS[armor.tier];const blocked=dmg*def.cut;dmg-=blocked;armor.dur-=blocked;if(armor.dur<=0){armor=null;showAlert('🛡 鎧が壊れた！');playTone(280,.2,.15,'sawtooth');setTimeout(()=>playTone(180,.15,.12,'sawtooth'),140);}updateArmorHUD();}P.hp=Math.max(0,P.hp-dmg);P.invT=.8;if(settings.flash){$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);}sfxDmg();if(P.hp<=0)gameOver();}
-function dmgLava(){if(isCreative())return;P.hp=Math.max(0,P.hp-8);if(settings.flash){$lavaFlash.classList.add('on');setTimeout(()=>$lavaFlash.classList.remove('on'),200);}sfxLava();if(P.hp<=0)gameOver();}
-function dmgSnow(){if(isCreative())return;P.hp=Math.max(0,P.hp-3);if(settings.flash){$snowFlash.classList.add('on');setTimeout(()=>$snowFlash.classList.remove('on'),200);}sfxSnow();if(P.hp<=0)gameOver();}
+function dmgPlayer(v){if(isCreative()||godMode)return;if(P.invT>0)return;let dmg=v*difficultyMult();if(armor){const def=ARMOR_DEFS[armor.tier];const blocked=dmg*def.cut;dmg-=blocked;armor.dur-=blocked;if(armor.dur<=0){armor=null;showAlert('🛡 鎧が壊れた！');playTone(280,.2,.15,'sawtooth');setTimeout(()=>playTone(180,.15,.12,'sawtooth'),140);}updateArmorHUD();}P.hp=Math.max(0,P.hp-dmg);P.invT=.8;if(settings.flash){$df.classList.add('on');setTimeout(()=>$df.classList.remove('on'),130);}sfxDmg();if(P.hp<=0)gameOver();}
+function dmgLava(){if(isCreative()||godMode)return;P.hp=Math.max(0,P.hp-8);if(settings.flash){$lavaFlash.classList.add('on');setTimeout(()=>$lavaFlash.classList.remove('on'),200);}sfxLava();if(P.hp<=0)gameOver();}
+function dmgSnow(){if(isCreative()||godMode)return;P.hp=Math.max(0,P.hp-3);if(settings.flash){$snowFlash.classList.add('on');setTimeout(()=>$snowFlash.classList.remove('on'),200);}sfxSnow();if(P.hp<=0)gameOver();}
 function matProgress(mat,need){return (inv[mat]||0)+'/'+need;}
 function getCurrentGoal(){
   if(!gs.running)return '🎯 NEW GAMEで冒険開始';

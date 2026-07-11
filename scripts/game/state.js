@@ -66,6 +66,13 @@ const MERCHANT_TRADES=[
   {give:{diamond:3}, get:{dragonCore:1}, desc:'💎×3 → 💠×1',   stock:1},
 ];
 
+// ═══ 🐞 チート（ボタン式デバッグパネル） ═══
+// ポーズメニューの「🐞 CHEATS」から開くパネルでアイテム付与・無敵・時間/天候変更・
+// 敵召喚などを実行できる。チートを使ったランはローカルランキングに記録しない
+// （クリエイティブと同じ扱い）。godMode 中はあらゆるダメージを無効化する。
+let cheatsUsed=false;
+let godMode=false;
+
 // ═══ GAME MODE (survival / creative) ═══
 // creative: 無敵・ブロック無限・即時破壊・飛行・敵WAVEなし（本家クリエイティブ準拠）
 let gameMode='survival';
