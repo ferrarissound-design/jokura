@@ -91,7 +91,10 @@ function buildCheatPanel(){
     for(const[label,act] of sec.btns){
       const b=document.createElement('button');b.className='cheatBtn';b.textContent=(typeof label==='function')?label():label;
       b.addEventListener('pointerdown',(e)=>{
-        e.preventDefault();e.stopPropagation();
+        // preventDefault はここでは呼ばない: パネル内はボタンがほぼ全面を占めるため、
+        // 呼ぶとボタン上から始めた縦スワイプのスクロールジェスチャーごと潰れてしまう
+        // (craftPanel の .citem と同じ理由で stopPropagation のみに留める)
+        e.stopPropagation();
         if(!gs.running)return;
         initAudio();
         act();
