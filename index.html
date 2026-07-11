@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260724a">
+<link rel="stylesheet" href="styles/main.css?v=20260725a">
 
 </head>
 <body>
@@ -76,6 +76,7 @@
     <button class="pmBtn" id="pauseSaveBtn">💾 SAVE</button>
     <button class="pmBtn" id="pauseCodexBtn">📖 ガイド</button>
     <button class="pmBtn" id="pauseSettingsBtn">⚙ SETTINGS</button>
+    <button class="pmBtn" id="cheatBtn">🐞 CHEATS</button>
   </div>
   <div id="saveToast">💾 SAVED!</div>
   <div id="xhair"></div>
@@ -155,6 +156,7 @@
       <b>地下</b>: 深く掘るとダイヤ・古い宝箱・地下ドラゴンに出会える。危険なら地上へ戻ろう。<br>
       <b>PC</b>: WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / E武器切替 / Cクラフト / F5セーブ。<br>
       <b>スマホ</b>: 左スティック移動 / 右スワイプ視点 / ATTACK攻撃 / PLACE長押しで家具・宝箱操作。<br>
+      <b>🐞 チート</b>: ゲーム中にポーズして「🐞 CHEATS」を開くと、アイテム付与・無敵・時間/天候変更・敵召喚・テレポートなどをボタンで実行できる（マイクラのコマンド相当）。使ったランはランキングに記録されない。<br>
       <b>クリエイティブ</b>: タイトルの MODE で切替。無敵・ブロック無限・即時破壊・敵なしで自由に建築。飛行はPC: Space2回押し(Space上昇/Shift下降)、スマホ: FLYボタン(JUMP上昇/⬇下降)。
     </div>
     <button class="pmBtn menuClose" id="helpCloseBtn">OK</button>
@@ -223,15 +225,23 @@
     <button class="pmBtn menuClose" id="merchantCloseBtn">CLOSE</button>
   </div>
 </div>
+<div id="cheatPanel" class="menuPanel">
+  <div class="menuCard">
+    <div class="menuTitle">🐞 CHEATS</div>
+    <div id="cheatBody"></div>
+    <div class="menuText small">チート（アイテム付与・無敵・敵召喚など）を使ったランは、クリエイティブと同様にローカルランキングへ記録されません。</div>
+    <button class="pmBtn menuClose" id="cheatCloseBtn">CLOSE</button>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ゲーム本体は scripts/game/*.js に機能別分割されている。各ファイルは同一の
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260724a';
+  var V='20260725a';
   var PARTS=['state','achievements','crafting','save','ui','audio',
-             'world','combat','entities','hud','input','main'];
+             'world','combat','entities','hud','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）

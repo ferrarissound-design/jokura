@@ -99,7 +99,7 @@ async function deleteSave(slot=activeSaveSlot){
 async function saveGame(){
   const data={
     version:SAVE_VERSION,saveSlot:activeSaveSlot,
-    gameMode,flying:!!P.flying,
+    gameMode,flying:!!P.flying,cheatsUsed,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
     px:P.x,py:P.y,pz:P.z,yaw,pitch,
@@ -187,7 +187,7 @@ function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(M
 rotateSplash();
 const SCORE_KEY='jokura_scores';
 function saveScore(cleared){
-  if(isCreative())return; // creative runs don't enter the ranking
+  if(isCreative()||cheatsUsed)return; // creative / cheat-used runs don't enter the ranking
   try{
     const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
     const now=new Date();

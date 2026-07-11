@@ -181,7 +181,7 @@ function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   removePet();removeHorse();removeMerchant();merchantSpawnT=60+Math.random()*60;
-  resetMeteorEvent();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;
+  resetMeteorEvent();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;cheatsUsed=false;godMode=false;
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
   endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
@@ -227,6 +227,7 @@ async function continueGame(){
   gameMode=d.gameMode==='creative'?'creative':'survival';
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
   _wasDayPhase=(gs.time<.4||gs.time>.9); // ロード直後に夜開始イベント（満月抽選）が誤発火しないよう同期
+  cheatsUsed=!!d.cheatsUsed; // チート使用済みのランはロード後もランキング対象外を維持
   endlessMode=!isCreative()&&!!d.endlessMode;
   resetWeather();
   finalBossPending=!isCreative()&&!!d.finalBossPending;
@@ -391,7 +392,7 @@ function tick(now){
   // (HP never drops below 10 from hunger, like Minecraft's gentler modes)
   // 騎乗中のダッシュは追加の満腹度を消費しない（走るのはウマ）
   if(!isCreative())P.food=Math.max(0,P.food-(0.21+(sprinting&&_moving&&!mounted?0.35:0)+(blizzard?0.15:0))*dt);
-  if(P.food<=0){starveT+=dt;if(starveT>=3){starveT=0;if(P.hp>10){P.hp=Math.max(10,P.hp-2*difficultyMult());playTone(160,.12,.06,'sawtooth');}}}
+  if(P.food<=0&&!godMode){starveT+=dt;if(starveT>=3){starveT=0;if(P.hp>10){P.hp=Math.max(10,P.hp-2*difficultyMult());playTone(160,.12,.06,'sawtooth');}}}
   else starveT=0;
   // sprint FOV kick (Minecraft-style)
   const _tgtFov=(sprinting&&_moving)?80:72;
