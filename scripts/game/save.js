@@ -186,12 +186,15 @@ const $ovSplash=document.getElementById('ovSplash');
 function rotateSplash(){if($ovSplash)$ovSplash.textContent=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];}
 rotateSplash();
 const SCORE_KEY='jokura_scores';
+// 難易度は被ダメージ0.6〜1.5倍とスコア難度に大きく影響するため、ランキングにも
+// 記録して表示する。旧バージョンの記録には diff が無いので表示側は空欄でフォールバックする。
+const DIFF_TAG={easy:'😌EASY',normal:'⚔NORM',hard:'🔥HARD'};
 function saveScore(cleared){
   if(isCreative()||cheatsUsed)return; // creative / cheat-used runs don't enter the ranking
   try{
     const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
     const now=new Date();
-    arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,date:(now.getMonth()+1)+'/'+(now.getDate())});
+    arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,diff:settings.difficulty||'normal',date:(now.getMonth()+1)+'/'+(now.getDate())});
     arr.sort((a,b)=>b.score-a.score);arr.splice(5);
     localStorage.setItem(SCORE_KEY,JSON.stringify(arr));
   }catch(e){}
@@ -205,7 +208,7 @@ function renderRankHUD(){
     const medals=['🥇','🥈','🥉','',''];
     const best=arr[0];
     let h='<div style="color:#f9d342;font-size:min(10px,2.8vw);font-weight:900;letter-spacing:2px;margin-bottom:3px">🏆 BEST SCORE: '+best.score.toLocaleString()+'pt</div>';
-    arr.forEach((r,i)=>{h+='<div style="font-size:min(9px,2.6vw);color:#ccc;letter-spacing:.4px;line-height:1.75">'+(medals[i]||'　')+(r.cleared?'💎':'　')+' #'+(i+1)+'　'+r.score.toLocaleString()+'pt　W'+r.wave+'　'+r.kills+'kill　'+r.day+'日　<span style="color:#7ecfff66">'+r.date+'</span></div>';});
+    arr.forEach((r,i)=>{h+='<div style="font-size:min(9px,2.6vw);color:#ccc;letter-spacing:.4px;line-height:1.75">'+(medals[i]||'　')+(r.cleared?'💎':'　')+' #'+(i+1)+'　'+r.score.toLocaleString()+'pt　W'+r.wave+'　'+r.kills+'kill　'+r.day+'日　<span style="color:#9fc7e6cc">'+(DIFF_TAG[r.diff]||'')+'</span>　<span style="color:#7ecfff66">'+r.date+'</span></div>';});
     $rankInfo.innerHTML=h;
   }catch(e){$rankInfo.innerHTML='';}
 }
