@@ -80,9 +80,9 @@ canvas#c{display:block;touch-action:none}
 #weaponBtn{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:80px;padding:7px 4px;border-radius:8px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#f9d342;font-size:9px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.3px;text-align:center}
 #weaponBtn:active{transform:scale(.92)}
 #saveFloatBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(8px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #26c6da44;background:rgba(38,198,218,.15);color:#7fffff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
-/* 🏔 神地形生成（クリエイティブ限定）: 💾 の左隣に並ぶフローティングボタン */
-#epicBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(50px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #b388ff55;background:rgba(149,117,205,.2);color:#e6d9ff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
-#epicBtn:active{transform:scale(.92)}
+/* 🏗 特殊生成メニュー（クリエイティブ限定）: 💾 の左隣に並ぶフローティングボタン */
+#structBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(50px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #b388ff55;background:rgba(149,117,205,.2);color:#e6d9ff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
+#structBtn:active{transform:scale(.92)}
 #dmgFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(220,30,30,.4);transition:opacity .1s;z-index:30}
 #dmgFlash.on{opacity:1}
 #lavaFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(255,100,0,.35);transition:opacity .2s;z-index:29}
@@ -178,6 +178,12 @@ canvas#c{display:block;touch-action:none}
 .cheatGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
 .cheatBtn{padding:9px 4px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(40,46,64,.85);color:#eee;font-size:10px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;line-height:1.3;transition:transform .1s,background .1s}
 .cheatBtn:active{background:rgba(90,110,150,.95);transform:scale(.96)}
+.structGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.structGrid .structBtn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(40,46,64,.85);color:#eee;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .1s,background .1s}
+.structGrid .structBtn:active{background:rgba(90,110,150,.95);transform:scale(.96)}
+.structGrid .structBtn .sIcon{font-size:26px}
+.structGrid .structBtn .sLabel{font-size:11px;font-weight:900}
+.structGrid .structBtn .sDesc{font-size:9px;color:#aaa;line-height:1.3}
 .codexRow{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#ddd;line-height:1.9;border-bottom:1px dashed rgba(255,255,255,.07);padding:1px 0}
 .codexRow:last-child{border-bottom:none}
 .codexCost{color:#9fc7e6;white-space:nowrap}

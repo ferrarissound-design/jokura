@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260727k">
+<link rel="stylesheet" href="styles/main.css?v=20260727l">
 
 </head>
 <body>
@@ -62,7 +62,7 @@
   <div id="coordsDisplay">X:0 Z:0</div>
   <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
   <button id="saveFloatBtn">💾</button>
-  <button id="epicBtn" style="display:none" title="神地形を生成">🏔</button>
+  <button id="structBtn" style="display:none" title="特殊生成メニュー">🏗</button>
   <div id="waveAlert"></div>
   <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
@@ -235,13 +235,21 @@
     <button class="pmBtn menuClose" id="cheatCloseBtn">CLOSE</button>
   </div>
 </div>
+<div id="structPanel" class="menuPanel">
+  <div class="menuCard">
+    <div class="menuTitle">🏗 特殊生成</div>
+    <div id="structBody"></div>
+    <div class="menuText small">クリエイティブ専用の一発生成機能です。押すたびに形がランダムに変わります。</div>
+    <button class="pmBtn menuClose" id="structCloseBtn">CLOSE</button>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ゲーム本体は scripts/game/*.js に機能別分割されている。各ファイルは同一の
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260727l';
+  var V='20260727m';
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world','combat','entities','hud','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}

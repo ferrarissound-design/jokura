@@ -1124,58 +1124,76 @@ function _spawnSurfaceStructures(cx,cz,meshes){
     }
   }
 }
+// ═══ 特殊構造物 生成共通ヘルパー（put/clr/anchor/chunk-ensure/ybase）═══
+// 神地形・カリンの塔など、クリエイティブのワンクリック特殊生成が共通で使う
+// 部品。put/clr は状態を持たないので、どのジェネレータからも安全に呼べる。
+
+// put: ワールド生成ブロックの上書きは removed と placed の両方を記録する。
+// applyWorldEdits は removed→placed の順で再生し、placed は既存 voxel を
+// スキップするため、removed が無いと再訪時に元の地形が勝ってしまう。
+// meta も doPlace(input.js)/applyWorldEdits(save.js) と同じ ti|(meta<<5) で
+// パックする（旧実装は meta を捨てておりトーチ以外は無害だったが、階段の
+// 向きは meta 依存なのでここを直さないとセーブ&ロードで向きが復元されない）。
+function put(x,y,z,ti,meta){
+  meta=meta|0;
+  const k=vKey(x,y,z),v=voxels[k];
+  if(v){
+    if(v.ti===ti&&(v.meta|0)===meta)return;
+    if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
+    removeBlock(x,y,z);
+  }
+  addBlock(x,y,z,ti,true,true,meta);
+  worldEdits.placed[k]=ti|(meta<<5);
+}
+// clr: ドロップなしの破壊（breakBlock と同じ worldEdits イディオム）
+function clr(x,y,z){
+  const k=vKey(x,y,z),v=voxels[k];
+  if(!v)return;
+  if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
+  removeBlock(x,y,z);
+}
+// プレイヤーのカメラ水平前方 dist ブロック先を中心アンカーにする
+function _frontAnchor(dist){
+  camera.getWorldDirection(_rd);
+  let fx=_rd.x,fz=_rd.z,fl=Math.hypot(fx,fz);
+  if(fl<0.1){fx=-Math.sin(yaw);fz=-Math.cos(yaw);fl=Math.hypot(fx,fz)||1;}
+  fx/=fl;fz/=fl;
+  const cx0=Math.floor(P.x+fx*dist),cz0=Math.floor(P.z+fz*dist);
+  return{fx,fz,cx0,cz0,aim:Math.atan2(fz,fx)};
+}
+// フットプリント半径 R が重なりうる全チャンクを事前生成する。未生成チャンク
+// への addBlock は不可視の孤児 voxel になるため（applyWorldEdits と同じ理由）
+function _ensureChunksAround(cx0,cz0,R,pad){
+  pad=pad==null?2:pad;
+  for(let cx=Math.floor((cx0-R-pad)/CHUNK);cx<=Math.floor((cx0+R+pad)/CHUNK);cx++)
+    for(let cz=Math.floor((cz0-R-pad)/CHUNK);cz<=Math.floor((cz0+R+pad)/CHUNK);cz++)
+      generateChunk(cx,cz);
+}
+// 周辺地表の中央値と中心直下の高さの高い方（丘に半分埋まった土台を避ける）
+function _footprintYBase(cx0,cz0,R,step){
+  step=step||5;
+  const hs=[];
+  for(let dx=-R;dx<=R;dx+=step)for(let dz=-R;dz<=R;dz+=step){
+    if(dx*dx+dz*dz>R*R)continue;
+    hs.push(surfaceHeightAt(cx0+dx,cz0+dz));
+  }
+  hs.sort((a,b)=>a-b);
+  return Math.max(hs[Math.floor(hs.length/2)],surfaceHeightAt(cx0,cz0));
+}
+
 // ═══ 🏔 神地形（EPIC SPIRES）ワンクリック生成 ═══
 // クリエイティブ専用: プレイヤーの前方に「岩の尖塔群＋頂上アーチ＋巨木＋池」を
 // 一発生成する。結果は worldEdits に記録されるため、通常の建築と同じくセーブ・
 // チャンク再訪で復元される（形は押すたびに Math.random() で変わってよい）。
 function generateEpicSpires(){
-  // ─ アンカー: カメラの水平前方 20 ブロック先を中心にする ─
-  camera.getWorldDirection(_rd);
-  let fx=_rd.x,fz=_rd.z,fl=Math.hypot(fx,fz);
-  if(fl<0.1){fx=-Math.sin(yaw);fz=-Math.cos(yaw);fl=Math.hypot(fx,fz)||1;}
-  fx/=fl;fz/=fl;
+  const{fx,fz,cx0,cz0,aim}=_frontAnchor(20);
   const R=13;                      // 土台の半径（直径27 ≒ 3×3チャンクに収まる）
-  const cx0=Math.floor(P.x+fx*20),cz0=Math.floor(P.z+fz*20);
-
-  // 未生成チャンクへの addBlock は不可視の孤児 voxel になるため（applyWorldEdits
-  // と同じ理由）、フットプリントが重なるチャンクを先に生成しておく
-  for(let cx=Math.floor((cx0-R-2)/CHUNK);cx<=Math.floor((cx0+R+2)/CHUNK);cx++)
-    for(let cz=Math.floor((cz0-R-2)/CHUNK);cz<=Math.floor((cz0+R+2)/CHUNK);cz++)
-      generateChunk(cx,cz);
-
-  // ─ 設置/除去ヘルパー ─
-  // put: ワールド生成ブロックの上書きは removed と placed の両方を記録する。
-  // applyWorldEdits は removed→placed の順で再生し、placed は既存 voxel を
-  // スキップするため、removed が無いと再訪時に元の地形が勝ってしまう。
-  const put=(x,y,z,ti)=>{
-    const k=vKey(x,y,z),v=voxels[k];
-    if(v){
-      if(v.ti===ti)return;
-      if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
-      removeBlock(x,y,z);
-    }
-    addBlock(x,y,z,ti,true,true,0);
-    worldEdits.placed[k]=ti;
-  };
-  // clr: ドロップなしの破壊（breakBlock と同じ worldEdits イディオム）
-  const clr=(x,y,z)=>{
-    const k=vKey(x,y,z),v=voxels[k];
-    if(!v)return;
-    if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
-    removeBlock(x,y,z);
-  };
+  _ensureChunksAround(cx0,cz0,R,2);
   const rock=()=>Math.random()<0.8?6:1; // 灰岩8割＋石2割のまだら模様
 
   _deferDirty=true; // 数千ブロックの一括編集: チャンク再構築は最後に1回ずつ
   try{
-    // ─ 土台の高さ: 周辺地表の中央値と中心高の高い方 ─
-    const hs=[];
-    for(let dx=-R;dx<=R;dx+=5)for(let dz=-R;dz<=R;dz+=5){
-      if(dx*dx+dz*dz>R*R)continue;
-      hs.push(surfaceHeightAt(cx0+dx,cz0+dz));
-    }
-    hs.sort((a,b)=>a-b);
-    const ybase=Math.max(hs[Math.floor(hs.length/2)],surfaceHeightAt(cx0,cz0));
+    const ybase=_footprintYBase(cx0,cz0,R,5);
     const yTop=ybase+30; // モバイルのフォグ far(≈47)より下に収める
 
     // ─ 1. 草の土台: 低い列は石で盛り、丘や木は ybase で切って草でフタをする ─
@@ -1194,7 +1212,6 @@ function generateEpicSpires(){
 
     // ─ 2. 尖塔 5〜7本（リング配置。±90°の2本が最も高い「アーチ塔」）─
     const nSp=5+Math.floor(Math.random()*3);
-    const aim=Math.atan2(fz,fx);          // プレイヤー→中心の方位
     const spires=[];
     const archTops=[];                    // アーチ塔の頂部 [x,y,z]
     for(let i=0;i<nSp;i++){
@@ -1377,6 +1394,104 @@ function generateEpicSpires(){
   }
   showBonus('🏔 神地形を生成！');
   playTone(520,.12,.1,'triangle');setTimeout(()=>playTone(780,.12,.1,'triangle'),120);
+}
+
+// ═══ 🗼 カリンの塔 ワンクリック生成 ═══
+// クリエイティブ専用: プレイヤーの前方に「地面から伸びる細い塔＋頂上の台座＋
+// 小さな祠」を一発生成する。外周に沿ってらせん階段が頂上まで続き、実際に
+// 登って辿り着ける。神地形と同じ共有ヘルパー（put/clr/_frontAnchor/
+// _ensureChunksAround/_footprintYBase）を使う。
+function generateKorinTower(){
+  const{cx0,cz0,aim}=_frontAnchor(14); // footprintが小さいので神地形より近め
+  const R=6;
+  _ensureChunksAround(cx0,cz0,R,2);
+  const towerRock=()=>Math.random()<0.82?1:6; // 石8.2割＋灰岩1.8割（神地形と逆比率で差別化）
+
+  _deferDirty=true;
+  try{
+    const ybase=_footprintYBase(cx0,cz0,R,3);
+    const Hshaft=40;                       // シャフトの高さ（ybase+1〜+40）
+    const platformY=ybase+41,shrineY0=ybase+42,roofY=ybase+44;
+
+    // ─ 0. フットプリントの地形をクリアしてキャップ ─
+    for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++){
+      const d2=dx*dx+dz*dz;if(d2>R*R)continue;
+      const x=cx0+dx,z=cz0+dz,sh=surfaceHeightAt(x,z);
+      for(let y=sh+1;y<ybase;y++)put(x,y,z,1);
+      for(let y=ybase+1;y<=roofY+2;y++)clr(x,y,z);
+      put(x,ybase,z,0);
+    }
+
+    // ─ 1. 土台円盤（半径4）─
+    for(let dx=-4;dx<=4;dx++)for(let dz=-4;dz<=4;dz++){
+      if(dx*dx+dz*dz>16)continue;
+      put(cx0+dx,ybase,cz0+dz,1);
+    }
+
+    // ─ 2. 細い塔本体（半径2ほど、ゆるいテーパー＋微揺らぎ）─
+    for(let t=1;t<=Hshaft;t++){
+      const r=2.2-0.4*(t/Hshaft)+noise(t*.35,0)*0.15;
+      const y=ybase+t;
+      for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){
+        if(dx*dx+dz*dz>r*r)continue;
+        put(cx0+dx,y,cz0+dz,towerRock());
+      }
+    }
+
+    // ─ 3. 外周らせん階段: 半径3のリング上を22.5°刻み・1段で1ブロック上昇。
+    // 弧長 r*Δθ ≈ 3*(π/8) ≈ 1.18 で隣接段がほぼ連続、40段(2.5周)で頂上へ。
+    // プレイヤーの反対側（aim+π）から昇り始め、頂上で祠の入口側に出る。
+    const rStair=3,dTheta=Math.PI/8,startAng=aim+Math.PI;
+    for(let i=0;i<Hshaft;i++){
+      const ang=startAng+i*dTheta,nextAng=startAng+(i+1)*dTheta;
+      const x=Math.round(cx0+Math.cos(ang)*rStair),z=Math.round(cz0+Math.sin(ang)*rStair);
+      const y=ybase+1+i;
+      // 進行方向の接線ベクトルを最近傍4方向へスナップ（doPlaceと同じ式）
+      const tx=Math.cos(nextAng)-Math.cos(ang),tz=Math.sin(nextAng)-Math.sin(ang);
+      const meta=Math.abs(tx)>Math.abs(tz)?(tx>0?0:2):(tz>0?1:3);
+      put(x,y-1,z,1);            // 段の直下に石の支え（浮遊防止）
+      put(x,y,z,STAIR_BLOCK,meta);
+    }
+
+    // ─ 4. 頂上の台座（半径6、縁にスラブの縁石）─
+    for(let dx=-6;dx<=6;dx++)for(let dz=-6;dz<=6;dz++){
+      const d2=dx*dx+dz*dz;if(d2>36)continue;
+      const x=cx0+dx,z=cz0+dz;
+      if(d2>25)put(x,platformY,z,SLAB_BLOCK,0);
+      else put(x,platformY,z,1);
+    }
+
+    // ─ 5. 頂上の小さな祠（柱4本＋屋根、hutイディオムの縮小版）─
+    for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
+      const edge=Math.max(Math.abs(dx),Math.abs(dz))===2;
+      if(!edge)continue;
+      if(dz===2&&Math.abs(dx)<=1)continue; // 入口
+      for(let dy=1;dy<=2;dy++)put(cx0+dx,shrineY0-1+dy,cz0+dz,3);
+    }
+    for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){
+      if(Math.abs(dx)===3&&Math.abs(dz)===3)continue; // 角を落とした屋根
+      put(cx0+dx,roofY,cz0+dz,4);
+    }
+    put(cx0-2,shrineY0,cz0-2,TORCH_BLOCK);
+    put(cx0+2,shrineY0,cz0+2,TORCH_BLOCK);
+  }finally{
+    _deferDirty=false;flushDirtyChunks();
+  }
+  showBonus('🗼 カリンの塔を生成！');
+  playTone(660,.12,.1,'triangle');setTimeout(()=>playTone(990,.12,.1,'triangle'),120);
+}
+
+// ═══ 特殊生成メニュー: 登録テーブル + ディスパッチャ ═══
+// UIの「特殊生成」ピッカーはこの配列を舐めてボタンを並べるだけ。新しい生成物を
+// 追加するときは、この配列に1エントリ足して generateXxx() を実装すればよい
+// （main.js/cheats.js 側のUIコードは変更不要）。
+const SPECIAL_STRUCTURES=[
+  {key:'epicSpires',icon:'🏔',label:'神地形',desc:'岩の尖塔とアーチ、御神木と池',fn:generateEpicSpires},
+  {key:'korinTower',icon:'🗼',label:'カリンの塔',desc:'天まで伸びる細い塔と頂上の祠',fn:generateKorinTower},
+];
+function generateSpecialStructure(key){
+  const def=SPECIAL_STRUCTURES.find(s=>s.key===key);
+  if(def)def.fn();
 }
 
 // プレイヤーから minDist 以上離れた最寄りの未開封構造物を探す（宝の地図の目標用）
