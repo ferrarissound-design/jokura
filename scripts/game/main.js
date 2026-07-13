@@ -228,7 +228,7 @@ async function continueGame(){
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
   gameMode=d.gameMode==='creative'?'creative':'survival';
-  gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave||30;gs.running=true;
+  gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave??30;gs.running=true;
   _wasDayPhase=(gs.time<.4||gs.time>.9); // ロード直後に夜開始イベント（満月抽選）が誤発火しないよう同期
   cheatsUsed=!!d.cheatsUsed; // チート使用済みのランはロード後もランキング対象外を維持
   endlessMode=!isCreative()&&!!d.endlessMode;
