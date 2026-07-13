@@ -190,7 +190,7 @@ function commonReset(){
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
   if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}dragonWarnPending=false;dragonSpawnT=90;
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
-  for(const p of projectiles)scene.remove(p.mesh);projectiles.length=0;
+  for(const p of projectiles){scene.remove(p.mesh);p.mesh.material.dispose();}projectiles.length=0;
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
   clearWorld();yaw=0;pitch=0;attackCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');undergroundSnapshot=null;prevPlayerUnderground=false;finalBossPending=false;bgmUnder=false;bgmUnderDragon=false;
   gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';$pauseBtn.style.display='none';
