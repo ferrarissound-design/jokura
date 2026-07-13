@@ -669,7 +669,9 @@ function updateViewBob(moving,sprinting){
 const RC=new THREE.Raycaster();const _rd=new THREE.Vector3();
 // castVoxel: voxel-grid DDA instead of raycasting thousands of meshes.
 // Returns {x,y,z,ti,nx,ny,nz} — block coords plus the face normal entered.
-function castVoxel(){
+// Water is skipped so mining/placing works through it; pass includeWater=true
+// to let water count as a hit (fishing).
+function castVoxel(includeWater){
   camera.getWorldDirection(_rd);
   const ox=camera.position.x,oy=camera.position.y,oz=camera.position.z;
   let x=Math.floor(ox),y=Math.floor(oy),z=Math.floor(oz);
@@ -681,7 +683,7 @@ function castVoxel(){
   let t=0,nx=0,ny=0,nz=0;
   while(t<=7){
     const v=voxels[vKey(x,y,z)];
-    if(v&&v.active&&v.ti!==WATER_BLOCK)return{x,y,z,ti:v.ti,nx,ny,nz,hy:oy+_rd.y*t};
+    if(v&&v.active&&(includeWater||v.ti!==WATER_BLOCK))return{x,y,z,ti:v.ti,nx,ny,nz,hy:oy+_rd.y*t};
     if(tMx<tMy&&tMx<tMz){t=tMx;tMx+=tDx;x+=stepX;nx=-stepX;ny=0;nz=0;}
     else if(tMy<tMz){t=tMy;tMy+=tDy;y+=stepY;nx=0;ny=-stepY;nz=0;}
     else{t=tMz;tMz+=tDz;z+=stepZ;nx=0;ny=0;nz=-stepZ;}
