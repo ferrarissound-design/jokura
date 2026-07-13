@@ -185,15 +185,17 @@ const DRAW_RY=isTouch?1:2;
 // memory stays bounded no matter how far the player wanders (Minecraft-style
 // chunk loading/unloading rather than a hard world border)
 const UNLOAD_R=DRAW_R+4;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1];
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec,0x3f9e3f];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block,leaf]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1,1];
 const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16,SLAB_BLOCK=17,STAIR_BLOCK=18;
 // バイオーム固有素材ブロック（そのバイオームの地表にだけ生成される）
 // 氷=滑る / 黒曜石=超硬い+敵に壊されない(耐爆) / 水晶・サボテン・キノコ・粘土=クラフト素材
 const ICE_BLOCK=19,OBSIDIAN_BLOCK=20,CRYSTAL_BLOCK=21,CACTUS_BLOCK=22,MUSHROOM_BLOCK=23,CLAY_BLOCK=24;
 // 建築ブロック: 🪟ガラス(半透明・かまどで砂を焼く) / 🧶ウールブロック(柔らかい建材)
 const GLASS_BLOCK=25,WOOL_BLOCK=26;
+// 🍃 葉ブロック: 木の傘に使う（以前は草ブロックの傘で側面が土に見えていた）
+const LEAF_BLOCK=27;
 const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK,GLASS_BLOCK,WOOL_BLOCK];
 // ─── PARTIAL BLOCKS (slabs & stairs) ───
 // Shapes are described as 1-2 sub-boxes in local cell coords [x0,y0,z0,x1,y1,z1].
@@ -463,6 +465,7 @@ const _T={
   ice:noisyTex(0xbfe6ff,61,.07), obsidian:noisyTex(0x1b0b2e,62,.35), crystal:oreTex(0x8a8f98,0xcc66ff,63),
   cactus:noisyTex(0x2e9e4f,64,.16), mushroom:oreTex(0xd0483e,0xffe9d0,65), clay:noisyTex(0xb0a08c,66,.1),
   woolBlk:noisyTex(0xf4f4ec,71,.05),
+  leaf:noisyTex(0x3f9e3f,72,.22),
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
@@ -496,6 +499,7 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case CLAY_BLOCK: return smat(_T.clay);
     case GLASS_BLOCK: return new THREE.MeshStandardMaterial({color:0xbfe6ff,roughness:.05,metalness:.15,transparent:true,opacity:.32,emissive:0x113344,emissiveIntensity:.06,vertexColors:true});
     case WOOL_BLOCK: return smat(_T.woolBlk,{roughness:1});
+    case LEAF_BLOCK: return smat(_T.leaf,{roughness:1});
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
@@ -588,7 +592,33 @@ function computeGrassTint(wx,wz,biomeAt){
   }
   return[r/n,g/n,b/n];
 }
-function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,4);if(biome===BIOMES.MOUNTAIN)h=h*4+2;else if(biome===BIOMES.FOREST)h=h*1.5+0.3;else if(biome===BIOMES.DESERT)h=h*0.8;else if(biome===BIOMES.VOLCANO)h=h*3.5+1.5;else if(biome===BIOMES.SNOW)h=h*2.5+0.5;else h=h*1.2;return Math.max(0,Math.floor(h+1));}
+// ─── 高さ生成（バイオーム境界ブレンド） ───
+// 以前はバイオームごとに振幅/底上げを離散的に切り替えていたため、山岳・火山と
+// 平原の境目に垂直の壁ができていた。getBiome と同じノイズ場のしきい値を
+// スムーズステップの重みに変え、優先度の低い順に係数をブレンドすることで
+// 境界がなだらかな斜面になる（ブロックの種類の切り替え自体は getBiome のまま）。
+const _BIOME_BLEND_W=0.12; // ブレンド幅（ノイズ値単位）: 大きいほど裾野が広い
+function _biomeW(v){const t=v/(2*_BIOME_BLEND_W)+.5;return t<=0?0:t>=1?1:t*t*(3-2*t);}
+function getHeight(wx,wz){
+  const b1=noiseB(wx*0.008,wz*0.008),b2=noiseB(wx*0.012+100,wz*0.012+100);
+  const bv=noiseV(wx*0.012+50,wz*0.012-50),bs=noiseV(wx*0.009-80,wz*0.009+80);
+  const n=fbm(wx*0.03,wz*0.03,4);
+  // 大きな緩いうねり: 真っ平らだった平原にもゆるやかな丘と窪地を作る
+  const roll=fbm(wx*0.006+321,wz*0.006-321,2)*1.6;
+  // [振幅, 底上げ] を優先度の低い順にブレンド（後のブレンドほど優先 = getBiome の判定順）
+  let amp=1.2,off=0;                                            // PLAINS
+  const wF=Math.min(_biomeW(-0.15-b1),_biomeW(b2));             // FOREST: b1<-0.15 && b2>0
+  amp+=(1.5-amp)*wF;off+=(0.3-off)*wF;
+  const wD=_biomeW(-0.2-b2);                                    // DESERT: b2<-0.2
+  amp+=(0.8-amp)*wD;off+=(0-off)*wD;
+  const wM=_biomeW(b1-0.25);                                    // MOUNTAIN: b1>0.25
+  amp+=(4-amp)*wM;off+=(2-off)*wM;
+  const wS=_biomeW(bs-0.22);                                    // SNOW: bs>0.22
+  amp+=(2.5-amp)*wS;off+=(0.5-off)*wS;
+  const wV=_biomeW(bv-0.15);                                    // VOLCANO: bv>0.15
+  amp+=(3.5-amp)*wV;off+=(1.5-off)*wV;
+  return Math.max(0,Math.floor(n*amp+off+roll+1));
+}
 // getHeight()は決定的な生成時の高さで、cave mouth等の3D彫り込みやプレイヤーの
 // 採掘・建築による改変を反映しない。落雷・隕石の着弾位置など「今その場に実際に
 // 地面があるか」が重要な場面ではこちらを使う。該当チャンクが未生成/その範囲に
@@ -647,6 +677,16 @@ function _caveMouth(x,y,z){return noise(x*0.035+777,z*0.035+y*0.02)<-0.34;}
 // cliff erosion: notches cut into mountain/volcano flanks; the surviving
 // top blocks become ledges and overhangs
 function _cliffCarve(x,y,z){return noiseB(x*0.07,z*0.07+y*0.11)>0.34;}
+// 🌳 植樹: 原木の幹(高さth) + 🍃葉ブロックの傘。傘は幹の頭を3x3で囲み、
+// その上に十字の1層を載せる。（以前は草ブロックの傘で、側面が土に見えて
+// キノコのような柱になっていた）
+function _growTree(wx,h,wz,th,meshes){
+  for(let t=1;t<=th;t++){const m=addBlock(wx,h+t,wz,3,false);if(m)meshes.add(m);}
+  for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){
+    if(dx!==0||dz!==0){const m=addBlock(wx+dx,h+th,wz+dz,LEAF_BLOCK,false);if(m)meshes.add(m);}
+    if(Math.abs(dx)+Math.abs(dz)<=1){const m=addBlock(wx+dx,h+th+1,wz+dz,LEAF_BLOCK,false);if(m)meshes.add(m);}
+  }
+}
 function generateChunk(cx,cz){
   const key=cKey(cx,cz);if(chunks[key])return;
   const meshes=new Set(),ox=cx*CHUNK,oz=cz*CHUNK;
@@ -711,21 +751,21 @@ function generateChunk(cx,cz){
       if(rand2(wx,wz,46)<0.03){const mo=addBlock(wx,h+1,wz,OBSIDIAN_BLOCK,false);if(mo)meshes.add(mo);}
     }
     if(biome===BIOMES.SNOW){
-      if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,1,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.add(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.add(top);}
+      if(rand2(wx,wz,40)<0.04){for(let th=1;th<=4;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const ml=addBlock(wx+dx,h+4,wz+dz,SNOW_BLOCK,false);if(ml)meshes.add(ml);}const top=addBlock(wx,h+5,wz,SNOW_BLOCK,false);if(top)meshes.add(top);}
       if(rand2(wx,wz,41)<0.03){const topH=1+Math.floor(rand2(wx,wz,42)*3);for(let rh=1;rh<=topH;rh++){const mr=addBlock(wx,h+rh,wz,SNOW_BLOCK,false);if(mr)meshes.add(mr);}}
       // 雪原限定: 氷（上に乗ると滑る・氷矢の素材）
       if(rand2(wx,wz,45)<0.045){const mi=addBlock(wx,h+1,wz,ICE_BLOCK,false);if(mi)meshes.add(mi);}
     }
-    if(biome===BIOMES.FOREST&&rand2(wx,wz,10)<0.06){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0){const ml=addBlock(wx,h+4,wz,5,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx,wz);}}else{const ml=addBlock(wx+dx,h+3,wz+dz,5,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx+dx,wz+dz);}}}}
+    if(biome===BIOMES.FOREST&&rand2(wx,wz,10)<0.06)_growTree(wx,h,wz,3+Math.floor(rand2(wx,wz,102)*3),meshes); // 高さ3〜5
     // 森林限定: キノコ
     if(biome===BIOMES.FOREST&&rand2(wx,wz,51)<0.02){const mm=addBlock(wx,h+1,wz,MUSHROOM_BLOCK,false);if(mm)meshes.add(mm);}
-    if(biome===BIOMES.PLAINS&&rand2(wx,wz,11)<0.008){for(let th=1;th<=3;th++){const mt=addBlock(wx,h+th,wz,3,false);if(mt)meshes.add(mt);}const ml=addBlock(wx,h+4,wz,0,false);if(ml){meshes.add(ml);voxels[ml].tint=tintAt(wx,wz);}[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz])=>{const ml2=addBlock(wx+dx,h+3,wz+dz,0,false);if(ml2){meshes.add(ml2);voxels[ml2].tint=tintAt(wx+dx,wz+dz);}});}
+    if(biome===BIOMES.PLAINS&&rand2(wx,wz,11)<0.008)_growTree(wx,h,wz,3+Math.floor(rand2(wx,wz,103)*2),meshes); // 高さ3〜4
     // 草原限定: 粘土
     if(biome===BIOMES.PLAINS&&rand2(wx,wz,52)<0.012){const mc=addBlock(wx,h+1,wz,CLAY_BLOCK,false);if(mc)meshes.add(mc);}
     if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,12)<0.04){const top=1+Math.floor(rand2(wx,wz,120)*3);for(let rh=1;rh<=top;rh++){const mr=addBlock(wx,h+rh,wz,6,false);if(mr)meshes.add(mr);}}
     // 岩山限定: 水晶
     if(biome===BIOMES.MOUNTAIN&&rand2(wx,wz,47)<0.025){const mq=addBlock(wx,h+1,wz,CRYSTAL_BLOCK,false);if(mq)meshes.add(mq);}
-    if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){for(let sh=1;sh<=2;sh++){const ms=addBlock(wx,h+sh,wz,0,false);if(ms){meshes.add(ms);voxels[ms].tint=tintAt(wx,wz);}}}
+    if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){const ms=addBlock(wx,h+1,wz,LEAF_BLOCK,false);if(ms)meshes.add(ms);} // 低木
     // 砂漠限定: サボテン（1〜3段の柱）
     if(biome===BIOMES.DESERT&&rand2(wx,wz,48)<0.02){const ch=1+Math.floor(rand2(wx,wz,49)*3);for(let cy=1;cy<=ch;cy++){const mc=addBlock(wx,h+cy,wz,CACTUS_BLOCK,false);if(mc)meshes.add(mc);}}
   }

@@ -80,7 +80,8 @@ const isCreative=()=>gameMode==='creative';
 let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHammer=false;
 let hasIronSword=false; // 鉄の剣: 石とダイヤの中間ティア（ダイヤ剣を作ると上書きされる）
 const unlockedWeapons=[true,false,false,false,false,false];
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay','glass','woolBlock'];
+// 末尾の'grass'は🍃葉ブロック: 旧仕様（草ブロックの木の傘）と同じ素材を落とす
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay','glass','woolBlock','grass'];
 const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair','glass','woolBlock'];
 
 const CRAFT_RECIPES=[
