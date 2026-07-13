@@ -253,7 +253,7 @@ async function continueGame(){
   ensureUnlockedWeaponSelected();
   if(d.worldSeed)initWorldNoise(d.worldSeed);
   updateChunks(true);
-  if(d.worldEdits){resetWorldEdits();Object.assign(worldEdits.placed,d.worldEdits.placed||{});Object.assign(worldEdits.removed,d.worldEdits.removed||{});}
+  if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
   // チェスト復元
   chestCount=d.chestCount||0;

@@ -36,6 +36,34 @@ function applyWorldEdits(){
   }
   _deferDirty=false;flushDirtyChunks();
 }
+// ─── セーブ時のworldEdits圧縮 ───
+// 実行時の worldEdits.placed/removed は combat.js/input.js/hud.js/world.js の多数の
+// 箇所で直接読み書きされる十進数文字列キー("x|y|z")のオブジェクトマップのままにし、
+// セーブ/ロードの入出力境界だけで圧縮する(ゲームロジックには一切触れない)。
+// 掘った・置いたブロックはプレイが長くなるほど無期限に増え続けlocalStorageの容量を
+// 圧迫しやすいため、保存時のみ: (1)座標を10進数よりコンパクなbase36へ変換、
+// (2)removedは値を持たないため{true}のオブジェクトマップではなく配列にする。
+// 旧セーブ(base36導入前)のキーを誤ってbase36として読むと座標が化けてしまうため、
+// vタグで新旧形式を明示的に判別する(shapeだけでの自動判定はしない)。
+const WORLD_EDITS_PACK_VERSION=2;
+function _weKeyToB36(k){const p=k.split('|');return Number(p[0]).toString(36)+'|'+Number(p[1]).toString(36)+'|'+Number(p[2]).toString(36);}
+function _weB36ToKey(bk){const p=bk.split('|');return parseInt(p[0],36)+'|'+parseInt(p[1],36)+'|'+parseInt(p[2],36);}
+function packWorldEdits(we){
+  const placed={};
+  for(const k in we.placed)placed[_weKeyToB36(k)]=we.placed[k];
+  return{v:WORLD_EDITS_PACK_VERSION,placed,removed:Object.keys(we.removed).map(_weKeyToB36)};
+}
+function unpackWorldEditsInto(target,saved){
+  if(!saved)return;
+  if(saved.v>=WORLD_EDITS_PACK_VERSION){
+    const placed=saved.placed||{};for(const bk in placed)target.placed[_weB36ToKey(bk)]=placed[bk];
+    for(const bk of saved.removed||[])target.removed[_weB36ToKey(bk)]=true;
+  }else{
+    // v無し(base36導入前)の旧セーブ: 十進数キーのオブジェクトマップのまま
+    Object.assign(target.placed,saved.placed||{});
+    Object.assign(target.removed,saved.removed||{});
+  }
+}
 
 // ═══ SAVE ═══
 const SAVE_VERSION=6;
@@ -111,7 +139,7 @@ async function saveGame(){
     horseTamed:!!horse,mounted,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
-    worldEdits:{placed:{...worldEdits.placed},removed:{...worldEdits.removed}},
+    worldEdits:packWorldEdits(worldEdits),
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),
