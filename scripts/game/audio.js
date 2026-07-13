@@ -32,7 +32,6 @@ const sfxDiamondStaff=()=>{playTone(2400,.1,.12,'sine');setTimeout(()=>playTone(
 const sfxOink=()=>{playTone(350,.12,.08,'sine');setTimeout(()=>playTone(280,.1,.06,'sine'),80);};
 const sfxEnterUnder=()=>{[400,300,220,160,100].forEach((f,i)=>setTimeout(()=>playTone(f,.18,.07,'sine'),i*90));};
 const sfxExitUnder=()=>{[100,160,220,300,440].forEach((f,i)=>setTimeout(()=>playTone(f,.15,.06,'sine'),i*80));};
-const sfxKillDragon=()=>{[500,600,700,800,1000,1300].forEach((f,i)=>setTimeout(()=>playTone(f,.35,.18,'sine'),i*100));setTimeout(()=>playTone(60,.8,.25,'sawtooth'),200);};
 
 // ═══ BGM ═══
 let bgmNodes=[],bgmSeqTimer=null,bgmBiome=-1,bgmBoss=false,bgmWave=false,bgmUnder=false,bgmUnderDragon=false;
