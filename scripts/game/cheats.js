@@ -112,3 +112,18 @@ function openCheatPanel(){if(!gs.running)return;buildCheatPanel();setPanel($chea
 function closeCheatPanel(){setPanel($cheatPanel,false);}
 if($cheatBtn)bindTapSafe($cheatBtn,openCheatPanel);
 if($cheatCloseBtn)bindTapSafe($cheatCloseBtn,closeCheatPanel);
+
+const _continueGameRestoreSavedPose=continueGame;
+continueGame=async function(){
+  const d=await loadSaveData();
+  if(!d)return;
+  await _continueGameRestoreSavedPose();
+  P.x=d.px??0;
+  P.z=d.pz??0;
+  P.y=d.py??20;
+  yaw=d.yaw??0;
+  pitch=d.pitch??0;
+  camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);
+  camera.rotation.x=pitch;
+  camera.rotation.y=yaw;
+};
