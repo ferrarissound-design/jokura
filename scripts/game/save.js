@@ -125,8 +125,10 @@ async function deleteSave(slot=activeSaveSlot){
   }
 }
 async function saveGame(){
+  const existing=await loadSaveData(activeSaveSlot);
+  const slotName=(existing&&existing.slotName)||('SLOT '+activeSaveSlot);
   const data={
-    version:SAVE_VERSION,saveSlot:activeSaveSlot,
+    version:SAVE_VERSION,saveSlot:activeSaveSlot,slotName,
     gameMode,flying:!!P.flying,cheatsUsed,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
@@ -147,6 +149,9 @@ async function saveGame(){
     openedTreasures:[...openedTreasureKeys],
     treasureMap:treasureMap?{...treasureMap}:null,
     achievements:{...achievements},
+    preview:captureSavePreview(),
+    biomeName:getSaveBiomeName(),
+    goalText:getSaveGoalText(),
     savedAt:Date.now()
   };
   try{
@@ -157,13 +162,41 @@ async function saveGame(){
   }
   catch(e){showSaveToast('⚠ 保存失敗');}
 }
-const $contBtn=document.getElementById('contBtn'),$saveInfo=document.getElementById('saveInfo');
+const $contBtn=document.getElementById('contBtn'),$saveSlotsBtn=document.getElementById('saveSlotsBtn'),$saveInfo=document.getElementById('saveInfo');
 const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=document.getElementById('saveSlotList'),$saveSlotCloseBtn=document.getElementById('saveSlotCloseBtn');
+function captureSavePreview(){
+  try{
+    if(!canvas||!canvas.width||!canvas.height)return '';
+    const out=document.createElement('canvas');out.width=220;out.height=124;
+    const ctx=out.getContext('2d');ctx.drawImage(canvas,0,0,out.width,out.height);
+    return out.toDataURL('image/jpeg',0.58);
+  }catch(e){return '';}
+}
+function getSaveBiomeName(){
+  try{return getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z))).replace(/[^\x20-\x7E\u3040-\u30ff\u3400-\u9fff]/g,'').trim()||'UNKNOWN';}
+  catch(e){return 'UNKNOWN';}
+}
+function getSaveGoalText(){
+  try{return getCurrentGoal().replace(/[^\x20-\x7E\u3040-\u30ff\u3400-\u9fff]/g,'').trim();}
+  catch(e){return '';}
+}
+function formatSlotName(slot,d){return (d&&d.slotName)||('SLOT '+slot);}
 function formatSaveMeta(d){
   if(!d)return 'EMPTY';
   const dt=new Date(d.savedAt||Date.now());
   const mode=d.gameMode==='creative'?'🪄CREATIVE ':d.endlessMode?'♾ENDLESS ':'';
   return `${mode}DAY${d.day||1} WAVE${d.wave||0} SCORE${d.score||0} / ${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
+}
+function formatSaveDetails(d){
+  if(!d)return 'Start a fresh world in this slot.';
+  const parts=[
+    'HP '+Math.round(d.hp||100),
+    'KILLS '+(d.kills||0),
+    'DIAMOND '+((d.inv&&d.inv.diamond)||0),
+    'X '+Math.floor(d.px||0)+' Z '+Math.floor(d.pz||0)
+  ];
+  if(d.biomeName)parts.push(d.biomeName);
+  return parts.join(' / ');
 }
 async function updateOverlaySaveInfo(options={}){
   const rows=await getAllSaveSlots();
@@ -197,6 +230,63 @@ async function renderSaveSlots(){
 }
 function openSaveSlots(){renderSaveSlots();if($saveSlotPanel)$saveSlotPanel.classList.add('show');}
 function closeSaveSlots(){if($saveSlotPanel)$saveSlotPanel.classList.remove('show');}
+async function updateOverlaySaveInfo(options={}){
+  const rows=await getAllSaveSlots();
+  const filled=rows.filter(r=>r.data);
+  const keepContState=options===true||options.enableContinueButton===false;
+  const isEndOverlay=!gs.running&&!overlay.classList.contains('hide')&&(ovTitle.textContent==='GAME OVER'||ovTitle.textContent==='GAME CLEAR!!');
+  const canTouchCont=!keepContState&&!isEndOverlay;
+  const active=rows[activeSaveSlot-1]&&rows[activeSaveSlot-1].data;
+  if(filled.length&&active){
+    if(canTouchCont)$contBtn.classList.remove('disabled');
+    $contBtn.textContent='CONTINUE '+formatSlotName(activeSaveSlot,active);
+    $saveInfo.textContent=`SAVE ${formatSlotName(activeSaveSlot,active)}: ${formatSaveMeta(active)} (${filled.length}/${SAVE_SLOT_COUNT})`;
+  }else if(filled.length){
+    if(canTouchCont)$contBtn.classList.add('disabled');
+    $contBtn.textContent='CONTINUE';
+    $saveInfo.textContent='Active slot is empty. Open SAVE SLOTS to choose a saved slot.';
+  }else{
+    if(canTouchCont)$contBtn.classList.add('disabled');
+    $contBtn.textContent='CONTINUE';
+    $saveInfo.textContent='No save data yet. Open SAVE SLOTS to pick an empty slot.';
+  }
+}
+async function renderSaveSlots(){
+  if(!$saveSlotList)return;
+  const rows=await getAllSaveSlots();
+  $saveSlotList.innerHTML='';
+  rows.forEach(({slot,data})=>{
+    const wrap=document.createElement('div');
+    wrap.className='saveSlot'+(slot===activeSaveSlot?' active':'');
+    const preview=document.createElement('div');preview.className='saveSlotPreview';
+    if(data&&data.preview){const img=document.createElement('img');img.alt='slot preview';img.src=data.preview;preview.appendChild(img);}
+    else{preview.textContent='EMPTY';}
+    wrap.appendChild(preview);
+    const body=document.createElement('div');body.className='saveSlotBody';
+    const title=document.createElement('div');title.className='saveSlotTitle';title.textContent=formatSlotName(slot,data)+(slot===activeSaveSlot?'  * SELECTED':'');body.appendChild(title);
+    const meta=document.createElement('div');meta.className='saveSlotMeta';meta.textContent=formatSaveMeta(data);body.appendChild(meta);
+    const detail=document.createElement('div');detail.className='saveSlotDetail';detail.textContent=formatSaveDetails(data);body.appendChild(detail);
+    if(data&&data.goalText){const goal=document.createElement('div');goal.className='saveSlotGoal';goal.textContent=data.goalText;body.appendChild(goal);}
+    const btns=document.createElement('div');btns.className='saveSlotBtns';
+    const main=document.createElement('button');main.className='slotBtn';main.textContent=data?'LOAD':'NEW';main.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);closeSaveSlots();data?continueGame():startNewGameWithConfirm(slot);});btns.appendChild(main);
+    const use=document.createElement('button');use.className='slotBtn secondary';use.textContent='SELECT';use.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' SELECTED');});btns.appendChild(use);
+    if(data){
+      const rename=document.createElement('button');rename.className='slotBtn secondary';rename.textContent='NAME';rename.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();await renameSaveSlot(slot,data);});btns.appendChild(rename);
+      const fresh=document.createElement('button');fresh.className='slotBtn danger';fresh.textContent='NEW';fresh.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();await startNewGameWithConfirm(slot);});btns.appendChild(fresh);
+      const del=document.createElement('button');del.className='slotBtn danger';del.textContent='DELETE';del.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();if(confirm(formatSlotName(slot,data)+' will be deleted. Continue?')){await deleteSave(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' DELETED');}});btns.appendChild(del);
+    }
+    body.appendChild(btns);wrap.appendChild(body);$saveSlotList.appendChild(wrap);
+  });
+}
+async function renameSaveSlot(slot,data){
+  const current=formatSlotName(slot,data);
+  const next=prompt('Slot name',current);
+  if(next==null)return;
+  const clean=next.trim().slice(0,24)||('SLOT '+slot);
+  const updated={...data,slotName:clean};
+  await window.storage.set(saveKeyForSlot(slot),JSON.stringify(updated));
+  updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' NAMED');
+}
 async function startNewGameWithConfirm(slot=activeSaveSlot){
   const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
   const existing=await loadSaveData(safeSlot);

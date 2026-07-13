@@ -180,15 +180,26 @@ canvas#c{display:block;touch-action:none}
 .codexCost{color:#9fc7e6;white-space:nowrap}
 
 #saveSlotList{display:flex;flex-direction:column;gap:10px;margin:8px 0 12px}
-.saveSlot{border:1px solid rgba(126,207,255,.24);border-radius:10px;background:rgba(255,255,255,.055);padding:10px;text-align:left}
+.saveSlot{border:1px solid rgba(126,207,255,.24);border-radius:8px;background:rgba(255,255,255,.055);padding:10px;text-align:left;display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:stretch}
 .saveSlot.active{border-color:rgba(249,211,66,.75);box-shadow:0 0 14px rgba(249,211,66,.18)}
 .saveSlotTitle{font-weight:900;color:#f9d342;font-size:12px;letter-spacing:1px;margin-bottom:4px;text-shadow:1px 1px 0 #000}
 .saveSlotMeta{font-size:11px;line-height:1.7;color:#ddd;text-shadow:1px 1px 0 #000}
+.saveSlotPreview{width:112px;min-height:64px;border:1px solid rgba(255,255,255,.14);border-radius:6px;background:linear-gradient(135deg,rgba(38,198,218,.2),rgba(249,211,66,.08));display:flex;align-items:center;justify-content:center;overflow:hidden;color:#ffffff55;font-size:10px;font-weight:900;letter-spacing:1px;text-align:center}
+.saveSlotPreview img{width:100%;height:100%;object-fit:cover;display:block}
+.saveSlotBody{min-width:0}
+.saveSlotDetail{font-size:10px;line-height:1.55;color:#a9d8ff;text-shadow:1px 1px 0 #000;margin-top:2px}
+.saveSlotGoal{font-size:10px;line-height:1.45;color:#fff2a8;text-shadow:1px 1px 0 #000;margin-top:4px;white-space:normal}
 .saveSlotBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .slotBtn{padding:7px 10px;border:none;border-radius:8px;background:linear-gradient(135deg,#26c6da,#00838f);color:#fff;font-size:11px;font-weight:900;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .slotBtn.secondary{background:linear-gradient(135deg,#5f5578,#3d3557)}
 .slotBtn.danger{background:linear-gradient(135deg,#8e3b3b,#4a1c1c)}
 .slotBtn:active{transform:scale(.96)}
+@media (max-width:520px){
+  .saveSlot{grid-template-columns:1fr}
+  .saveSlotPreview{width:100%;height:90px}
+  .saveSlotBtns{gap:6px}
+  .slotBtn{flex:1 1 72px;padding:8px 6px}
+}
 
 #achievementsList{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .achievementItem{border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);padding:9px 10px;text-align:left}

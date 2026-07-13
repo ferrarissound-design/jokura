@@ -305,8 +305,11 @@ let _ovBtnLastT=0;
 function _onOvBtnTap(){const now=Date.now();if(now-_ovBtnLastT<100)return;_ovBtnLastT=now;startNewGameWithConfirm();}
 bindTapSafe(ovBtn,_onOvBtnTap);
 let _contBtnLastT=0;
-function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))openSaveSlots();}
+function _onContBtnTap(){const now=Date.now();if(now-_contBtnLastT<100)return;_contBtnLastT=now;if(!$contBtn.classList.contains('disabled'))continueGame();}
 bindTapSafe($contBtn,_onContBtnTap);
+let _saveSlotsBtnLastT=0;
+function _onSaveSlotsBtnTap(){const now=Date.now();if(now-_saveSlotsBtnLastT<100)return;_saveSlotsBtnLastT=now;openSaveSlots();}
+if($saveSlotsBtn)bindTapSafe($saveSlotsBtn,_onSaveSlotsBtnTap);
 let _pauseBtnLastT=0;
 function _onPauseBtnTap(){const now=Date.now();if(now-_pauseBtnLastT<100)return;_pauseBtnLastT=now;togglePause();}
 bindTapSafe($pauseBtn,_onPauseBtnTap);
