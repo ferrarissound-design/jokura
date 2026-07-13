@@ -254,7 +254,7 @@ async function continueGame(){
   if(d.hasDiamondStaff)applyDiamondStaff();
   if(d.hasDiamondHammer)applyDiamondHammer();
   ensureUnlockedWeaponSelected();
-  if(d.worldSeed)initWorldNoise(d.worldSeed);
+  if(d.worldSeed!=null)initWorldNoise(d.worldSeed);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
