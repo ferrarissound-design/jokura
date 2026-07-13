@@ -971,6 +971,10 @@ function openTreasure(){
     if(t.struct==='pyramid'&&Math.random()<0.35){inv.dragonCore+=1;msg+=' 💠×1';}
     if(t.struct==='igloo'&&Math.random()<0.6){const ic=2+Math.floor(Math.random()*3);inv.ice+=ic;msg+=' 🧊×'+ic;}
     if(t.struct==='ruins'&&Math.random()<0.5){const m=1+Math.floor(Math.random()*3);meat+=m;updateMeatHUD();msg+=' 🥩×'+m;}
+    if(t.struct==='hut'){
+      const m=1+Math.floor(Math.random()*2);meat+=m;updateMeatHUD();msg+=' 🥩×'+m;
+      const tor=2+Math.floor(Math.random()*3);inv.torch+=tor;msg+=' 🔥×'+tor;
+    }
     gs.score+=400;
     unlockAchievement('structureRaider');
     // 宝の地図が指していた宝ならクリア報酬
@@ -1019,7 +1023,7 @@ function structAt(gx,gz){
   let type;
   if(biome===BIOMES.DESERT)type='pyramid';
   else if(biome===BIOMES.SNOW)type='igloo';
-  else if(biome===BIOMES.FOREST||biome===BIOMES.PLAINS)type='ruins';
+  else if(biome===BIOMES.FOREST||biome===BIOMES.PLAINS)type=rand2(gx,gz,_structSeed(6))<0.58?'hut':'ruins';
   else return null; // 火山・岩山には生成しない
   return{type,wx,wz,biome};
 }
@@ -1045,6 +1049,23 @@ function _spawnSurfaceStructures(cx,cz,meshes){
         if(dz>=2&&dx===0&&dy<=1)continue; // 入口
         pb(cxw+dx,h+1+dy,czw+dz,SNOW_BLOCK);
       }
+    }else if(s.type==='hut'){
+      for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){
+        if(dx===0&&dz===0)continue;
+        pb(cxw+dx,h+1,czw+dz,3);
+      }
+      for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){
+        const edge=Math.max(Math.abs(dx),Math.abs(dz))===3;
+        if(!edge)continue;
+        if(dz===3&&Math.abs(dx)<=1)continue;
+        for(let dy=2;dy<=3;dy++)pb(cxw+dx,h+dy,czw+dz,3);
+      }
+      for(let dx=-4;dx<=4;dx++)for(let dz=-4;dz<=4;dz++){
+        if(Math.abs(dx)===4&&Math.abs(dz)===4)continue;
+        pb(cxw+dx,h+4,czw+dz,4);
+      }
+      pb(cxw-2,h+2,czw-2,TORCH_BLOCK);
+      pb(cxw+2,h+2,czw+2,TORCH_BLOCK);
     }else{ // ruins: 崩れたレンガの壁 + 四隅の石柱。中心に宝箱
       for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
         if(Math.max(Math.abs(dx),Math.abs(dz))!==2)continue; // 外周のみ
