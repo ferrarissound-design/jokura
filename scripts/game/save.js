@@ -222,7 +222,7 @@ function saveScore(cleared){
   try{
     const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
     const now=new Date();
-    arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,diff:settings.difficulty||'normal',date:(now.getMonth()+1)+'/'+(now.getDate())});
+    arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,diff:settings.difficulty||'normal',date:(now.getMonth()+1)+'/'+(now.getDate())+'/'+String(now.getFullYear()).slice(2)});
     arr.sort((a,b)=>b.score-a.score);arr.splice(5);
     localStorage.setItem(SCORE_KEY,JSON.stringify(arr));
   }catch(e){}
