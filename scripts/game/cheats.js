@@ -77,6 +77,7 @@ const CHEAT_SECTIONS=[
   {title:'🎲 イベント・移動',btns:[
     ['🧙 行商人を呼ぶ',()=>{removeMerchant();spawnMerchant();showBonus('🧙 行商人');}],
     ['☄ 隕石',()=>{maybeSpawnMeteor();}],
+    ['🏔 神地形',()=>{generateEpicSpires();}],
     ['⬆ 地上へ',()=>{const sh=getHeight(Math.floor(P.x),Math.floor(P.z));P.y=sh+2;P.velY=0;P.onGround=false;showBonus('⬆ 地上へ');}],
     ['🏠 原点(0,0)へ',()=>{P.x=0;P.z=0;const sh=getHeight(0,0);P.y=sh+2;P.velY=0;P.onGround=false;updateChunks(true);showBonus('🏠 原点へ');}],
   ]},

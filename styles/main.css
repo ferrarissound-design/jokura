@@ -80,6 +80,9 @@ canvas#c{display:block;touch-action:none}
 #weaponBtn{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:80px;padding:7px 4px;border-radius:8px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#f9d342;font-size:9px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.3px;text-align:center}
 #weaponBtn:active{transform:scale(.92)}
 #saveFloatBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(8px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #26c6da44;background:rgba(38,198,218,.15);color:#7fffff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
+/* 🏔 神地形生成（クリエイティブ限定）: 💾 の左隣に並ぶフローティングボタン */
+#epicBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(50px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #b388ff55;background:rgba(149,117,205,.2);color:#e6d9ff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
+#epicBtn:active{transform:scale(.92)}
 #dmgFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(220,30,30,.4);transition:opacity .1s;z-index:30}
 #dmgFlash.on{opacity:1}
 #lavaFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(255,100,0,.35);transition:opacity .2s;z-index:29}

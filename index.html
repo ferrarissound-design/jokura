@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260727i">
+<link rel="stylesheet" href="styles/main.css?v=20260727k">
 
 </head>
 <body>
@@ -62,6 +62,7 @@
   <div id="coordsDisplay">X:0 Z:0</div>
   <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
   <button id="saveFloatBtn">💾</button>
+  <button id="epicBtn" style="display:none" title="神地形を生成">🏔</button>
   <div id="waveAlert"></div>
   <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
@@ -240,7 +241,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260727j';
+  var V='20260727k';
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world','combat','entities','hud','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
