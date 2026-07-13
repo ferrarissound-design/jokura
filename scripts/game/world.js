@@ -577,6 +577,18 @@ function computeGrassTint(wx,wz,biomeAt){
   return[r/n,g/n,b/n];
 }
 function getHeight(wx,wz){const biome=getBiome(wx,wz);let h=fbm(wx*0.03,wz*0.03,4);if(biome===BIOMES.MOUNTAIN)h=h*4+2;else if(biome===BIOMES.FOREST)h=h*1.5+0.3;else if(biome===BIOMES.DESERT)h=h*0.8;else if(biome===BIOMES.VOLCANO)h=h*3.5+1.5;else if(biome===BIOMES.SNOW)h=h*2.5+0.5;else h=h*1.2;return Math.max(0,Math.floor(h+1));}
+// getHeight()は決定的な生成時の高さで、cave mouth等の3D彫り込みやプレイヤーの
+// 採掘・建築による改変を反映しない。落雷・隕石の着弾位置など「今その場に実際に
+// 地面があるか」が重要な場面ではこちらを使う。該当チャンクが未生成/その範囲に
+// 固体ブロックが無い場合はgetHeight()の値へフォールバックする。
+function surfaceHeightAt(wx,wz){
+  const top=getHeight(wx,wz);
+  for(let y=top+10;y>=top-20;y--){
+    const v=voxels[vKey(wx,y,wz)];
+    if(v&&v.active&&v.ti!==WATER_BLOCK&&v.ti!==LAVA_BLOCK)return y;
+  }
+  return top;
+}
 
 // Registers a voxel. Cube blocks live in the merged chunk mesh; only water
 // and torches get an individual mesh (custom geometry / shader).

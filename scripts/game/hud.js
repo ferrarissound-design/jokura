@@ -13,11 +13,11 @@ function updateMeatHUD(){
   $meatLabel.textContent='🥩 MEAT: '+meat+(steak>0?'  🍖 STEAK: '+steak:'');
   if(meat>0||steak>0)$eatBtn.classList.remove('disabled');else $eatBtn.classList.add('disabled');
 }
-// EAT: \u713c\u3044\u305f\u30b9\u30c6\u30fc\u30ad\u304c\u3042\u308c\u3070\u512a\u5148\u3057\u3066\u98df\u3079\u308b\uff08\u56de\u5fa9\u91cf\u304c\u591a\u3044\uff09\u3002\u306a\u3051\u308c\u3070\u751f\u8089\u3002
+// EAT: 焼いたステーキがあれば優先して食べる（回復量が多い）。なければ生肉。
 function eatMeat(){
   if(!gs.running)return;
-  if((inv.steak||0)>0){inv.steak--;P.food=Math.min(100,P.food+60);P.hp=Math.min(P.maxHp,P.hp+25);gs.score+=MEAT_SCORE;updateMeatHUD();updateInvHUD();showBonus('\ud83c\udf56 \u30b9\u30c6\u30fc\u30ad \u6e80\u8179\u5ea6+60 HP+25  +'+MEAT_SCORE);playTone(760,.15,.1,'sine');setTimeout(()=>playTone(1000,.1,.08,'sine'),100);return;}
-  if(meat<=0)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('\ud83c\udf56 \u6e80\u8179\u5ea6+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
+  if((inv.steak||0)>0){inv.steak--;P.food=Math.min(100,P.food+60);P.hp=Math.min(P.maxHp,P.hp+25);gs.score+=MEAT_SCORE;updateMeatHUD();updateInvHUD();showBonus('🍖 ステーキ 満腹度+60 HP+25  +'+MEAT_SCORE);playTone(760,.15,.1,'sine');setTimeout(()=>playTone(1000,.1,.08,'sine'),100);return;}
+  if(meat<=0)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('🍖 満腹度+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
 let _eatBtnLastT=0;
 function _onEatBtnTap(){const now=Date.now();if(now-_eatBtnLastT<100)return;_eatBtnLastT=now;eatMeat();}
 bindTapSafe($eatBtn,_onEatBtnTap);
@@ -313,7 +313,7 @@ function maybeSpawnLightningStrike(){
     const ang=Math.random()*Math.PI*2,dist=6+Math.random()*8;
     tx=P.x+Math.cos(ang)*dist;tz=P.z+Math.sin(ang)*dist;
   }
-  const gy=getHeight(Math.floor(tx),Math.floor(tz));
+  const gy=surfaceHeightAt(Math.floor(tx),Math.floor(tz));
   const mat=new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0});
   const mesh=new THREE.Mesh(_strikeBeamGeo,mat);
   mesh.position.set(tx,gy+17,tz);scene.add(mesh);
@@ -324,7 +324,7 @@ function maybeSpawnLightningStrike(){
   playTone(1400,.15,.06,'sine'); // 落雷予告の高音（雷鳴とは別音）
 }
 function _resolveLightningStrike(s){
-  const gy=getHeight(Math.floor(s.x),Math.floor(s.z));
+  const gy=surfaceHeightAt(Math.floor(s.x),Math.floor(s.z));
   spawnParticles(s.x,gy+1,s.z,0xeaf6ff,8);
   sfxThunder();
   const R=2.6;
@@ -367,7 +367,7 @@ function maybeSpawnMeteor(){
   if(isCreative()||!gs.running)return;
   const ang=Math.random()*Math.PI*2,dist=10+Math.random()*14;
   const tx=P.x+Math.cos(ang)*dist,tz=P.z+Math.sin(ang)*dist;
-  const gy=getHeight(Math.floor(tx),Math.floor(tz));
+  const gy=surfaceHeightAt(Math.floor(tx),Math.floor(tz));
   const mat=new THREE.MeshBasicMaterial({color:0xff8844,transparent:true,opacity:0});
   const mesh=new THREE.Mesh(_meteorBeamGeo,mat);
   mesh.position.set(tx,gy+20,tz);scene.add(mesh);
@@ -393,7 +393,7 @@ function meteorCrater(cx,gy,cz){
   }
 }
 function _resolveMeteor(m){
-  const gy=getHeight(Math.floor(m.x),Math.floor(m.z));
+  const gy=surfaceHeightAt(Math.floor(m.x),Math.floor(m.z));
   spawnParticles(m.x,gy+1,m.z,0xff6622,10);
   sfxThunder(); // 着弾音として雷鳴音を流用
   const R=3.4;
