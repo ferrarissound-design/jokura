@@ -50,6 +50,20 @@ function updateFlyBtns(){
   if($flyBtn){$flyBtn.style.display=show?'':'none';$flyBtn.textContent=P.flying?'🛬 LAND':'🕊 FLY';}
   if($flyDownBtn)$flyDownBtn.style.display=show&&P.flying?'':'none';
 }
+// ─── 🏔 EPIC TERRAIN BUTTON (creative only) ───
+// ワンクリックで前方に神地形（尖塔アーチ＋巨木＋池）を生成する。連打による
+// 多重生成（数千ブロック編集の連続ヒッチ）を避けるため短いクールダウンを挟む
+const $epicBtn=document.getElementById('epicBtn');
+let _epicCooldownT=0;
+function _onEpicBtnTap(){
+  if(!gs.running||!isCreative())return;
+  const now=performance.now();
+  if(now<_epicCooldownT)return;
+  _epicCooldownT=now+1500;
+  initAudio();
+  generateEpicSpires();
+}
+if($epicBtn)bindTapSafe($epicBtn,_onEpicBtnTap);
 // creative hides survival-only HUD (HP/満腹度/EAT/MEAT), like Minecraft creative
 function applyModeUI(){
   const cr=isCreative();
@@ -58,6 +72,7 @@ function applyModeUI(){
   if(fd)fd.style.display=cr?'none':'';
   if($eatBtn)$eatBtn.style.display=cr?'none':'';
   if($meatLabel)$meatLabel.style.display=cr?'none':'';
+  if($epicBtn)$epicBtn.style.display=cr?'':'none';
   updateFlyBtns();
 }
 let _weaponBtnLastT=0;
