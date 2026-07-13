@@ -127,6 +127,9 @@ function undergroundDeath(){
     if(undergroundSnapshot.hasDiamondHammer){if(!hasDiamondHammer)applyDiamondHammer();}else{if(hasDiamondHammer){hasDiamondHammer=false;WEAPONS[2].name='🔨 Hammer';WEAPONS[2].dmg=6;WEAPONS[2].cd=0.8;WEAPONS[2].range=3;WEAPONS[2].type='melee';}}
     ensureUnlockedWeaponSelected();
     chestCount=undergroundSnapshot.chestCount;bedCount=undergroundSnapshot.bedCount;trophyCount=undergroundSnapshot.trophyCount||trophyCount;enchTableCount=undergroundSnapshot.enchTableCount!=null?undergroundSnapshot.enchTableCount:enchTableCount;furnaceCount=undergroundSnapshot.furnaceCount!=null?undergroundSnapshot.furnaceCount:furnaceCount;updateChestHUD();updateBedHUD();updateTrophyHUD();updateEnchTableHUD();updateFurnaceHUD();
+    // 地下入場時点の鎧・エンチャントへ巻き戻す（地下で作った/壊れた分は失う）
+    armor=undergroundSnapshot.armor?{...undergroundSnapshot.armor}:null;updateArmorHUD();
+    if(undergroundSnapshot.enchants)Object.assign(enchants,undergroundSnapshot.enchants);
     undergroundSnapshot=null;
   }
   prevPlayerUnderground=false;
@@ -363,7 +366,7 @@ function tick(now){
   if(fullMoonNight&&!_isUnder&&!isCreative()&&enemies.length<(isTouch?18:30)){
     fullMoonSpawnT-=dt;if(fullMoonSpawnT<=0){fullMoonSpawnT=5+Math.random()*4;spawnEnemy();}
   }
-  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,chestCount,bedCount,trophyCount,enchTableCount,furnaceCount};sfxEnterUnder();}
+  if(_isUnder&&!prevPlayerUnderground){undergroundSnapshot={inv:{...inv},unlockedWeapons:[...unlockedWeapons],hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,chestCount,bedCount,trophyCount,enchTableCount,furnaceCount,armor:armor?{tier:armor.tier,dur:armor.dur}:null,enchants:{...enchants}};sfxEnterUnder();}
   if(!_isUnder&&prevPlayerUnderground){undergroundSnapshot=null;sfxExitUnder();}
   prevPlayerUnderground=_isUnder;
   if(!_isUnder&&finalBossPending&&!boss&&!isCreative()){finalBossPending=false;const fd=BOSS_DEFS.find(b=>b.finalBoss);if(fd&&gs.running){showAlert('💎 キングダイヤモンドドラゴン 降臨！！');sfxBossAppear();playTone(60,.4,.8,'sawtooth');setTimeout(()=>{if(gs.running)spawnBoss(fd);},2500);}}
