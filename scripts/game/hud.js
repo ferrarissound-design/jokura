@@ -313,7 +313,7 @@ function maybeSpawnLightningStrike(){
     const ang=Math.random()*Math.PI*2,dist=6+Math.random()*8;
     tx=P.x+Math.cos(ang)*dist;tz=P.z+Math.sin(ang)*dist;
   }
-  const gy=getHeight(Math.floor(tx),Math.floor(tz));
+  const gy=surfaceHeightAt(Math.floor(tx),Math.floor(tz));
   const mat=new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0});
   const mesh=new THREE.Mesh(_strikeBeamGeo,mat);
   mesh.position.set(tx,gy+17,tz);scene.add(mesh);
@@ -324,7 +324,7 @@ function maybeSpawnLightningStrike(){
   playTone(1400,.15,.06,'sine'); // 落雷予告の高音（雷鳴とは別音）
 }
 function _resolveLightningStrike(s){
-  const gy=getHeight(Math.floor(s.x),Math.floor(s.z));
+  const gy=surfaceHeightAt(Math.floor(s.x),Math.floor(s.z));
   spawnParticles(s.x,gy+1,s.z,0xeaf6ff,8);
   sfxThunder();
   const R=2.6;
@@ -367,7 +367,7 @@ function maybeSpawnMeteor(){
   if(isCreative()||!gs.running)return;
   const ang=Math.random()*Math.PI*2,dist=10+Math.random()*14;
   const tx=P.x+Math.cos(ang)*dist,tz=P.z+Math.sin(ang)*dist;
-  const gy=getHeight(Math.floor(tx),Math.floor(tz));
+  const gy=surfaceHeightAt(Math.floor(tx),Math.floor(tz));
   const mat=new THREE.MeshBasicMaterial({color:0xff8844,transparent:true,opacity:0});
   const mesh=new THREE.Mesh(_meteorBeamGeo,mat);
   mesh.position.set(tx,gy+20,tz);scene.add(mesh);
@@ -393,7 +393,7 @@ function meteorCrater(cx,gy,cz){
   }
 }
 function _resolveMeteor(m){
-  const gy=getHeight(Math.floor(m.x),Math.floor(m.z));
+  const gy=surfaceHeightAt(Math.floor(m.x),Math.floor(m.z));
   spawnParticles(m.x,gy+1,m.z,0xff6622,10);
   sfxThunder(); // 着弾音として雷鳴音を流用
   const R=3.4;
