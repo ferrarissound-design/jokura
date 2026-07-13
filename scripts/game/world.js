@@ -551,6 +551,18 @@ let voxels={},lavaBlocks=new Set(),torchBlocks=new Set();
 const vKey=(x,y,z)=>x+'|'+y+'|'+z;const cKey=(cx,cz)=>cx+','+cz;const ucKey=(cx,cy,cz)=>cx+','+cy+','+cz;
 let chunks={},activeChunks={};
 let underChunks={},activeUnderChunks={};
+const TORCH_SPAWN_SAFE_R=10,TORCH_SPAWN_SAFE_Y=6;
+function isTorchSpawnProtected(x,y,z){
+  if(!torchBlocks.size)return false;
+  const r2=TORCH_SPAWN_SAFE_R*TORCH_SPAWN_SAFE_R;
+  for(const k of torchBlocks){
+    const[tX,tY,tZ]=k.split('|').map(Number);
+    if(Math.abs(tY-y)>TORCH_SPAWN_SAFE_Y)continue;
+    const dx=tX+.5-x,dz=tZ+.5-z;
+    if(dx*dx+dz*dz<=r2)return true;
+  }
+  return false;
+}
 
 const BIOMES={PLAINS:0,DESERT:1,FOREST:2,MOUNTAIN:3,VOLCANO:4,SNOW:5};
 function getBiome(wx,wz){

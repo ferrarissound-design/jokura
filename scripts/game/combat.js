@@ -473,9 +473,15 @@ function creeperExplode(e){
   }
 }
 function spawnEnemy(){
-  let angle=Math.random()*Math.PI*2,dist=20+Math.random()*10;
-  let sx=P.x+Math.cos(angle)*dist,sz=P.z+Math.sin(angle)*dist;
-  const h=getHeight(Math.floor(sx),Math.floor(sz));
+  let sx,sz,h,protectedSpawn=false;
+  for(let attempt=0;attempt<12;attempt++){
+    const angle=Math.random()*Math.PI*2,dist=20+Math.random()*10;
+    sx=P.x+Math.cos(angle)*dist;sz=P.z+Math.sin(angle)*dist;
+    h=getHeight(Math.floor(sx),Math.floor(sz));
+    protectedSpawn=isTorchSpawnProtected(sx,h+1,sz);
+    if(!protectedSpawn)break;
+  }
+  if(protectedSpawn)return;
   const biome=getBiome(Math.floor(sx),Math.floor(sz));
   let et;
   if(biome===BIOMES.VOLCANO&&Math.random()<.55)et=ENEMY_TYPES[3];
@@ -506,6 +512,7 @@ function spawnUnderEnemy(){
       const sy=Math.floor(P.y)+dy;
       if(sy>=0)continue;
       if(voxels[vKey(sx,sy,sz)])continue;
+      if(isTorchSpawnProtected(sx+.5,sy+.85,sz+.5))continue;
       const vf=voxels[vKey(sx,sy-1,sz)];
       if(!vf||!vf.active||vf.ti===WATER_BLOCK||vf.ti===LAVA_BLOCK)continue;
       const depth=-sy;
