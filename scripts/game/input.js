@@ -242,7 +242,7 @@ function doAttack(e){
 
 function doPlace(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();
-  const bh=castVoxel();if(!bh)return;
+  const bh=castVoxel(true);if(!bh)return;
   if(tryFishing(bh))return;
   const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
