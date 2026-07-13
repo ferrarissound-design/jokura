@@ -67,6 +67,48 @@ function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.for
 slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();initAudio();setType(parseInt(s.dataset.i,10));});});
 function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
+// ═══ FISHING ═══
+let fishCD=0;
+function tryFishing(bh){
+  if(!bh||bh.ti!==WATER_BLOCK)return false;
+  const now=performance.now()/1000;
+  if(now<fishCD){showBonus('🎣 少し待とう…');playTone(220,.06,.05,'sine');return true;}
+  fishCD=now+2.8;
+  const roll=Math.random();
+  let msg='🎣 ';
+  if(roll<.58){
+    meat++;
+    updateMeatHUD();
+    msg+='魚を釣った！ 🥩 +1';
+  }else if(roll<.78){
+    const n=2+Math.floor(Math.random()*3);
+    inv.arrow+=n;
+    updateInvHUD();
+    msg+='流木の矢 🏹 +'+n;
+  }else if(roll<.91){
+    const mats=['wood','stone','sand','clay'];
+    const k=mats[Math.floor(Math.random()*mats.length)];
+    const n=1+Math.floor(Math.random()*3);
+    inv[k]+=n;
+    updateInvHUD();
+    msg+='水辺の素材 '+(MATERIAL_LABELS[k]||k).split(' ')[0]+' +'+n;
+  }else if(roll<.985){
+    inv.ironOre++;
+    updateInvHUD();
+    msg+='沈んだ鉄鉱石 🔶 +1';
+  }else{
+    const hadDiamond=inv.diamond>0;
+    inv.diamond++;
+    updateInvHUD();
+    if(!hadDiamond)unlockAchievement('firstDiamond');
+    msg+='水底のダイヤ 💎 +1';
+  }
+  gs.score+=5;
+  showBonus(msg);
+  playTone(520,.09,.08,'sine');setTimeout(()=>playTone(760,.08,.07,'sine'),90);
+  return true;
+}
+
 // ═══ COMBAT ═══
 // enemy/boss/dragon meshes are built with per-instance geometries and cloned
 // materials, so they must be disposed on removal to avoid GPU memory leaks
@@ -201,6 +243,7 @@ function doAttack(e){
 function doPlace(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();
   const bh=castVoxel();if(!bh)return;
+  if(tryFishing(bh))return;
   const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   if(px<P.x+.35&&px+1>P.x-.35&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.35&&pz+1>P.z-.35)return;
