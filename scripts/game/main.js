@@ -403,7 +403,7 @@ function tick(now){
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
-    if(e.hp<=0&&!e.dead){e.dead=true;spawnParticles(ep.x,ep.y,ep.z,e.type.color,4);dropItem(ep.x,ep.y,ep.z,e.type);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);gs.kills++;gs.score+=e.type.score*(gs.wave||1)*fullMoonScoreMult();sfxKill();continue;}
+    if(e.hp<=0&&!e.dead){e.dead=true;finalizeEnemyDeath(e);continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
     if(dist>50){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
     // 状態異常: 炎上（0.7秒ごとに2ダメージ）/ 氷結（移動速度45%）
