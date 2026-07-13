@@ -36,6 +36,13 @@ canvas#c{display:block;touch-action:none}
 #questBtn:active{transform:scale(.92)}
 #craftPanel{position:absolute;top:calc(373px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 402px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #craftPanel.open{display:block}
+/* 横向きスマホ等の低い viewport では上の HUD 列(topBar〜craftBtn)だけで
+   400px超を使ってしまい、top:373px + max-height の計算が画面外/0以下になって
+   パネルが事実上表示できなくなる。低い viewport では画面上部から張り直し、
+   HUD 表示中でも(パネルは不透明背景なので)スクロールで全レシピへ到達できるようにする。 */
+@media (max-height:480px){
+  #craftPanel{top:calc(6px + var(--safeT));max-height:calc(100vh - 12px - var(--safeT) - var(--safeB))}
+}
 .citem{padding:0 10px;height:32px;font-size:11px;font-weight:700;color:#ddd;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;touch-action:manipulation;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;letter-spacing:.3px}
 .citem:last-child{border-bottom:none}
 .citem:active{background:rgba(255,255,255,.1)}
