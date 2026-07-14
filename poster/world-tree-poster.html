@@ -1,0 +1,719 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>WORLD TREE — Special Generation Poster</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#0b0f14}
+  #poster{position:relative;width:1600px;height:1000px;overflow:hidden;
+    font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif;
+    background:#7bc0e8;box-shadow:0 0 0 1px #000}
+  #scene{position:absolute;top:0;left:0;width:1600px;height:1000px;display:block}
+
+  /* ---------- shared panel look ---------- */
+  .panel{position:absolute;background:linear-gradient(160deg,rgba(12,17,24,.90),rgba(8,11,16,.86));
+    border:2px solid rgba(249,211,66,.55);border-radius:12px;
+    box-shadow:0 10px 34px rgba(0,0,0,.55),inset 0 0 0 2px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);
+    color:#e9edf2;backdrop-filter:blur(1px)}
+  .panel::before{content:"";position:absolute;inset:5px;border:1px solid rgba(249,211,66,.16);border-radius:8px;pointer-events:none}
+  .corner{position:absolute;width:9px;height:9px;background:#f9d342;box-shadow:0 0 6px rgba(249,211,66,.8)}
+  .corner.tl{top:-3px;left:-3px}.corner.tr{top:-3px;right:-3px}
+  .corner.bl{bottom:-3px;left:-3px}.corner.br{bottom:-3px;right:-3px}
+  .kicker{font-size:13px;font-weight:800;letter-spacing:5px;color:#f9d342;text-transform:uppercase;text-shadow:1px 1px 0 #000}
+
+  /* ---------- title frame (top-left) ---------- */
+  #titleFrame{top:40px;left:44px;width:520px;padding:22px 26px 24px}
+  #titleFrame .kicker{color:#ffe08a}
+  #titleFrame h1{font-size:74px;line-height:.92;font-weight:900;letter-spacing:2px;margin:8px 0 10px;
+    color:#fff;text-shadow:0 2px 0 #6b4a12,0 5px 0 #3a2708,0 8px 18px rgba(0,0,0,.6);
+    background:linear-gradient(180deg,#ffffff 0%,#ffe9a8 55%,#f6c445 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  #titleFrame .oneclick{display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:800;
+    letter-spacing:3px;color:#0a0d12;background:linear-gradient(180deg,#ffe487,#f4b52f);
+    padding:7px 15px;border-radius:8px;box-shadow:0 3px 0 #9c6b0f,0 6px 12px rgba(0,0,0,.4);text-transform:uppercase}
+  #titleFrame .oneclick .cursor{font-size:15px}
+
+  /* ---------- legendary landmark panel (left) ---------- */
+  #lore{top:322px;left:44px;width:392px;padding:20px 22px 22px}
+  #lore .head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  #lore .rune{font-size:22px;filter:drop-shadow(0 0 8px rgba(249,211,66,.7))}
+  #lore h2{font-size:21px;font-weight:900;letter-spacing:2px;color:#ffe08a;text-shadow:1px 1px 0 #000}
+  #lore .rule{height:2px;margin:0 0 14px;background:linear-gradient(90deg,rgba(249,211,66,.75),rgba(249,211,66,0))}
+  #lore p{font-size:16px;line-height:1.62;color:#dfe6ee;text-shadow:1px 1px 0 rgba(0,0,0,.6);font-weight:500}
+  #lore p .em{color:#9fe0ff;font-weight:700}
+
+  /* ---------- rare discovery box (bottom-left) ---------- */
+  #rare{bottom:44px;left:44px;width:322px;padding:16px 20px;
+    border-color:rgba(159,224,255,.5)}
+  #rare::before{border-color:rgba(159,224,255,.18)}
+  #rare .corner{background:#9fe0ff;box-shadow:0 0 6px rgba(159,224,255,.8)}
+  #rare .tag{display:flex;align-items:center;gap:9px}
+  #rare .star{font-size:19px;filter:drop-shadow(0 0 7px rgba(159,224,255,.8))}
+  #rare h3{font-size:19px;font-weight:900;letter-spacing:2px;color:#9fe0ff;text-shadow:1px 1px 0 #000}
+  #rare p{margin-top:8px;font-size:14px;letter-spacing:.4px;color:#c9d6e2;font-style:italic;text-shadow:1px 1px 0 rgba(0,0,0,.6)}
+
+  /* ---------- feature badges (right) ---------- */
+  #feats{position:absolute;top:150px;right:46px;width:308px;display:flex;flex-direction:column;gap:16px}
+  #feats .flabel{font-size:12px;font-weight:800;letter-spacing:4px;color:#ffe08a;text-align:right;
+    text-transform:uppercase;text-shadow:1px 1px 0 #000;margin-bottom:-4px;padding-right:4px}
+  .badge{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;
+    background:linear-gradient(120deg,rgba(12,17,24,.90),rgba(9,13,19,.82));
+    border:2px solid rgba(249,211,66,.42);
+    box-shadow:0 8px 22px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);position:relative}
+  .badge .ico{flex:0 0 46px;width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:25px;background:radial-gradient(circle at 35% 30%,rgba(249,211,66,.28),rgba(0,0,0,.35));
+    border:1.5px solid rgba(249,211,66,.4);box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
+  .badge .txt{display:flex;flex-direction:column;gap:2px}
+  .badge .txt b{font-size:16px;font-weight:900;letter-spacing:1.4px;color:#fff;text-shadow:1px 1px 0 #000}
+  .badge .txt span{font-size:11px;letter-spacing:1.2px;color:#9fb0c2;text-transform:uppercase}
+  .badge.dungeon{border-color:rgba(178,120,255,.5)}
+  .badge.dungeon .ico{background:radial-gradient(circle at 35% 30%,rgba(178,120,255,.35),rgba(0,0,0,.4));border-color:rgba(178,120,255,.5)}
+
+  /* ---------- bottom generate ribbon ---------- */
+  #genbar{position:absolute;bottom:46px;right:46px;display:flex;align-items:center;gap:16px}
+  #genbar .rarity{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+  #genbar .rarity .stars{font-size:15px;letter-spacing:3px;color:#f9d342;text-shadow:0 0 8px rgba(249,211,66,.6)}
+  #genbar .rarity .lv{font-size:11px;letter-spacing:3px;color:#ffcf7f;font-weight:800;text-transform:uppercase}
+  #genbtn{display:flex;align-items:center;gap:12px;padding:16px 30px;border-radius:14px;
+    font-size:22px;font-weight:900;letter-spacing:3px;color:#20140a;text-transform:uppercase;
+    background:linear-gradient(180deg,#ffe487 0%,#f8c445 55%,#e79a1c 100%);
+    border:2px solid #ffe9b0;
+    box-shadow:0 5px 0 #9c6b0f,0 12px 26px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.6)}
+  #genbtn .spark{font-size:22px}
+
+  /* vignette + top scanline sheen */
+  #vig{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%,transparent 55%,rgba(4,7,12,.55) 100%)}
+  #frameEdge{position:absolute;inset:10px;pointer-events:none;border:2px solid rgba(255,255,255,.10);border-radius:10px;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.35)}
+</style>
+
+<div id="poster">
+  <canvas id="scene" width="3200" height="2000"></canvas>
+  <div id="vig"></div>
+  <div id="frameEdge"></div>
+
+  <!-- TITLE -->
+  <div id="titleFrame" class="panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="kicker">Special Generation</div>
+    <h1>WORLD&nbsp;TREE</h1>
+    <span class="oneclick"><span class="cursor">🖱</span>One-Click Generation</span>
+  </div>
+
+  <!-- LORE -->
+  <div id="lore" class="panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="head"><span class="rune">🌳</span><h2>LEGENDARY LANDMARK</h2></div>
+    <div class="rule"></div>
+    <p>A sacred tree said to connect the realms.<br>Within its <span class="em">roots</span> lie ancient secrets and endless adventure.</p>
+  </div>
+
+  <!-- RARE -->
+  <div id="rare" class="panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="tag"><span class="star">✦</span><h3>RARE DISCOVERY</h3></div>
+    <p>Only a few exist across the world…</p>
+  </div>
+
+  <!-- FEATURES -->
+  <div id="feats">
+    <div class="flabel">Landmark Features</div>
+    <div class="badge"><div class="ico">⛩</div><div class="txt"><b>VILLAGE &amp; SHRINES</b><span>Homes high in the branches</span></div></div>
+    <div class="badge dungeon"><div class="ico">🌀</div><div class="txt"><b>HIDDEN DUNGEON</b><span>Glowing gate in the roots</span></div></div>
+    <div class="badge"><div class="ico">🧩</div><div class="txt"><b>PUZZLES &amp; SECRETS</b><span>Winding paths &amp; hidden rooms</span></div></div>
+    <div class="badge"><div class="ico">📜</div><div class="txt"><b>LORE &amp; TREASURES</b><span>Relics of a lost age</span></div></div>
+  </div>
+
+  <!-- GENERATE -->
+  <div id="genbar">
+    <div class="rarity"><span class="stars">★★★★★</span><span class="lv">Mythic Tier</span></div>
+    <div id="genbtn"><span class="spark">🏗</span>GENERATE</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   VOXEL POSTER RENDERER  — isometric, culled, seeded
+   ============================================================ */
+const CV = document.getElementById('scene');
+const SW = 1600, SH = 1000;          // logical poster size
+const SCALE = CV.width / SW;         // 2x backing store
+const ctx = CV.getContext('2d');
+ctx.scale(SCALE, SCALE);
+
+/* --- seeded RNG --- */
+let _s = 1337;
+function rnd(){ _s = (_s*1664525 + 1013904223) & 0x7fffffff; return _s/0x7fffffff; }
+function rr(a,b){ return a + (b-a)*rnd(); }
+function hash3(x,y,z){ let h = (x*374761393 + y*668265263 + z*2147483647); h=(h^(h>>13))*1274126177; return ((h^(h>>16))>>>0)/4294967295; }
+function vnoise(x,z){ // smooth value noise
+  const xi=Math.floor(x), zi=Math.floor(z), xf=x-xi, zf=z-zi;
+  const f=t=>t*t*(3-2*t);
+  const a=hash3(xi,0,zi),b=hash3(xi+1,0,zi),c=hash3(xi,0,zi+1),d=hash3(xi+1,0,zi+1);
+  const u=f(xf),v=f(zf);
+  return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
+}
+
+/* ============================================================
+   1. PAINTED BACKGROUND (sky, sun, clouds, mountains)
+   ============================================================ */
+function lerpC(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+const HORIZON=[196,224,236];
+function rgb(c){return `rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;}
+
+function paintSky(){
+  const g=ctx.createLinearGradient(0,0,0,SH);
+  g.addColorStop(0,'#4f9fd8');
+  g.addColorStop(.42,'#7bc0e8');
+  g.addColorStop(.72,'#aeddf1');
+  g.addColorStop(1,'#cdeaf3');
+  ctx.fillStyle=g; ctx.fillRect(0,0,SW,SH);
+  // warm sun glow upper-right
+  const sun=ctx.createRadialGradient(1230,150,20,1230,150,560);
+  sun.addColorStop(0,'rgba(255,247,214,.95)');
+  sun.addColorStop(.25,'rgba(255,236,170,.55)');
+  sun.addColorStop(1,'rgba(255,236,170,0)');
+  ctx.fillStyle=sun; ctx.fillRect(0,0,SW,SH);
+  ctx.beginPath();ctx.arc(1230,150,46,0,7);ctx.fillStyle='rgba(255,252,236,.95)';ctx.fill();
+}
+
+function blockyCloud(cx,cy,scale,alpha){
+  ctx.save();ctx.globalAlpha=alpha;
+  const u=10*scale;
+  const cells=[[0,1],[1,1],[2,1],[3,1],[4,1],[1,0],[2,0],[3,0],[2,-1],[0,2],[1,2],[2,2],[3,2],[4,2],[5,1],[5,2],[-1,1],[-1,2]];
+  // shadow
+  ctx.fillStyle='rgba(190,214,228,.9)';
+  for(const [a,b] of cells) ctx.fillRect(cx+a*u, cy+b*u+u*0.5, u+1, u+1);
+  // body
+  ctx.fillStyle='rgba(255,255,255,.97)';
+  for(const [a,b] of cells) ctx.fillRect(cx+a*u, cy+b*u, u+1, u+1);
+  // top highlight
+  ctx.fillStyle='rgba(255,255,255,1)';
+  for(const [a,b] of [[2,-1],[1,0],[2,0],[3,0]]) ctx.fillRect(cx+a*u, cy+b*u, u+1, u+1);
+  ctx.restore();
+}
+
+function mountainRange(baseY,tint,peaks,jag,alpha){
+  ctx.save();ctx.globalAlpha=alpha;
+  const step=14;
+  for(let px=-20;px<SW+20;px+=step){
+    // layered ridge via noise
+    const n=vnoise(px*0.008+peaks,7.3)*0.6+vnoise(px*0.02+peaks,3.1)*0.4;
+    const h=jag*(0.35+n);
+    const top=baseY-h;
+    ctx.fillStyle=rgb(tint);
+    ctx.fillRect(px,top,step+1,SH-top);
+    // snow cap
+    if(h>jag*0.62){ctx.fillStyle=rgb(lerpC(tint,[255,255,255],.7));ctx.fillRect(px,top,step+1,10);}
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   2. VOXEL WORLD  (build into a Map, then render culled)
+   ============================================================ */
+const V = new Map();            // "x,y,z" -> palette id
+const EMIT = [];                // glow points {x,y,z,col,r}
+const key=(x,y,z)=>x+','+y+','+z;
+function set(x,y,z,p){ x=Math.round(x);y=Math.round(y);z=Math.round(z); V.set(key(x,y,z),p); }
+function has(x,y,z){ return V.has(key(x,y,z)); }
+function emit(x,y,z,col,r){ EMIT.push({x,y,z,col,r}); }
+
+/* palettes: base rgb; faces derived (top / right(x+) / left(z+)) */
+const PAL = {
+  grass:[104,182,66], grassHi:[128,200,86], grassFg:[92,166,58],
+  dirt:[128,88,54], stone:[142,142,152], stoneD:[112,112,124], stoneL:[168,168,178],
+  bark:[110,76,46], barkD:[84,58,34], barkL:[132,96,60],
+  leafA:[70,150,52], leafB:[94,178,66], leafC:[54,124,40], leafHi:[126,200,88],
+  plank:[184,138,80], plankD:[146,104,60],
+  roofR:[184,78,62], roofRD:[150,58,46], roofB:[92,140,200],
+  water:[74,168,228], waterD:[52,138,206], foam:[214,238,250],
+  shrine:[196,198,206], torii:[206,74,58], toriiD:[168,54,42],
+  purpleS:[132,86,196], gold:[240,196,86], lampWood:[120,84,50],
+};
+/* emissive palettes render flat-bright */
+const EMISSIVE={ window:[255,214,124], lantern:[255,188,96], portal:[196,132,255], portalD:[150,84,224], rune:[150,230,255], mist:[206,234,250] };
+
+function faces(base){
+  return { t: base, r:[base[0]*.80,base[1]*.80,base[2]*.80], l:[base[0]*.60,base[1]*.62,base[2]*.62] };
+}
+
+/* -------- terrain: floating island plateau -------- */
+function buildTerrain(){
+  const R=34;
+  for(let x=-R;x<=R;x++) for(let z=-R;z<=R;z++){
+    const d=Math.hypot(x,z);
+    const edge=R - 6*vnoise(x*0.11+2,z*0.11+9); // wobbly rim
+    if(d>edge) continue;
+    // rolling top height
+    let top=Math.round( 2*vnoise(x*0.09+1.5,z*0.09+4.2) + 1.4*vnoise(x*0.22,z*0.22) );
+    // central mound where the tree sits
+    const cm=Math.max(0,(10-Math.hypot(x,z)))*0.28;
+    top+=Math.round(cm);
+    // river channel carving a winding valley
+    const river=Math.abs((z) - 6*Math.sin(x*0.12) - 3) ;
+    let water=false;
+    if(river<2.1 && d<edge-2){ top=-1; water=true; }
+    // a lake basin front-left
+    if(Math.hypot(x+16,z-14)<7){ top=-1; water=true; }
+    const grassPal = water? 'water' : (d>edge-1.4? 'grass':'grass');
+    // depth of dirt/stone skirt
+    const bottom = -6 - Math.round(3*vnoise(x*0.08+5,z*0.08+5)) - Math.round(Math.max(0,(d-edge+9))*0.5);
+    for(let y=bottom; y<=top; y++){
+      let p;
+      if(y===top && !water) p = (hash3(x,y,z)>.86?'grassHi':'grass');
+      else if(water && y===top) p='water';
+      else if(y>=top-2 && !water) p='dirt';
+      else p = (hash3(x,y,z)>.7?'stoneD':'stone');
+      set(x,y,z,p);
+    }
+    if(water){ set(x,top,z,'water'); if(hash3(x,3,z)>.8) emit(x,top,z,EMISSIVE.rune,0); }
+  }
+  // foreground viewing ledge (bottom-right) where the adventurer stands
+  for(let x=18;x<=34;x++) for(let z=-8;z<=8;z++){
+    const d=Math.hypot(x-26,z-0);
+    if(d>9) continue;
+    const top=Math.round(4 - 1.4*vnoise(x*0.2,z*0.2));
+    for(let y=top-6;y<=top;y++){
+      set(x,y,z, y===top?(hash3(x,y,z)>.8?'grassHi':'grassFg') : (y>top-2?'dirt':'stone'));
+    }
+  }
+}
+
+/* -------- trunk + roots -------- */
+const TRUNK_TOP=44;
+function trunkR(y){ return 5.4 - 3.2*(y/TRUNK_TOP) + (y<6? (6-y)*0.55:0); } // fat base, tapering
+function buildTrunk(){
+  for(let y=0;y<=TRUNK_TOP;y++){
+    const R=trunkR(y);
+    for(let x=-8;x<=8;x++) for(let z=-8;z<=8;z++){
+      const d=Math.hypot(x,z);
+      if(d<=R && d>=R-1.9){
+        const wob=0.5*vnoise(x*0.3+y*0.2, z*0.3);
+        const p = (hash3(x,y,z)>.72?'barkD': hash3(x,y,z)>.3?'bark':'barkL');
+        set(x,y,z,p);
+      }
+    }
+  }
+  // knot ridges climbing the trunk
+  for(let y=4;y<TRUNK_TOP;y+=1){
+    const a=y*0.5, R=trunkR(y)-0.4;
+    for(const off of [0,2.1,4.2]){
+      const ang=a+off;
+      set(Math.cos(ang)*R, y, Math.sin(ang)*R, 'barkD');
+    }
+  }
+  // roots: sprawling arms over the cliffs
+  const arms=9;
+  for(let i=0;i<arms;i++){
+    const ang=i/arms*Math.PI*2 + 0.3;
+    let R=4.5, y=3, len=rr(14,20);
+    let cx=Math.cos(ang), cz=Math.sin(ang);
+    for(let s=0;s<len;s++){
+      R+=rr(0.7,1.15); y-=rr(0.35,0.7);
+      const px=cx*R + Math.sin(s*0.6)*1.4, pz=cz*R + Math.cos(s*0.5)*1.4;
+      const thick=Math.max(1, 2.4 - s*0.12);
+      for(let ox=-thick;ox<=thick;ox++) for(let oz=-thick;oz<=thick;oz++){
+        if(ox*ox+oz*oz>thick*thick) continue;
+        for(let oy=-1;oy<=1;oy++){
+          const yy=Math.round(y+oy);
+          set(px+ox, yy, pz+oz, hash3(px+ox|0,yy,pz+oz|0)>.6?'barkD':'bark');
+        }
+      }
+    }
+  }
+}
+
+/* -------- big branches (thick limbs up & out) -------- */
+const branchTips=[];
+function buildBranches(){
+  const defs=[
+    {y:30,ang:0.4,up:0.55,len:16},
+    {y:34,ang:2.3,up:0.5,len:18},
+    {y:28,ang:3.7,up:0.62,len:15},
+    {y:37,ang:5.0,up:0.48,len:17},
+    {y:40,ang:1.2,up:0.7,len:12},
+    {y:41,ang:4.3,up:0.72,len:13},
+  ];
+  for(const b of defs){
+    let R=trunkR(b.y)-0.5, y=b.y;
+    const cx=Math.cos(b.ang), cz=Math.sin(b.ang);
+    for(let s=0;s<b.len;s++){
+      R+=rr(0.85,1.1); y+=b.up*rr(0.7,1.0) - s*0.012;
+      const px=cx*R, pz=cz*R;
+      const thick=Math.max(1,2.2-s*0.11);
+      for(let ox=-thick;ox<=thick;ox++) for(let oz=-thick;oz<=thick;oz++){
+        if(ox*ox+oz*oz>thick*thick+0.4) continue;
+        for(let oy=-1;oy<=1;oy++)
+          set(px+ox, y+oy, pz+oz, hash3(px+ox|0,(y+oy)|0,pz+oz|0)>.6?'barkD':'bark');
+      }
+    }
+    branchTips.push({x:cx*R,y:y,z:cz*R,ang:b.ang});
+  }
+}
+
+/* -------- canopy leaf blobs -------- */
+function leafBlob(cx,cy,cz,rx,ry,rz){
+  // shell only (~3-block thick) — keeps the canopy light + crisp
+  const inner=0.52;
+  for(let x=-rx-1;x<=rx+1;x++) for(let y=-ry-1;y<=ry+1;y++) for(let z=-rz-1;z<=rz+1;z++){
+    const e=(x*x)/(rx*rx)+(y*y)/(ry*ry)+(z*z)/(rz*rz);
+    const n=vnoise((cx+x)*0.25,(cz+z)*0.25)*0.5 + hash3(cx+x|0,cy+y|0,cz+z|0)*0.35;
+    const outer=1+(n-0.4)*0.9;
+    if(e<=outer && (e>=inner || y> ry*0.15)){   // shell + a little cap fill on top
+      const gx=cx+x, gy=cy+y, gz=cz+z;
+      let p;
+      const shade=(y+ry)/(2*ry)+n*0.3;
+      if(hash3(gx|0,gy|0,gz|0)>.90) p='leafHi';
+      else if(shade>0.72) p='leafB';
+      else if(shade>0.42) p='leafA';
+      else p='leafC';
+      set(gx,gy,gz,p);
+    }
+  }
+}
+function buildCanopy(){
+  const blobs=[
+    [0,58,0,17,11,17],
+    [-12,52,-6,11,8,11],[11,54,6,12,8,12],
+    [7,50,-13,10,7,10],[-9,49,12,10,7,10],
+    [0,66,2,12,8,12],[-14,60,8,8,6,8],[15,58,-9,8,6,8],
+    [4,44,14,8,6,8],[-6,45,-14,8,6,8],
+  ];
+  for(const b of blobs) leafBlob(...b);
+  // a few hanging vine bits + glow fruit
+  for(let i=0;i<26;i++){
+    const a=rr(0,7), R=rr(10,17), y=rr(42,52);
+    const x=Math.cos(a)*R, z=Math.sin(a)*R;
+    if(!has(x,y+2,z)) continue;
+    for(let k=0;k<rr(2,5);k++) set(x,y-k,z,'leafC');
+    if(rnd()>.6) emit(x,y-2,z,EMISSIVE.rune,0.6);
+  }
+}
+
+/* -------- structures: stairs, platforms, bridges, houses, shrines, lanterns -------- */
+function platform(cx,cy,cz,rad,pal='plank'){
+  for(let x=-rad;x<=rad;x++) for(let z=-rad;z<=rad;z++){
+    if(x*x+z*z>rad*rad) continue;
+    set(cx+x,cy,cz+z, (hash3(cx+x|0,cy,cz+z|0)>.5?pal:'plankD'));
+  }
+  // rim posts + lanterns
+  for(let a=0;a<Math.PI*2;a+=0.5){
+    const px=cx+Math.cos(a)*rad, pz=cz+Math.sin(a)*rad;
+    if(hash3(px|0,cy,pz|0)>.45){ set(px,cy+1,pz,'plankD'); }
+  }
+}
+function hangLantern(x,y,z){
+  set(x,y,z,'lampWood');
+  V.set(key(Math.round(x),Math.round(y-1),Math.round(z)),'__emit_lantern');
+  emit(x,y-1,z,EMISSIVE.lantern,1.0);
+}
+function house(cx,cy,cz,w,d,h,roof){
+  for(let x=0;x<w;x++)for(let z=0;z<d;z++)for(let y=0;y<h;y++){
+    const wall = x===0||x===w-1||z===0||z===d-1;
+    if(wall) set(cx+x,cy+y,cz+z, (hash3(cx+x,cy+y,cz+z)>.5?'plank':'plankD'));
+  }
+  // glowing window
+  const wy=cy+1;
+  V.set(key(cx,wy,cz+((d/2)|0)),'__emit_window'); emit(cx,wy,cz+((d/2)|0),EMISSIVE.window,0.9);
+  V.set(key(cx+w-1,wy,cz+((d/2)|0)),'__emit_window'); emit(cx+w-1,wy,cz+((d/2)|0),EMISSIVE.window,0.9);
+  // pyramid-ish roof
+  for(let y=0;y<=Math.max(w,d)/2;y++){
+    for(let x=-1+y;x<w+1-y;x++)for(let z=-1+y;z<d+1-y;z++){
+      if(x<-1+y||z<-1+y) continue;
+      const rimx = x=== -1+y || x===w-y, rimz = z=== -1+y || z===d-y;
+      set(cx+x,cy+h+y,cz+z, roof);
+    }
+  }
+}
+function torii(cx,cy,cz){
+  for(let y=0;y<4;y++){ set(cx,cy+y,cz-1,'torii'); set(cx,cy+y,cz+1,'torii'); }
+  for(let z=-2;z<=2;z++){ set(cx,cy+4,cz,'torii'); set(cx,cy+5,cz,'toriiD'); }
+  set(cx,cy+3,cz-1,'toriiD'); set(cx,cy+3,cz+1,'toriiD');
+}
+function buildStructures(){
+  // ---- spiral stairway wrapping the trunk ----
+  const turns=3.2;
+  for(let t=0;t<=1;t+=0.006){
+    const y=3 + t*34;
+    const ang=t*turns*Math.PI*2;
+    const R=trunkR(y)+1.6;
+    const x=Math.cos(ang)*R, z=Math.sin(ang)*R;
+    set(x,y,z,'plank'); set(x,y-1,z,'plankD');
+    // outer railing
+    const rx=Math.cos(ang)*(R+1), rz=Math.sin(ang)*(R+1);
+    if((t*1000|0)%3===0){ set(rx,y+1,rz,'plankD'); }
+    if((t*1000|0)%17===0){ hangLantern(x,y+2,z); }
+  }
+  // ---- platforms at branch tips + villages/shrines ----
+  const tips=branchTips.slice().sort((a,b)=>a.y-b.y);
+  let idx=0;
+  for(const tp of tips){
+    const px=Math.round(tp.x), py=Math.round(tp.y), pz=Math.round(tp.z);
+    platform(px,py,pz, 4);
+    idx++;
+    if(idx%3===1){ house(px-1,py+1,pz-1,4,4,3,'roofR'); }
+    else if(idx%3===2){ torii(px,py+1,pz); house(px+1,py+1,pz+1,3,3,2,'roofB'); }
+    else { // shrine platform
+      for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++) set(px+x,py+1,pz+z, 'shrine');
+      set(px,py+2,pz,'gold'); emit(px,py+3,pz,EMISSIVE.rune,1.2);
+    }
+    hangLantern(px+3,py+2,pz); hangLantern(px-3,py+2,pz-1);
+  }
+  // ---- wooden bridges between nearest tips ----
+  for(let i=0;i<tips.length;i++)for(let j=i+1;j<tips.length;j++){
+    const a=tips[i],b=tips[j];
+    const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z; const L=Math.hypot(dx,dy,dz);
+    if(L>18||L<8) continue;
+    if(hash3(i*7,j*3,1)<0.45) continue;
+    const n=Math.round(L);
+    for(let s=0;s<=n;s++){
+      const f=s/n; const sag=Math.sin(f*Math.PI)*2.2;
+      const x=a.x+dx*f, y=a.y+dy*f - sag, z=a.z+dz*f;
+      set(x,y,z,'plank'); set(x,y-1,z,'plankD');
+      if(s%4===0){set(x,y+1,z+0.9,'plankD');set(x,y+1,z-0.9,'plankD');}
+    }
+  }
+  // ---- lower trunk village + glowing windows on trunk ----
+  for(let k=0;k<10;k++){
+    const y=8+k*3, ang=k*1.1, R=trunkR(y)+0.2;
+    const x=Math.cos(ang)*R, z=Math.sin(ang)*R;
+    V.set(key(Math.round(x),Math.round(y),Math.round(z)),'__emit_window');
+    emit(x,y,z,EMISSIVE.window,0.8);
+  }
+  platform(9,10,9,3); house(8,11,8,4,4,3,'roofR');
+  platform(-10,14,-7,3); house(-11,15,-8,4,4,3,'roofB');
+
+  // ---- dungeon entrance at the base (front, glowing purple) ----
+  const dcx=6, dcz=8, dcy=1;   // front of trunk toward viewer
+  // stone frame arch
+  for(let y=0;y<6;y++)for(let x=-3;x<=3;x++){
+    const inArch = (x*x/9 + (y-2)*(y-2)/16) ; // rough arch mask
+    const border = Math.abs(Math.hypot(x, (y-1)*0.8)-3)<1.1;
+    if(y<5 && (Math.abs(x)>2 || y>3) && !(Math.abs(x)<2&&y<4)) set(dcx+x,dcy+y,dcz,'stoneL');
+  }
+  // solid stone surround
+  for(let y=0;y<6;y++)for(let x=-4;x<=4;x++){
+    if(Math.abs(x)>=2 || y>=4) set(dcx+x,dcy+y,dcz+1,(hash3(dcx+x,y,dcz)>.5?'stone':'stoneD'));
+  }
+  // glowing purple portal fill
+  for(let y=0;y<4;y++)for(let x=-1;x<=1;x++){
+    V.set(key(dcx+x,dcy+y,dcz),'__emit_portal');
+    emit(dcx+x,dcy+y,dcz,EMISSIVE.portal,1.0);
+  }
+  emit(dcx,dcy+2,dcz-1,EMISSIVE.portal,3.4);
+  // stone stairs leading inside/down
+  for(let s=0;s<6;s++){
+    for(let x=-1;x<=1;x++) set(dcx+x, dcy-1-s*0+ Math.max(0,0), dcz+2+s, 'stone');
+    for(let x=-1;x<=1;x++) set(dcx+x, dcy-1, dcz+2+s, 'stoneD');
+  }
+  for(let s=0;s<5;s++) for(let x=-1;x<=1;x++) set(dcx+x, dcy - s, dcz+2+s, hash3(x,s,7)>.5?'stone':'stoneD');
+  // purple ground rune glow around gate
+  for(let a=0;a<7;a+=0.6){ emit(dcx+Math.cos(a)*4, dcy-0.5, dcz+3+Math.sin(a)*2, EMISSIVE.portalD, 1.4); }
+}
+
+/* -------- waterfalls: wide foamy sheets with mist -------- */
+const SPLASH=[];
+function waterfall(cx,topY,cz,botY,w,dir){
+  // dir: 'x' sheet spreads along x, 'z' along z (face the viewer)
+  for(let y=botY;y<=topY;y++){
+    for(let o=0;o<w;o++){
+      const x=cx+(dir==='x'?o:0), z=cz+(dir==='z'?o:0);
+      // foam streaks at edges & random flecks, water in the body
+      const edgeF = (o===0||o===w-1);
+      const r=hash3(x,y,z);
+      set(x,y,z, (edgeF|| r>.72)?'foam':'water');
+    }
+  }
+  // crest foam at the lip
+  for(let o=-1;o<=w;o++){ const x=cx+(dir==='x'?o:0), z=cz+(dir==='z'?o:0); set(x,topY,z,'foam'); }
+  SPLASH.push({x:cx+(dir==='x'?(w>>1):0),z:cz+(dir==='z'?(w>>1):0),y:botY,w});
+  emit(cx,botY+1,cz,EMISSIVE.rune,0.5);
+}
+function buildWater(){
+  // two falls spilling from mid-branch platforms down to catch pools (kept short so they read as sheets)
+  const t=branchTips[3], t2=branchTips[1];
+  if(t){ const bx=Math.round(t.x), bz=Math.round(t.z); waterfall(bx,Math.round(t.y-2),bz,Math.round(t.y-16),2,'z'); }
+  if(t2){ const bx=Math.round(t2.x), bz=Math.round(t2.z); waterfall(bx,Math.round(t2.y-2),bz,Math.round(t2.y-14),2,'x'); }
+  // falls pouring over the island rim into the void below
+  waterfall(-25,2,9,-16,3,'z');
+  waterfall(21,3,-19,-15,3,'x');
+  waterfall(14,1,20,-18,2,'x');
+  // splash pools + rising mist
+  for(const s of SPLASH){
+    for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++){ if(x*x+z*z<=5) set(s.x+x,s.y-1,s.z+z,'foam'); }
+    for(let m=0;m<4;m++) emit(s.x+rr(-1.5,1.5), s.y+m*0.8, s.z+rr(-1.5,1.5), EMISSIVE.mist, 0.5);
+  }
+}
+
+/* -------- foreground adventurer (seen from behind) -------- */
+function buildAdventurer(){
+  // find ground height on the bottom-right ledge
+  let bx=27, bz=1, by=null;
+  for(let y=12;y>-8;y--){ if(has(bx,y,bz)){ by=y+1; break; } }
+  if(by===null) by=4;
+  const skin=[224,178,140], hair=[74,48,30], tunic=[70,120,180], tunicD=[52,96,150], pack=[132,90,52], boot=[60,44,32];
+  const P={ skin, hair, tunicD, tunic, pack, boot };
+  function put(x,y,z,name){ V.set(key(bx+x,by+y,bz+z),'__fig_'+name); }
+  // legs
+  put(0,0,0,'boot'); put(1,0,0,'boot');
+  put(0,1,0,'tunicD'); put(1,1,0,'tunicD');
+  // torso (back facing viewer -> show backpack)
+  for(let y=2;y<=4;y++){ put(0,y,0,'tunic'); put(1,y,0,'tunic'); }
+  put(0,3,0,'tunicD'); put(1,3,0,'tunicD');
+  // backpack (toward viewer / +z)
+  put(0,3,1,'pack'); put(1,3,1,'pack'); put(0,2,1,'pack'); put(1,2,1,'pack');
+  // arms
+  put(-1,3,0,'tunicD'); put(2,3,0,'tunicD'); put(-1,2,0,'skin'); put(2,2,0,'skin');
+  // head + hair
+  put(0,5,0,'skin'); put(1,5,0,'skin'); put(0,6,0,'skin'); put(1,6,0,'skin');
+  put(0,7,0,'hair'); put(1,7,0,'hair'); put(0,6,-1,'hair'); put(1,6,-1,'hair'); put(0,7,-1,'hair');put(1,7,-1,'hair');
+  // little sword on back
+  V.set(key(bx+2,by+4,bz+1),'__fig_boot'); V.set(key(bx+2,by+5,bz+1),'__fig_boot');
+  window.__ADV={bx,by,bz};
+  // figure palettes
+  window.__FIGPAL=P;
+}
+
+/* ============================================================
+   3. RENDER the voxel field
+   ============================================================ */
+function buildAll(){
+  buildTerrain();
+  buildTrunk();
+  buildBranches();
+  buildCanopy();
+  buildStructures();
+  buildWater();
+  buildAdventurer();
+}
+
+function palColor(p){
+  if(p.startsWith('__emit_')){
+    const n=p.slice(7);
+    if(n==='window')return {emit:EMISSIVE.window};
+    if(n==='lantern')return {emit:EMISSIVE.lantern};
+    if(n==='portal')return {emit:EMISSIVE.portal};
+    return {emit:EMISSIVE.rune};
+  }
+  if(p.startsWith('__fig_')){ const c=window.__FIGPAL[p.slice(6)]||[200,200,200]; return {base:c}; }
+  return {base:PAL[p]||[200,120,200]};
+}
+
+function render(){
+  const entries=[];
+  for(const [k,p] of V){ const [x,y,z]=k.split(',').map(Number); entries.push([x,y,z,p]); }
+  // fixed, explicitly-centred isometric projection so the tree towers dead-centre.
+  const S=7.4;
+  const ox=812;                       // world (x-z)=0 lands here (horizontal centre)
+  const oy=540 + S*30;                // world y=30 (mid-trunk) lands at ~540
+  function pr(x,y,z){ return [ox + S*(x - z), oy + S*((x+z)*0.5 - y)]; }
+
+  // depth sort (painter): far (small x+z) first, ties by y
+  entries.sort((a,b)=>{
+    const ka=a[0]+a[2], kb=b[0]+b[2];
+    if(ka!==kb) return ka-kb;
+    return a[1]-b[1];
+  });
+
+  // fog depth normalisation over x+z
+  let minXZ=1e9,maxXZ=-1e9;
+  for(const e of entries){ const s=e[0]+e[2]; if(s<minXZ)minXZ=s; if(s>maxXZ)maxXZ=s; }
+
+  function poly(pts,col){
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.closePath(); ctx.fillStyle=col; ctx.fill();
+  }
+  const edge = S>3.3;
+  for(const [x,y,z,p] of entries){
+    const info=palColor(p);
+    // face cull
+    const topOpen=!has(x,y+1,z), rOpen=!has(x+1,y,z), lOpen=!has(x,y,z+1);
+    if(!topOpen&&!rOpen&&!lOpen) continue;
+
+    // corners
+    const c=(dx,dy,dz)=>pr(x+dx,y+dy,z+dz);
+    // fog factor (distant -> toward horizon)
+    const d=((x+z)-minXZ)/(maxXZ-minXZ+0.001);
+    const fog=Math.max(0, 0.42-d)*1.15; // only far (back) cubes fade toward the horizon haze
+
+    if(info.emit){
+      const e=info.emit;
+      const col=rgb(e);
+      if(topOpen) poly([c(0,1,0),c(1,1,0),c(1,1,1),c(0,1,1)], rgb([Math.min(255,e[0]*1.1),Math.min(255,e[1]*1.1),Math.min(255,e[2]*1.1)]));
+      if(rOpen)  poly([c(1,0,0),c(1,1,0),c(1,1,1),c(1,0,1)], rgb([e[0]*.86,e[1]*.86,e[2]*.86]));
+      if(lOpen)  poly([c(0,0,1),c(0,1,1),c(1,1,1),c(1,0,1)], rgb([e[0]*.72,e[1]*.72,e[2]*.72]));
+      continue;
+    }
+    let base=info.base;
+    if(fog>0.02) base=lerpC(base,HORIZON,Math.min(.72,fog));
+    const f=faces(base);
+    if(rOpen)  poly([c(1,0,0),c(1,1,0),c(1,1,1),c(1,0,1)], rgb(f.r));
+    if(lOpen)  poly([c(0,0,1),c(0,1,1),c(1,1,1),c(1,0,1)], rgb(f.l));
+    if(topOpen)poly([c(0,1,0),c(1,1,0),c(1,1,1),c(0,1,1)], rgb(f.t));
+    if(edge){
+      ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.lineWidth=0.6;
+      if(topOpen){ctx.beginPath();ctx.moveTo(...c(0,1,0));ctx.lineTo(...c(1,1,0));ctx.lineTo(...c(1,1,1));ctx.lineTo(...c(0,1,1));ctx.closePath();ctx.stroke();}
+    }
+  }
+  return {pr,S};
+}
+
+/* ============================================================
+   4. GLOW / ATMOSPHERE overlay
+   ============================================================ */
+function glowPass(pr){
+  ctx.globalCompositeOperation='lighter';
+  for(const g of EMIT){
+    const [sx,sy]=pr(g.x+0.5,g.y+0.5,g.z+0.5);
+    const c=g.col; const R=9+13*g.r;
+    const grd=ctx.createRadialGradient(sx,sy,0,sx,sy,R);
+    grd.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},${Math.min(.5,0.22*(0.5+g.r))})`);
+    grd.addColorStop(.5,`rgba(${c[0]},${c[1]},${c[2]},${Math.min(.28,0.12*(0.5+g.r))})`);
+    grd.addColorStop(1,`rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(sx,sy,R,0,7); ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+}
+function godRays(){
+  ctx.save();
+  const g=ctx.createLinearGradient(1200,0,700,1000);
+  g.addColorStop(0,'rgba(255,244,200,.16)');
+  g.addColorStop(1,'rgba(255,244,200,0)');
+  ctx.globalCompositeOperation='lighter';
+  ctx.translate(1230,150); ctx.rotate(0.5);
+  for(let i=-6;i<8;i++){ ctx.fillStyle=g; ctx.fillRect(i*120-30,0,46,1500); }
+  ctx.restore();
+}
+function floatingLeaves(){
+  for(let i=0;i<60;i++){
+    const x=rr(120,1400), y=rr(120,760), s=rr(3,8);
+    const g=[[122,200,88],[184,138,80],[126,200,88],[255,214,124]][Math.floor(rnd()*4)];
+    ctx.globalAlpha=rr(.25,.7); ctx.fillStyle=rgb(g);
+    ctx.fillRect(x,y,s,s);
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+paintSky();
+mountainRange(560,[150,170,192],11,150,.55);
+mountainRange(600,[124,146,172],37,180,.7);
+// distant blocky clouds
+blockyCloud(140,120,1.5,.95);
+blockyCloud(560,80,1.1,.9);
+blockyCloud(940,150,1.3,.92);
+blockyCloud(1360,300,1.0,.85);
+blockyCloud(300,300,0.8,.7);
+godRays();
+
+buildAll();
+const {pr}=render();
+glowPass(pr);
+floatingLeaves();
+// soft horizon haze band behind the tree base
+ctx.fillStyle='rgba(205,230,240,.18)'; ctx.fillRect(0,560,SW,70);
+document.body.dataset.done="1";
+</script>
