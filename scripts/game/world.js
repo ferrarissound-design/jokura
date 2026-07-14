@@ -1125,7 +1125,7 @@ function _spawnSurfaceStructures(cx,cz,meshes){
   }
 }
 // ═══ 特殊構造物 生成共通ヘルパー（put/clr/anchor/chunk-ensure/ybase）═══
-// 神地形・プレアデス監視塔など、クリエイティブのワンクリック特殊生成が共通で使う
+// 賢者の樹庭・プレアデス監視塔など、クリエイティブのワンクリック特殊生成が共通で使う
 // 部品。put/clr は状態を持たないので、どのジェネレータからも安全に呼べる。
 
 // put: ワールド生成ブロックの上書きは removed と placed の両方を記録する。
@@ -1181,11 +1181,11 @@ function _footprintYBase(cx0,cz0,R,step){
   return Math.max(hs[Math.floor(hs.length/2)],surfaceHeightAt(cx0,cz0));
 }
 
-// ═══ 🏔 神地形（EPIC SPIRES）ワンクリック生成 ═══
+// ═══ 🏔 賢者の樹庭 ワンクリック生成 ═══
 // クリエイティブ専用: プレイヤーの前方に「岩の尖塔群＋頂上アーチ＋巨木＋池」を
 // 一発生成する。結果は worldEdits に記録されるため、通常の建築と同じくセーブ・
 // チャンク再訪で復元される（形は押すたびに Math.random() で変わってよい）。
-function generateEpicSpires(){
+function generateSageGarden(){
   const{fx,fz,cx0,cz0,aim}=_frontAnchor(20);
   const R=13;                      // 土台の半径（直径27 ≒ 3×3チャンクに収まる）
   _ensureChunksAround(cx0,cz0,R,2);
@@ -1392,21 +1392,21 @@ function generateEpicSpires(){
   }finally{
     _deferDirty=false;flushDirtyChunks();
   }
-  showBonus('🏔 神地形を生成！');
+  showBonus('🏔 賢者の樹庭を生成！');
   playTone(520,.12,.1,'triangle');setTimeout(()=>playTone(780,.12,.1,'triangle'),120);
 }
 
 // ═══ 🗼 プレアデス監視塔 ワンクリック生成 ═══
 // クリエイティブ専用: プレイヤーの前方に「地面から伸びる細い塔＋頂上の台座＋
 // 神殿」を一発生成する。外周に沿ってらせん階段が頂上まで続き、実際に登って
-// 辿り着ける。神地形と同じ共有ヘルパー（put/clr/_frontAnchor/
+// 辿り着ける。賢者の樹庭と同じ共有ヘルパー（put/clr/_frontAnchor/
 // _ensureChunksAround/_footprintYBase）を使う。
 function generatePleiadesWatchtower(){
-  const{cx0,cz0,aim}=_frontAnchor(14); // footprintが小さいので神地形より近め
+  const{cx0,cz0,aim}=_frontAnchor(14); // footprintが小さいので賢者の樹庭より近め
   const R=11;         // チャンク確保・土台高さ算出用（雲装飾の届く範囲まで広め）
   const groundR=8;     // 地上のクリア/整地範囲（台座＋門）
   _ensureChunksAround(cx0,cz0,R,2);
-  const towerRock=()=>Math.random()<0.82?1:6; // 石8.2割＋灰岩1.8割（神地形と逆比率で差別化）
+  const towerRock=()=>Math.random()<0.82?1:6; // 石8.2割＋灰岩1.8割（賢者の樹庭と逆比率で差別化）
 
   _deferDirty=true;
   try{
@@ -1521,7 +1521,7 @@ function generatePleiadesWatchtower(){
 // 追加するときは、この配列に1エントリ足して generateXxx() を実装すればよい
 // （main.js/cheats.js 側のUIコードは変更不要）。
 const SPECIAL_STRUCTURES=[
-  {key:'epicSpires',icon:'🏔',label:'神地形',desc:'岩の尖塔とアーチ、御神木と池',fn:generateEpicSpires},
+  {key:'sageGarden',icon:'🏔',label:'賢者の樹庭',desc:'岩の尖塔とアーチ、御神木と池',fn:generateSageGarden},
   {key:'pleiadesWatchtower',icon:'🗼',label:'プレアデス監視塔',desc:'天まで伸びる細い塔と頂上の神殿',fn:generatePleiadesWatchtower},
 ];
 function generateSpecialStructure(key){
