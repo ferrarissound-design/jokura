@@ -60,6 +60,11 @@ canvas#c{display:block;touch-action:none}
 #waveTimer.boss{color:#ff4444;text-shadow:0 0 8px #f004,1px 1px 0 #000}
 #bonusPopup{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:16px;font-weight:900;color:#f9d342;text-shadow:0 0 10px #f9d34288,2px 2px 0 #000;opacity:0;transition:opacity .3s,top .5s;pointer-events:none;z-index:20}
 #bonusPopup.show{opacity:1;top:30%}
+/* 🌳 世界樹 生成進捗オーバーレイ: 分割生成中だけ表示し、完了・失敗で消す */
+#worldTreeProgress{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:25}
+#worldTreeProgress #wtpLabel{font-size:15px;font-weight:900;color:#a6f0b4;text-shadow:0 0 12px #3fd06a88,2px 2px 0 #000;letter-spacing:1px;margin-bottom:8px}
+#worldTreeProgress #wtpBar{width:200px;height:10px;margin:0 auto;border:1.5px solid #3fd06a88;border-radius:6px;background:rgba(0,0,0,.5);overflow:hidden}
+#worldTreeProgress #wtpFill{width:0%;height:100%;background:linear-gradient(90deg,#3f9e3f,#8fe08f);transition:width .12s linear}
 #hotbar{position:absolute;bottom:calc(135px + var(--safeB));left:50%;transform:translateX(-50%);display:flex;gap:4px;pointer-events:auto;z-index:10}
 .hslot{position:relative;width:40px;height:40px;border-radius:6px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:7px;color:#aaa;-webkit-tap-highlight-color:transparent;cursor:pointer;transition:transform .15s,border-color .15s}
 .hcount{position:absolute;top:1px;right:3px;font-size:8px;font-weight:bold;color:#ffd27a;text-shadow:0 1px 2px #000}
