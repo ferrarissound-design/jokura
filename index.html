@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260727l">
+<link rel="stylesheet" href="styles/main.css?v=20260727m">
 
 </head>
 <body>
@@ -66,6 +66,11 @@
   <div id="waveAlert"></div>
   <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
+  <!-- 🌳 世界樹の生成進捗（フレーム分割生成中に表示され、完了で消える） -->
+  <div id="worldTreeProgress" style="display:none">
+    <div id="wtpLabel">🌳 世界樹を生成中…</div>
+    <div id="wtpBar"><div id="wtpFill"></div></div>
+  </div>
   <div id="chestInfo"></div>
   <div id="treasureInfo"></div>
   <div id="treasureCompass" style="display:none"><div id="tcArrow">⬆</div><div id="tcText">🗺</div></div>
@@ -249,7 +254,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260727p';
+  var V='20260727q';
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world','combat','entities','hud','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
