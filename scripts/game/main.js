@@ -426,6 +426,7 @@ function tick(now){
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
+  ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
@@ -445,6 +446,9 @@ function tick(now){
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
     if(e.hp<=0&&!e.dead){e.dead=true;finalizeEnemyDeath(e);continue;}
+    // ⏳ 時間が止まった村: 停止中(frozen)の敵はAI・移動・攻撃・距離デスポーンを
+    // すべてスキップして「一枚絵」のまま保つ（攻撃は受けるのでHPバーの向きだけ更新）
+    if(e.frozen){e.hpBar.lookAt(camera.position);continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
     if(dist>50){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
     // 状態異常: 炎上（0.7秒ごとに2ダメージ）/ 氷結（移動速度45%）
