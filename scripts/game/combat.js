@@ -467,6 +467,7 @@ function creeperExplode(e){
     if(dx*dx+dy*dy+dz*dz>2)continue;
     const x=bx+dx,y=by+dy,z=bz+dz,k=vKey(x,y,z);const v=voxels[k];
     if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK||v.ti===OBSIDIAN_BLOCK)continue;
+    ftvOnBlockBroken(k); // ⏳ 爆発で時間結晶が砕けた場合も解除が進む（詰み防止）
     spawnBlockDebris(x+.5,y+.5,z+.5,v.ti);
     if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
     removeBlock(x,y,z);
