@@ -3041,9 +3041,14 @@ function ftvApplyCamShake(dt){
 }
 
 // ── 静止オブジェクト用の共有ジオメトリ/マテリアル（disposeは複製マテリアルのみ）──
-const _ftvArrowGeo=new THREE.BoxGeometry(.12,.12,.55);
+// 矢: 軸(シャフト)を細長くして飛翔ラインが見えるようにし、先端に矢じり(コーン)を
+// 子メッシュとして付ける。矢じりのジオメトリ/マテリアルは全ての矢で共有し複製しない
+// （combat.js の arrowMat 等ベーステンプレートと同じ扱いで、disposeは不要）
+const _ftvArrowGeo=new THREE.BoxGeometry(.08,.08,.7);
 const _ftvArrowMat=new THREE.MeshBasicMaterial({color:0xddaa44});
 const _ftvFireArrowMat=new THREE.MeshBasicMaterial({color:0xff5533});
+const _ftvArrowHeadGeo=new THREE.ConeGeometry(.09,.26,5);
+const _ftvArrowHeadMat=new THREE.MeshBasicMaterial({color:0xccccc4});
 const _ftvFlameGeoA=new THREE.BoxGeometry(.55,.6,.55);
 const _ftvFlameGeoB=new THREE.BoxGeometry(.3,.5,.3);
 const _ftvFlameMatA=new THREE.MeshBasicMaterial({color:0xff7722,transparent:true,opacity:.92});
@@ -3102,8 +3107,12 @@ function _planFrozenVillage(rng,site){
   const cfg=FROZEN_VILLAGE_CFG;
   const ybase=_footprintYBase(site.cx,site.cz,cfg.villageR,4);
   const nH=cfg.houseCount.min+Math.floor(rng()*(cfg.houseCount.max-cfg.houseCount.min+1));
+  // raidAngle: 襲撃者が村の外からやってきた方角（村中心から見た方角）。
+  // raidDX/DZ はその逆＝襲撃が村の中へ進む方向（矢の飛翔・瓦礫の落下方向を揃えるのに使う）
+  const raidAngle=rng()*Math.PI*2;
   const plan={
     cfg,cx0:site.cx,cz0:site.cz,R:cfg.villageR,ybase,rng,
+    raidAngle,raidDX:Math.cos(raidAngle+Math.PI),raidDZ:Math.sin(raidAngle+Math.PI),
     houses:[],chestSpots:[],flameSpots:[],
     coreKeys:new Set(),shardKeys:[],iceKeys:[],fallDebris:[],
     arrows:[],flames:[],frozenEnemies:[],blastSpot:null,tower:null,sprite:null,
@@ -3114,18 +3123,26 @@ function _planFrozenVillage(rng,site){
   for(let i=0;i<total;i++)slots.push(a0+i*(Math.PI*2/total)+(rng()-.5)*.2);
   const farmIdx=1+Math.floor(nH/2);
   plan.wellAng=slots[0];plan.farmAng=slots[farmIdx];plan.towerAng=slots[total-1];
-  const styles=['blast','burning','collapse'];  // 最初の3軒は必ず「事件の途中」
-  let hi=0;
   for(let i=0;i<total;i++){
     if(i===0||i===farmIdx||i===total-1)continue;
     const ang=slots[i],r=10+rng()*2.5;
     plan.houses.push({
       x:plan.cx0+Math.round(Math.cos(ang)*r),
       z:plan.cz0+Math.round(Math.sin(ang)*r),
-      style:hi<styles.length?styles[hi]:(hi%2?'intact':'collapse'),
+      ang,style:'intact',
     });
-    hi++;
   }
+  // 襲撃方向(raidAngle)に近い家ほど被害が大きい: 一番近い家が着弾点(blast)、
+  // 次の2軒が延焼(burning)・崩壊途中(collapse)。遠い家は無傷のまま＝
+  // 「どちら側から何が起きたか」が家の被害度から伝わるようにする
+  const styles=['blast','burning','collapse'];
+  const byRaidDist=[...plan.houses].sort((a,b)=>{
+    const da=Math.abs(Math.atan2(Math.sin(a.ang-raidAngle),Math.cos(a.ang-raidAngle)));
+    const db=Math.abs(Math.atan2(Math.sin(b.ang-raidAngle),Math.cos(b.ang-raidAngle)));
+    return da-db;
+  });
+  for(let i=0;i<Math.min(styles.length,byRaidDist.length);i++)byRaidDist[i].style=styles[i];
+  for(let i=styles.length;i<byRaidDist.length;i++)byRaidDist[i].style=(i%2)?'intact':'collapse';
   return plan;
 }
 
@@ -3208,31 +3225,42 @@ function _ftvHouse(plan,hd){
       put(hx+ax,y0+y,hz+az,corner?3:win?GLASS_BLOCK:wallTi(hx+ax,y0+y,hz+az));
     }
   }
-  // 屋根: 4段目に張り出した板＋5段目中央。collapse/blast は半分が「崩れ落ちる途中」
-  // ＝欠けた部分の一部が空中に浮いたまま静止し、解除時に落下する
+  // 屋根: 4段目に張り出した板＋5段目中央。collapse/blast は「襲撃側(raidAngle)を
+  // 向いた面」が崩れ落ちる途中＝そちら側の板だけ欠け、その真下から襲撃の進行方向
+  // (raidDX/DZ)へ斜めに1本だけ瓦礫の落下軌跡を作る（村全体で数を増やしすぎない）
   const roofHole=hd.style==='collapse'||hd.style==='blast';
+  const rcos=Math.cos(plan.raidAngle),rsin=Math.sin(plan.raidAngle);
+  let roofChainDone=false;
   for(let ax=-3;ax<=3;ax++)for(let az=-3;az<=3;az++){
     const wx=hx+ax,wz=hz+az;
-    if(roofHole&&(ax-az>0)&&_wtHash((wx*7)^(wz*13))<0.55){
-      if(plan.fallDebris.length<_ftvN(plan.cfg.debrisCount)&&_wtHash((wx*3)^(wz*29))<0.45){
-        const fy=y0+6+Math.floor(rng()*2),fx=wx+Math.round((rng()-.5)*2),fz=wz+Math.round((rng()-.5)*2);
-        if(!voxels[vKey(fx,fy,fz)]){put(fx,fy,fz,3);plan.fallDebris.push({x:fx,y:fy,z:fz,ti:3});}
+    if(roofHole&&(ax*rcos+az*rsin>0.4)&&_wtHash((wx*7)^(wz*13))<0.55){
+      if(!roofChainDone&&plan.fallDebris.length<_ftvN(plan.cfg.debrisCount)){
+        roofChainDone=true;
+        for(let s=0;s<3;s++){
+          const fx=wx+Math.round(plan.raidDX*(s+1)*0.9),fz=wz+Math.round(plan.raidDZ*(s+1)*0.9);
+          const fy=y0+6-s; // 段々低く並べ、斜めに落下している途中だと分かる弧にする
+          if(!voxels[vKey(fx,fy,fz)]&&plan.fallDebris.length<_ftvN(plan.cfg.debrisCount)){
+            put(fx,fy,fz,3);plan.fallDebris.push({x:fx,y:fy,z:fz,ti:3});
+          }
+        }
       }
       continue;
     }
     put(wx,y0+4,wz,3);
   }
   for(let ax=-1;ax<=1;ax++)for(let az=-1;az<=1;az++){
-    if(roofHole&&(ax-az>0))continue;
+    if(roofHole&&(ax*rcos+az*rsin>0.4))continue;
     put(hx+ax,y0+5,hz+az,SLAB_BLOCK,0);
   }
   if(hd.style==='blast'){
-    // 爆発直前の家: ドアと反対側の壁に穴、外へ吹き飛ぶ途中の破片が空中静止、地面に焦げ跡
+    // 爆発直前の家: ドアと反対側の壁に穴、地面に焦げ跡。吹き飛ぶ破片は襲撃の
+    // 進行方向(raidDX/DZ)へ段々低くなる斜めの列に並べ、落下途中の弧に見せる
     const bx=hx-dx*2,bz=hz-dz*2;
     clr(bx,y0+1,bz);clr(bx,y0+2,bz);clr(bx-dz,y0+1,bz-dx);clr(bx-dz,y0+2,bz-dx);
+    const rdx=plan.raidDX,rdz=plan.raidDZ;
     for(let i=0;i<3;i++){
-      const fx=bx-dx*(1+i)+Math.round((rng()-.5)*2),fz=bz-dz*(1+i)+Math.round((rng()-.5)*2);
-      const fy=y0+1+Math.floor(rng()*3);
+      const fx=Math.round(bx+rdx*(1+i)*1.1),fz=Math.round(bz+rdz*(1+i)*1.1);
+      const fy=y0+3-i; // 破口の高さから段々低く＝落下途中の弧
       if(!voxels[vKey(fx,fy,fz)]){
         put(fx,fy,fz,4);
         if(plan.fallDebris.length<_ftvN(plan.cfg.debrisCount))plan.fallDebris.push({x:fx,y:fy,z:fz,ti:4});
@@ -3339,17 +3367,35 @@ function _ftvTrees(plan){
 
 // ── 空中で静止した矢＋燃え広がる途中で止まった炎（どちらも軽量な静止メッシュ）──
 function _ftvArrows(plan){
-  const y0=plan.ybase,n=_ftvN(plan.cfg.arrowCount);
-  for(let i=0;i<n;i++){
-    // 村の外側から家々へ向かう軌道の途中で静止した襲撃の矢
-    const a=plan.rng()*Math.PI*2,d=6+plan.rng()*9;
-    const x=plan.cx0+Math.cos(a)*d,z=plan.cz0+Math.sin(a)*d,y=y0+1.7+plan.rng()*2.6;
-    let dx=plan.cx0+(plan.rng()*8-4)-x,dz=plan.cz0+(plan.rng()*8-4)-z,dy=(plan.rng()-.55)*1.2;
-    const l=Math.hypot(dx,dy,dz)||1;dx/=l;dy/=l;dz/=l;
-    const m=new THREE.Mesh(_ftvArrowGeo,(plan.rng()<0.3?_ftvFireArrowMat:_ftvArrowMat).clone());
-    m.position.set(x,y,z);m.lookAt(x+dx,y+dy,z+dz);
-    scene.add(m);
-    plan.arrows.push({mesh:m,x,y,z,dx,dy,dz});
+  const y0=plan.ybase,cfg=plan.cfg,rng=plan.rng,n=_ftvN(cfg.arrowCount);
+  // 矢は村のどこかへバラバラに飛ぶのではなく、襲撃者側(raidAngle)から着弾点の
+  // 家（無ければ村の中心）へ向けて撃たれた「一斉射撃」を2〜3組に分けて配置する。
+  // 同じ組の矢は同じ飛翔方向を共有し、飛翔ライン上の位置だけをずらすことで
+  // 「まとまった一斉射撃が空中で止まっている」ように見せる
+  const target=plan.houses.find(h=>h.style==='blast')||{x:plan.cx0,z:plan.cz0};
+  const nVolleys=Math.min(3,Math.max(1,Math.round(n/3)));
+  let made=0;
+  for(let v=0;v<nVolleys&&made<n;v++){
+    const volleyAngle=plan.raidAngle+(v-(nVolleys-1)/2)*0.45+(rng()-.5)*.12;
+    const dist=8+rng()*4;
+    const ox=plan.cx0+Math.cos(volleyAngle)*dist,oz=plan.cz0+Math.sin(volleyAngle)*dist;
+    const perp=volleyAngle+Math.PI/2;
+    const per=Math.min(4,n-made);
+    for(let k=0;k<per;k++,made++){
+      const lat=(k-(per-1)/2)*1.1,along=rng()*3.2; // 横のズレ＋飛翔ライン上の前後のズレ
+      const x=ox+Math.cos(perp)*lat-Math.cos(volleyAngle)*along;
+      const z=oz+Math.sin(perp)*lat-Math.sin(volleyAngle)*along;
+      const y=y0+1.7+rng()*2.4;
+      let dx=target.x+(rng()-.5)*3-x,dz=target.z+(rng()-.5)*3-z,dy=(rng()-.6)*1.1;
+      const l=Math.hypot(dx,dy,dz)||1;dx/=l;dy/=l;dz/=l;
+      const shaft=new THREE.Mesh(_ftvArrowGeo,(rng()<0.3?_ftvFireArrowMat:_ftvArrowMat).clone());
+      shaft.position.set(x,y,z);shaft.lookAt(x+dx,y+dy,z+dz);
+      const head=new THREE.Mesh(_ftvArrowHeadGeo,_ftvArrowHeadMat); // 共有ジオメトリ/マテリアル（複製しない）
+      head.position.z=-.42;head.rotation.x=-Math.PI/2;             // シャフトの-Z先端＝進行方向に矢じりを向ける
+      shaft.add(head);
+      scene.add(shaft);
+      plan.arrows.push({mesh:shaft,x,y,z,dx,dy,dz});
+    }
   }
 }
 function _ftvFlames(plan){
@@ -3364,17 +3410,28 @@ function _ftvFlames(plan){
   }
 }
 
+// 敵のポーズ別プリセット: 直立(stand)以外は高さと傾きを変え、攻撃中/接近中/転倒中の
+// 「一瞬」に見えるようにする。yOff は基準の立ち高さ(1.85)からのずれ、tiltX/tiltZ は
+// 前後/左右の傾き（ラジアン、tiltXJit/tiltZJit ぶんランダムに揺らす）
+const _FTV_POSES={
+  stand: {yOff:0,   tiltX:0,   tiltXJit:0,  tiltZ:0,  tiltZJit:0},
+  aim:   {yOff:.05, tiltX:.12, tiltXJit:.06,tiltZ:0,  tiltZJit:0},   // 弓を引き絞り重心が少し後ろに
+  chase: {yOff:.16, tiltX:-.24,tiltXJit:.08,tiltZ:.05,tiltZJit:.06}, // 走り込む途中の前傾＋片足浮き
+  fallen:{yOff:-.68,tiltX:1.05,tiltXJit:.25,tiltZ:.2, tiltZJit:.3},  // 前のめりに倒れ込む途中
+};
 // ── 停止中の敵を1体配置（既存の敵システム＋frozenフラグ。main.jsのループが
 // frozen中はAI/移動/攻撃/距離デスポーンをスキップする）──
-function _ftvSpawnFrozenEnemy(plan,wx,wy,wz,idx,face,fallen){
+function _ftvSpawnFrozenEnemy(plan,wx,wy,wz,idx,face,pose){
   if(typeof ENEMY_TYPES==='undefined'||typeof enemies==='undefined'||typeof makeMat!=='function')return null;
   const et=ENEMY_TYPES[Math.max(0,Math.min(ENEMY_TYPES.length-1,idx|0))];
   try{
     const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6);
     const built=et.builder(mat);
-    built.root.position.set(wx+.5,wy+(et.bat?3:(fallen?1.2:1.85)),wz+.5);
+    const ps=_FTV_POSES[pose]||_FTV_POSES.stand;
+    built.root.position.set(wx+.5,wy+(et.bat?3:1.85+ps.yOff),wz+.5);
     built.root.rotation.y=face||0;
-    if(fallen)built.root.rotation.z=1.0+plan.rng()*.35;   // 転倒の途中で静止
+    if(ps.tiltX)built.root.rotation.x=ps.tiltX+(plan.rng()-.5)*ps.tiltXJit;
+    if(ps.tiltZ)built.root.rotation.z=(plan.rng()<0.5?-1:1)*(ps.tiltZ+plan.rng()*ps.tiltZJit);
     if(typeof markShadowCaster==='function')markShadowCaster(built.root);
     scene.add(built.root);
     const wv=(typeof gs!=='undefined'&&gs.wave)||0,mhp=et.hp+Math.floor(wv*.7);
@@ -3403,24 +3460,27 @@ function _ftvActors(plan){
     {idx:0,pose:'fallen'},// ゾンビ: 転倒の途中
     {idx:10,pose:'chase'},// クモ: 走り込む途中
   ];
+  // 村内・外周の敵は襲撃側(raidAngle)へ寄せて配置する: 攻め込んだ集団が
+  // 一方向から来て村の中まで散らばった、という一枚絵として読めるようにする
   let dangerRef=null;
-  for(let i=0;i<Math.min(cfg.enemyInner,innerDefs.length);i++){
+  const nInner=Math.min(cfg.enemyInner,innerDefs.length);
+  for(let i=0;i<nInner;i++){
     const d=innerDefs[i];
-    const a=rng()*Math.PI*2,r=4.5+rng()*4;
+    const a=plan.raidAngle+(i-(nInner-1)/2)*0.55+(rng()-.5)*.3,r=4.5+rng()*4;
     const x=plan.cx0+Math.round(Math.cos(a)*r),z=plan.cz0+Math.round(Math.sin(a)*r);
     const face=d.pose==='aim'?center(x,z)+Math.PI:center(x,z); // 弓は外向き（家を狙う）
-    const e=_ftvSpawnFrozenEnemy(plan,x,y0,z,d.idx,face,d.pose==='fallen');
+    const e=_ftvSpawnFrozenEnemy(plan,x,y0,z,d.idx,face,d.pose);
     if(e&&!dangerRef)dangerRef={x,z};
   }
-  // 崩れた家のドアの内側で止まったゾンビ
-  if(plan._houseEnemySpot)_ftvSpawnFrozenEnemy(plan,plan._houseEnemySpot.x,y0,plan._houseEnemySpot.z,0,plan._houseEnemySpot.face,false);
+  // 崩れた家のドアの内側で止まったゾンビ（踏み込む途中の前傾姿勢）
+  if(plan._houseEnemySpot)_ftvSpawnFrozenEnemy(plan,plan._houseEnemySpot.x,y0,plan._houseEnemySpot.z,0,plan._houseEnemySpot.face,'chase');
   // 爆発直前の家のそば: 点火寸前のまま静止したクリーパー
-  if(plan.blastSpot)_ftvSpawnFrozenEnemy(plan,plan.blastSpot.x,y0,plan.blastSpot.z,9,center(plan.blastSpot.x,plan.blastSpot.z),false);
-  // 外周: 村へ迫る途中で止まった敵
+  if(plan.blastSpot)_ftvSpawnFrozenEnemy(plan,plan.blastSpot.x,y0,plan.blastSpot.z,9,center(plan.blastSpot.x,plan.blastSpot.z),'stand');
+  // 外周: 襲撃側から村へ迫る途中で止まった敵（走り込む前傾姿勢）
   for(let i=0;i<cfg.enemyOuter;i++){
-    const a=rng()*Math.PI*2,r=plan.R-1.5;
+    const a=plan.raidAngle+(i-(cfg.enemyOuter-1)/2)*0.5+(rng()-.5)*.25,r=plan.R-1.5;
     const x=plan.cx0+Math.round(Math.cos(a)*r),z=plan.cz0+Math.round(Math.sin(a)*r);
-    const e=_ftvSpawnFrozenEnemy(plan,x,surfaceHeightAt(x,z),z,i%2?10:0,center(x,z),false);
+    const e=_ftvSpawnFrozenEnemy(plan,x,surfaceHeightAt(x,z),z,i%2?10:0,center(x,z),'chase');
     if(e)dangerRef={x,z}; // 最後の外周の敵のそばに「危険だが価値のある」宝箱
   }
   if(dangerRef)plan.chestSpots.push({x:dangerRef.x+2,y:y0+1,z:dangerRef.z});
@@ -3515,7 +3575,7 @@ function releaseFrozenVillage(){
   at(5,()=>{
     for(const e of V.enemies){
       if(!e||e.dead)continue;
-      e.frozen=false;e.root.rotation.z=0;
+      e.frozen=false;e.root.rotation.x=0;e.root.rotation.z=0;
       if(typeof flashEnemy==='function')flashEnemy(e);
     }
     V.enemies=[];
