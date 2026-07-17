@@ -150,6 +150,8 @@ async function saveGame(){
     treasureMap:treasureMap?{...treasureMap}:null,
     // 🏛 封印された地底都市（未生成なら null。旧セーブに無い場合も未生成として扱う）
     undergroundCity:(typeof sucSaveState==='function')?sucSaveState():null,
+    // ☁ 崩れかけの天空都市（旧セーブに無い場合は未生成として扱う）
+    skyCity:(typeof sccSaveState==='function')?sccSaveState():null,
     achievements:{...achievements},
     preview:captureSavePreview(),
     biomeName:getSaveBiomeName(),

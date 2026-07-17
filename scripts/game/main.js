@@ -322,6 +322,8 @@ async function continueGame(){
   // 🏛 封印された地底都市の状態復元。updateChunks が都市チャンクの生成フックを
   // 参照するため、最初の updateChunks(true) より前に復元しておく
   sucLoadState(d.undergroundCity);
+  // ☁ 天空都市も座標と炉の状態を先に復元する。ブロック本体は直後の worldEdits が担う。
+  sccLoadState(d.skyCity);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
@@ -351,6 +353,7 @@ async function continueGame(){
   if(d.openedTreasures)d.openedTreasures.forEach(k=>openedTreasureKeys.add(k));
   // 宝の地図の復元（目標がすでに開封済みなら破棄）
   treasureMap=(d.treasureMap&&d.treasureMap.key&&!openedTreasureKeys.has(d.treasureMap.key))?d.treasureMap:null;
+  sccAfterLoad(); // 開封済み集合の復元後に、天空都市の特別な宝箱を安全に登録する
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   // 相棒オオカミ復元（ワールド生成後にプレイヤーの隣へ）
   if(d.pet)spawnPetAtPlayer(d.pet.hp!=null?d.pet.hp:PET_MAX_HP,d.pet.downT||0);
@@ -460,6 +463,7 @@ function tick(now){
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
+  updateCollapsingSkyCity(dt); // ☁ 天空都市: 近距離だけ炉・輪・落石・接触再起動を更新
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);

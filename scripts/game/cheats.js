@@ -88,6 +88,8 @@ const CHEAT_SECTIONS=[
     ['🏗 特殊生成',()=>{closeCheatPanel();openStructPanel();}],
     ['⬆ 地上へ',()=>{const sh=getHeight(Math.floor(P.x),Math.floor(P.z));P.y=sh+2;P.velY=0;P.onGround=false;showBonus('⬆ 地上へ');}],
     ['🏠 原点(0,0)へ',()=>{P.x=0;P.z=0;const sh=getHeight(0,0);P.y=sh+2;P.velY=0;P.onGround=false;updateChunks(true);showBonus('🏠 原点へ');}],
+    ['☁ 天空都市へ',()=>{const C=collapsingSkyCity;if(!C){showBonus('天空都市は未生成');return;}P.x=C.cx;P.z=C.cz;P.y=C.baseY+2;P.velY=0;P.onGround=false;P.flying=isCreative();updateChunks(true);applyWorldEdits();showBonus('☁ 天空都市の中央広場へ');}],
+    ['⚙ 天空動力炉へ',()=>{const C=collapsingSkyCity;if(!C){showBonus('天空都市は未生成');return;}P.x=C.reactor.x+2.8;P.z=C.reactor.z+.5;P.y=C.reactor.y+2;P.velY=0;P.onGround=false;P.flying=isCreative();updateChunks(true);applyWorldEdits();showBonus(C.activated?'⚙ 稼働中の天空動力炉へ':'⚙ 動力炉に接触すると再起動');}],
   ]},
 ];
 
