@@ -84,6 +84,68 @@ function closeStructPanel(){setPanel($structPanel,false);}
 function _onStructBtnTap(){if(!gs.running||!isCreative())return;initAudio();openStructPanel();}
 if($structBtn)bindTapSafe($structBtn,_onStructBtnTap);
 if($structCloseBtn)bindTapSafe($structCloseBtn,closeStructPanel);
+// Creative-only spawn eggs: reuse the voxel mob builders and place the
+// selected mob a few blocks in front of the player.
+const $mobBtn=document.getElementById('mobBtn');
+const $mobPanel=document.getElementById('mobPanel');
+const $mobBody=document.getElementById('mobBody');
+const $mobCloseBtn=document.getElementById('mobCloseBtn');
+const CREATIVE_MOBS=[
+  {icon:'🐷',label:'ブタ',desc:'おとなしい動物',kind:'pig'},
+  {icon:'🐑',label:'ヒツジ',desc:'羊毛がとれる',kind:'sheep'},
+  {icon:'🐔',label:'ニワトリ',desc:'卵を産む',kind:'chicken'},
+  {icon:'🐺',label:'オオカミ',desc:'肉で仲間になる',kind:'wolf'},
+  {icon:'🐴',label:'ウマ',desc:'乗って移動できる',kind:'horse'},
+  {icon:'🧟',label:'ゾンビ',desc:'近づいて攻撃',enemy:0},
+  {icon:'🏹',label:'スケルトン',desc:'白いアンデッド',enemy:1},
+  {icon:'🗿',label:'ゴーレム',desc:'大きく頑丈',enemy:2},
+  {icon:'💥',label:'クリーパー',desc:'近づくと爆発',enemy:ET_CREEPER},
+  {icon:'🕷',label:'クモ',desc:'素早く追いかける',enemy:ET_SPIDER},
+];
+function _creativeSpawnPoint(){
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);dir.y=0;
+  if(dir.lengthSq()<.01)dir.set(0,0,-1);else dir.normalize();
+  const x=P.x+dir.x*5,z=P.z+dir.z*5;
+  return{x,z,y:getHeight(Math.floor(x),Math.floor(z))};
+}
+function _creativeSpawnEnemy(etIdx,p){
+  if(enemies.length>=(isTouch?18:30)){showBonus('モブが多すぎます');return false;}
+  const et=ENEMY_TYPES[etIdx];if(!et)return false;
+  const mat=makeMat(et.color,et.emissive,et.emissiveIntensity||.15,.6),built=et.builder(mat);
+  built.root.position.set(p.x,p.y+(et.bat?4.5:1.85),p.z);markShadowCaster(built.root);scene.add(built.root);
+  enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:et.hp,maxHp:et.hp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:p.x,lastZ:p.z,flashMeshes:[built.body,built.head],dead:false,breakCd:0,lWing:built.lWing,rWing:built.rWing});
+  return true;
+}
+function spawnCreativeMob(def){
+  if(!gs.running||!isCreative())return;
+  const p=_creativeSpawnPoint();let spawned=false;
+  if(def.kind){const before=mobs.length;createAnimal(p.x,p.z,def.kind);spawned=mobs.length>before;}
+  else spawned=_creativeSpawnEnemy(def.enemy,p);
+  if(!spawned){if(def.kind)showBonus('動物が多すぎます');return;}
+  showBonus(def.icon+' '+def.label+'を召喚');playTone(720,.08,.08,'square');closeMobPanel();
+}
+function clearCreativeMobs(){
+  if(!isCreative())return;
+  for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
+  for(const m of mobs){scene.remove(m.root);disposeObject3D(m.root);}mobs.length=0;
+  showBonus('召喚モブを全消去');closeMobPanel();
+}
+function buildMobPanel(){
+  if(!$mobBody)return;$mobBody.innerHTML='';
+  const grid=document.createElement('div');grid.className='structGrid';
+  for(const def of CREATIVE_MOBS){
+    const b=document.createElement('button');b.className='structBtn';
+    b.innerHTML='<span class="sIcon">'+def.icon+'</span><span class="sLabel">'+def.label+'</span><span class="sDesc">'+def.desc+'</span>';
+    b.addEventListener('pointerdown',e=>{e.stopPropagation();spawnCreativeMob(def);});grid.appendChild(b);
+  }
+  const clear=document.createElement('button');clear.className='pmBtn';clear.textContent='🧹 モブを全消去';
+  clear.addEventListener('pointerdown',e=>{e.stopPropagation();clearCreativeMobs();});
+  $mobBody.appendChild(grid);$mobBody.appendChild(clear);
+}
+function openMobPanel(){if(!gs.running||!isCreative())return;buildMobPanel();setPanel($mobPanel,true);}
+function closeMobPanel(){setPanel($mobPanel,false);}
+if($mobBtn)bindTapSafe($mobBtn,openMobPanel);
+if($mobCloseBtn)bindTapSafe($mobCloseBtn,closeMobPanel);
 // creative hides survival-only HUD (HP/満腹度/EAT/MEAT), like Minecraft creative
 function applyModeUI(){
   const cr=isCreative();
@@ -93,6 +155,7 @@ function applyModeUI(){
   if($eatBtn)$eatBtn.style.display=cr?'none':'';
   if($meatLabel)$meatLabel.style.display=cr?'none':'';
   if($structBtn)$structBtn.style.display=cr?'':'none';
+  if($mobBtn)$mobBtn.style.display=cr?'':'none';
   updateFlyBtns();
 }
 let _weaponBtnLastT=0;

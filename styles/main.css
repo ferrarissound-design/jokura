@@ -89,6 +89,8 @@ canvas#c{display:block;touch-action:none}
 /* 🏗 特殊生成メニュー（クリエイティブ限定）: 💾 の左隣に並ぶフローティングボタン */
 #structBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(50px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #b388ff55;background:rgba(149,117,205,.2);color:#e6d9ff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #structBtn:active{transform:scale(.92)}
+#mobBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(92px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #8bc34a66;background:rgba(76,120,55,.28);color:#e4ffc7;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
+#mobBtn:active{transform:scale(.92)}
 #dmgFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(220,30,30,.4);transition:opacity .1s;z-index:30}
 #dmgFlash.on{opacity:1}
 #lavaFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(255,100,0,.35);transition:opacity .2s;z-index:29}
