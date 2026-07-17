@@ -324,6 +324,8 @@ async function continueGame(){
   sucLoadState(d.undergroundCity);
   // ☁ 天空都市も座標と炉の状態を先に復元する。ブロック本体は直後の worldEdits が担う。
   sccLoadState(d.skyCity);
+  // 🌊 沈んだ王都も座標を先に復元する（updateChunks が深部チャンクの生成フックを参照するため）
+  srcLoadState(d.sunkenCity);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
@@ -464,6 +466,7 @@ function tick(now){
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
   updateCollapsingSkyCity(dt); // ☁ 天空都市: 近距離だけ炉・輪・落石・接触再起動を更新
+  srcUpdate(dt); // 🌊 沈んだ王都: 海面メッシュの表示と海中の青いフォグ（遠距離では即リターン）
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);

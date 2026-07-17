@@ -152,6 +152,8 @@ async function saveGame(){
     undergroundCity:(typeof sucSaveState==='function')?sucSaveState():null,
     // ☁ 崩れかけの天空都市（旧セーブに無い場合は未生成として扱う）
     skyCity:(typeof sccSaveState==='function')?sccSaveState():null,
+    // 🌊 海底に沈んだ王都（旧セーブに無い場合は未生成として扱う）
+    sunkenCity:(typeof srcSaveState==='function')?srcSaveState():null,
     achievements:{...achievements},
     preview:captureSavePreview(),
     biomeName:getSaveBiomeName(),
