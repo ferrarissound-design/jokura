@@ -132,6 +132,7 @@ function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fi
   if(pet){const petP=pet.root.position,ptx=cx+(petP.x-P.x)*sc,pty=cy+(petP.z-P.z)*sc;if(ptx>-2&&ptx<S+2&&pty>-2&&pty<S+2){miniCtx.fillStyle='#7fd4ff';miniCtx.fillRect(ptx-1.5,pty-1.5,3,3);}}
   if(horse&&!mounted){const hp3=horse.root.position,htx=cx+(hp3.x-P.x)*sc,hty=cy+(hp3.z-P.z)*sc;if(htx>-2&&htx<S+2&&hty>-2&&hty<S+2){miniCtx.fillStyle='#d9a066';miniCtx.fillRect(htx-1.5,hty-1.5,3,3);}}
   if(merchant){const mp3=merchant.root.position,mtx=cx+(mp3.x-P.x)*sc,mty=cy+(mp3.z-P.z)*sc;if(mtx>-2&&mtx<S+2&&mty>-2&&mty<S+2){miniCtx.fillStyle='#c9a0ff';miniCtx.fillRect(mtx-2,mty-2,4,4);}}
+  for(const h of humanoids){const p=h.root.position,hx=cx+(p.x-P.x)*sc,hy=cy+(p.z-P.z)*sc;if(hx<-2||hx>S+2||hy<-2||hy>S+2)continue;miniCtx.fillStyle=h.hostile?'#ff6655':'#e5c07b';miniCtx.fillRect(hx-2,hy-2,4,4);}
   for(const e of enemies){const p=e.root.position,ex=cx+(p.x-P.x)*sc,ey=cy+(p.z-P.z)*sc;if(ex<-2||ex>S+2||ey<-2||ey>S+2)continue;miniCtx.fillStyle=e.type.lava?'#ff6600':e.type.ice?'#44ddff':e.type.creeper?'#66ff44':e.type.spider?'#d08850':e.type.phantom?'#88aaff':e.type.name==='Skeleton'?'#eeeeff':e.type.name==='Golem'?'#4488ff':'#ff4444';miniCtx.fillRect(ex-1.5,ey-1.5,3,3);}
   if(boss){const p=boss.root.position,bx=cx+(p.x-P.x)*sc,by=cy+(p.z-P.z)*sc;if(bx>-5&&bx<S+5&&by>-5&&by<S+5){miniCtx.fillStyle='#ff0066';miniCtx.fillRect(bx-3,by-3,6,6);}}
   for(const it of items){const ix=cx+(it.x-P.x)*sc,iy=cy+(it.z-P.z)*sc;if(ix>-2&&ix<S+2&&iy>-2&&iy<S+2){miniCtx.fillStyle='#ffff00';miniCtx.fillRect(ix-1,iy-1,2,2);}}
@@ -690,13 +691,13 @@ function castVoxel(includeWater){
   }
   return null;
 }
-function getEnemyMeshes(){const ms=[];for(const e of enemies)ms.push(e.body,e.head);if(boss)ms.push(boss.body,boss.head);return ms;}
+function getEnemyMeshes(){const ms=[];for(const e of enemies)ms.push(e.body,e.head);for(const h of humanoids)if(h.state!==HUMANOID_STATES.DEAD)ms.push(h.body,h.head);if(boss)ms.push(boss.body,boss.head);return ms;}
 // enemy shots: raycast only enemy meshes, then confirm line-of-sight through
 // the voxel grid (blocks no longer participate in mesh raycasts)
 function _losToPoint(p){return hasLOS(camera.position.x,camera.position.y,camera.position.z,p.x,p.y,p.z);}
 function castEnemies(){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=10;const h=RC.intersectObjects(getEnemyMeshes(),false);if(!h.length)return null;if(!_losToPoint(h[0].point))return null;return h[0];}
 function castEnemiesFar(range){camera.getWorldDirection(_rd);RC.set(camera.position,_rd);RC.far=range;const h=RC.intersectObjects(getEnemyMeshes(),false);if(!h.length)return null;if(!_losToPoint(h[0].point))return null;return h[0];}
-function findEnemyByMesh(obj){for(const e of enemies){if(obj===e.body||obj===e.head)return{enemy:e,isBoss:false};}if(boss&&(obj===boss.body||obj===boss.head))return{enemy:boss,isBoss:true};return null;}
+function findEnemyByMesh(obj){for(const e of enemies){if(obj===e.body||obj===e.head)return{enemy:e,isBoss:false};}for(const h of humanoids){if(obj===h.body||obj===h.head)return{humanoid:h,isBoss:false};}if(boss&&(obj===boss.body||obj===boss.head))return{enemy:boss,isBoss:true};return null;}
 function hasLOS(x1,y1,z1,x2,y2,z2){
   const dx=x2-x1,dy=y2-y1,dz=z2-z1;
   const steps=Math.ceil(Math.max(Math.abs(dx),Math.abs(dy),Math.abs(dz))*2)+1;

@@ -109,6 +109,7 @@ function clearCreativeMobs(){
   if(!isCreative())return;
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const m of mobs){scene.remove(m.root);disposeObject3D(m.root);}mobs.length=0;
+  clearHumanoids();
   showBonus('召喚モブを全消去');
 }
 // creative hides survival-only HUD (HP/満腹度/EAT/MEAT), like Minecraft creative
@@ -245,6 +246,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
+  clearHumanoids();
   removePet();removeHorse();removeMerchant();merchantSpawnT=60+Math.random()*60;
   resetMeteorEvent();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;cheatsUsed=false;godMode=false;
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
@@ -282,7 +284,7 @@ async function startGame(){
   $pauseBtn.style.display='flex';
   applyModeUI();
   if(isCreative())showAlert('🪄 CREATIVE MODE：自由に建築しよう！');
-  spawnAnimals(8);updateInvHUD();resize();
+  spawnAnimals(8);spawnHumanoids(1);updateInvHUD();resize();
 }
 async function continueGame(){
   const d=await loadSaveData();if(!d)return;
@@ -353,7 +355,7 @@ async function continueGame(){
   if(d.horseTamed)spawnHorseAtPlayer(!!d.mounted);
   $pauseBtn.style.display='flex';
   applyModeUI();
-  spawnAnimals(8);updateInvHUD();resize();
+  spawnAnimals(8);spawnHumanoids(1);updateInvHUD();resize();
 }
 // アイテムピックアップ（武器ドロップで解放）
 function pickupItem(info){
@@ -467,7 +469,7 @@ function tick(now){
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
   chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
-  updateBoss(dt);updateDragon(dt);updateMobs(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);updateMerchant(dt,_isUnder);
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);updateHumanoids(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);updateMerchant(dt,_isUnder);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
@@ -546,7 +548,7 @@ function tick(now){
     else{const nb=gs.time>.5?(gs.time-.5)*2:0;e.body.material.emissiveIntensity=.08+nb*.3;e.head.material.emissiveIntensity=.08+nb*.3;}
     e.hpBar.lookAt(camera.position);
   }
-  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);if(p.fireA)igniteEnemy(en);if(p.iceA)chillEnemy(en);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);if(p.fireA)igniteBoss();if(p.iceA)chillBoss();hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true||p.staff===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.fireA)spawnParticles(p.x,p.y,p.z,0xff6622,4);else if(hit&&p.iceA)spawnParticles(p.x,p.y,p.z,0xaaeeff,4);else if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit&&p.staff)spawnParticles(p.x,p.y,p.z,0x88ffff,5);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
+  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];p.x+=p.dx*dt;p.y+=p.dy*dt;p.z+=p.dz*dt;p.life-=dt;p.mesh.position.set(p.x,p.y,p.z);let hit=false;if(p.isBossArrow){const dx=p.x-P.x,dy=p.y-(P.y+1),dz=p.z-P.z;if(dx*dx+dy*dy+dz*dz<1.2){dmgPlayer(p.dmg);hit=true;}}else{for(const en of enemies){const ep=en.root.position,dx=p.x-ep.x,dy=p.y-ep.y,dz=p.z-ep.z;if(dx*dx+dy*dy+dz*dz<1.8){hitEnemy(en,p.dmg);if(p.fireA)igniteEnemy(en);if(p.iceA)chillEnemy(en);hit=true;break;}}if(!hit)for(const h of humanoids){if(h.state===HUMANOID_STATES.DEAD)continue;const hp=h.root.position,dx=p.x-hp.x,dy=p.y-(hp.y+1.1),dz=p.z-hp.z;if(dx*dx+dy*dy+dz*dz<1.5){hitHumanoid(h,p.dmg);hit=true;break;}}if(!hit&&boss){const bp=boss.root.position,dx=p.x-bp.x,dy=p.y-bp.y,dz=p.z-bp.z;if(dx*dx+dy*dy+dz*dz<(boss.sc*2)){hitBoss(p.dmg);if(p.fireA)igniteBoss();if(p.iceA)chillBoss();hit=true;}}if(!hit&&dragon){const dp=dragon.root.position,pdx=p.x-dp.x,pdy=p.y-dp.y,pdz=p.z-dp.z;if(pdx*pdx+pdy*pdy+pdz*pdz<2.5){hitDragon(p.dmg,p.diamond===true||p.staff===true);hit=true;}}}if(!hit){const k=vKey(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z));if(voxels[k]&&voxels[k].active)hit=true;}if(hit&&p.fireA)spawnParticles(p.x,p.y,p.z,0xff6622,4);else if(hit&&p.iceA)spawnParticles(p.x,p.y,p.z,0xaaeeff,4);else if(hit&&p.diamond)spawnParticles(p.x,p.y,p.z,0x00e5ff,3);if(hit&&p.staff)spawnParticles(p.x,p.y,p.z,0x88ffff,5);if(hit||p.life<=0){scene.remove(p.mesh);p.mesh.material.dispose();projectiles.splice(i,1);}}
   for(let i=items.length-1;i>=0;i--){const it=items[i];it.time+=dt;it.mesh.position.y=it.y+Math.sin(it.time*3)*.2;it.mesh.rotation.y+=dt*2;const dx=P.x-it.x,dz=P.z-it.z,dy=P.y-it.y;if(dx*dx+dy*dy+dz*dz<3){pickupItem(it.info);scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);continue;}if(it.time>25){scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);}}
   updateParticles(dt);
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}

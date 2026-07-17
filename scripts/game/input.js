@@ -212,6 +212,7 @@ function doAttack(e){
     const dm=wDmg(w)+(mode==='fire'?1:0);
     const eh=castEnemiesFar(wRange(w));if(eh){const found=findEnemyByMesh(eh.object);if(found){
       if(found.isBoss){hitBoss(dm);if(mode==='fire')igniteBoss();if(mode==='ice')chillBoss();}
+      else if(found.humanoid)hitHumanoid(found.humanoid,dm);
       else{hitEnemy(found.enemy,dm);if(mode==='fire')igniteEnemy(found.enemy);if(mode==='ice')chillEnemy(found.enemy);}
       return;}}
     fireArrow(mode);return;
@@ -224,6 +225,7 @@ function doAttack(e){
     if(dragon){const dp=dragon.root.position;if(Math.hypot(dp.x-P.x,dp.z-P.z)<wRange(w)){hitDragon(wDmg(w),true);anyHit=true;}}
     for(const en of[...enemies]){const ep=en.root.position;if(Math.hypot(ep.x-P.x,ep.z-P.z)<wRange(w)){hitEnemy(en,wDmg(w));applyMeleeEnchants(en,false);anyHit=true;}}
     attackMobs(w);
+    if(attackHumanoids(w))anyHit=true;
     if(!anyHit){const bh=castVoxel();if(bh){mineBlock(bh);}}
     return;
   }
@@ -233,12 +235,14 @@ function doAttack(e){
     if(dragon){const dp=dragon.root.position,dx=dp.x-P.x,dy=dp.y-P.y,dz=dp.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<wRange(w)){hitDragon(wDmg(w),false);anyHit=true;}}
     for(const en of[...enemies]){const ep=en.root.position,dx=ep.x-P.x,dy=ep.y-P.y,dz=ep.z-P.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<wRange(w)){hitEnemy(en,wDmg(w));applyMeleeEnchants(en,false);anyHit=true;}}
     attackMobs(w);
+    if(attackHumanoids(w))anyHit=true;
     if(!anyHit){const bh=castVoxel();if(bh){mineBlock(bh);}}
     return;
   }
-  const eh=castEnemies();if(eh&&eh.distance<=wRange(w)){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss){hitBoss(wDmg(w));applyMeleeEnchants(null,true);}else{hitEnemy(found.enemy,wDmg(w));applyMeleeEnchants(found.enemy,false);}return;}}
+  const eh=castEnemies();if(eh&&eh.distance<=wRange(w)){const found=findEnemyByMesh(eh.object);if(found){if(found.isBoss){hitBoss(wDmg(w));applyMeleeEnchants(null,true);}else if(found.humanoid){hitHumanoid(found.humanoid,wDmg(w));}else{hitEnemy(found.enemy,wDmg(w));applyMeleeEnchants(found.enemy,false);}return;}}
   if(dragon){const dp=dragon.root.position;if((dp.x-P.x)**2+(dp.y-(P.y+1.5))**2+(dp.z-P.z)**2<wRange(w)*wRange(w)){hitDragon(wDmg(w),weaponIdx===1&&hasDiamondSword);return;}}
   attackMobs(w);
+  if(attackHumanoids(w))return;
   const bh=castVoxel();if(bh){mineBlock(bh);}
 }
 
@@ -250,6 +254,7 @@ function doPlace(e){
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
   if(px<P.x+.35&&px+1>P.x-.35&&py<P.y+1.75&&py+1>P.y&&pz<P.z+.35&&pz+1>P.z-.35)return;
   for(const en of enemies){const ep=en.root.position,fy=ep.y-.85;if(px<ep.x+.5&&px+1>ep.x-.5&&py<fy+1.7&&py+1>fy&&pz<ep.z+.5&&pz+1>ep.z-.5)return;}
+  for(const h of humanoids){const p=h.root.position;if(px<p.x+.4&&px+1>p.x-.4&&py<p.y+2.5&&py+1>p.y&&pz<p.z+.4&&pz+1>p.z-.4)return;}
   const mat=SLOT_MAT[curType],ti=SLOT_TI[curType];
   if(!isCreative()){ // creative: infinite blocks, nothing consumed
     if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':mat==='slab'?'⬜ ハーフブロックがない！クラフトしよう':mat==='stair'?'🪜 階段がない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
