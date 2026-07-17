@@ -31,6 +31,14 @@ function _cheatSpawnEnemy(etIdx,yoff){
 
 // セクション定義: [ラベル, 実行関数]。実行後は共通で HUD 更新＋markCheat＋パネル再描画。
 const CHEAT_SECTIONS=[
+  {title:'🥚 モブ召喚',creativeOnly:true,btns:[
+    ['🐷 ブタ',()=>spawnCreativeMob(CREATIVE_MOBS[0])],
+    ['🐑 ヒツジ',()=>spawnCreativeMob(CREATIVE_MOBS[1])],
+    ['🐔 ニワトリ',()=>spawnCreativeMob(CREATIVE_MOBS[2])],
+    ['🐺 オオカミ',()=>spawnCreativeMob(CREATIVE_MOBS[3])],
+    ['🐴 ウマ',()=>spawnCreativeMob(CREATIVE_MOBS[4])],
+    ['🧹 モブを全消去',clearCreativeMobs],
+  ]},
   {title:'🎁 アイテム',btns:[
     ['🪵🪨 基本×64',()=>{_giveInv('wood',64);_giveInv('stone',64);_giveInv('sand',64);_giveInv('grass',64);showBonus('🎁 基本素材×64');}],
     ['💎 ダイヤ×16',()=>{_giveInv('diamond',16);showBonus('🎁 💎×16');}],
@@ -87,6 +95,7 @@ function buildCheatPanel(){
   if(!$cheatBody)return;
   $cheatBody.innerHTML='';
   for(const sec of CHEAT_SECTIONS){
+    if(sec.creativeOnly&&!isCreative())continue;
     const hd=document.createElement('div');hd.className='cheatHd';hd.textContent=sec.title;$cheatBody.appendChild(hd);
     const grid=document.createElement('div');grid.className='cheatGrid';
     for(const[label,act] of sec.btns){

@@ -63,7 +63,6 @@
   <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
   <button id="saveFloatBtn">💾</button>
   <button id="structBtn" style="display:none" title="特殊生成メニュー">🏗</button>
-  <button id="mobBtn" style="display:none" title="モブ召喚メニュー">🥚</button>
   <div id="waveAlert"></div>
   <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
@@ -249,21 +248,13 @@
     <button class="pmBtn menuClose" id="structCloseBtn">CLOSE</button>
   </div>
 </div>
-<div id="mobPanel" class="menuPanel">
-  <div class="menuCard">
-    <div class="menuTitle">🥚 モブ召喚</div>
-    <div id="mobBody"></div>
-    <div class="menuText small">クリエイティブモード専用。選んだモブを目の前に召喚します。</div>
-    <button class="pmBtn menuClose" id="mobCloseBtn">CLOSE</button>
-  </div>
-</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ゲーム本体は scripts/game/*.js に機能別分割されている。各ファイルは同一の
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260730d';
+  var V='20260730f';
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world','combat','entities','hud','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
