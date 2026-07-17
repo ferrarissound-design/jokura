@@ -290,6 +290,9 @@ async function continueGame(){
   if(d.hasDiamondHammer)applyDiamondHammer();
   ensureUnlockedWeaponSelected();
   if(d.worldSeed!=null)initWorldNoise(d.worldSeed);
+  // 🏛 封印された地底都市の状態復元。updateChunks が都市チャンクの生成フックを
+  // 参照するため、最初の updateChunks(true) より前に復元しておく
+  sucLoadState(d.undergroundCity);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
@@ -427,6 +430,7 @@ function tick(now){
   movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
+  sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
@@ -450,7 +454,7 @@ function tick(now){
     // すべてスキップして「一枚絵」のまま保つ（攻撃は受けるのでHPバーの向きだけ更新）
     if(e.frozen){e.hpBar.lookAt(camera.position);continue;}
     const dx=P.x-ep.x,dz=P.z-ep.z;const dist=Math.hypot(dx,dz);
-    if(dist>50){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
+    if(dist>50&&!e.noDespawn){scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;} // 🏛 地底王などnoDespawnの敵は距離で消えない
     // 状態異常: 炎上（0.7秒ごとに2ダメージ）/ 氷結（移動速度45%）
     if(e.slowT>0)e.slowT-=dt;
     if(e.burnT>0){
