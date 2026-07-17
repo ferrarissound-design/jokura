@@ -3,6 +3,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;-webkit-user-se
 canvas#c{display:block;touch-action:none}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block}
 #hud{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
+#hud::before{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(6,12,16,.13) 100%)}
 :root{--safeT:env(safe-area-inset-top,0px);--safeR:env(safe-area-inset-right,0px);--safeB:env(safe-area-inset-bottom,0px);--safeL:env(safe-area-inset-left,0px)}
 #topBar{position:absolute;top:0;left:0;right:0;padding:calc(6px + var(--safeT)) calc(10px + var(--safeR)) 6px calc(10px + var(--safeL));display:flex;justify-content:space-between;align-items:flex-start;background:linear-gradient(rgba(0,0,0,.72),transparent);z-index:10}
 .pi{display:flex;flex-direction:column;gap:1px;text-align:center;min-width:0}

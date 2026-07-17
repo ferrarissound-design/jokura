@@ -11,6 +11,11 @@
 const canvas=document.getElementById('c');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'low-power'});
 renderer.shadowMap.enabled=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.setClearColor(0x0b0f17);
+// Work in a colour-managed pipeline and gently compress bright sunlit faces.
+// This keeps snow/sand readable without turning grass and the held item neon.
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=.78;
 let SHADOWS_ON=false;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0b0f17,20,60);
 const camera=new THREE.PerspectiveCamera(72,1,.05,130);
@@ -56,13 +61,13 @@ function _skyGradTex(){
   const g=x.createLinearGradient(0,0,0,64); // canvas top = zenith (uv.y=1)
   g.addColorStop(0,'rgb(106,118,170)');g.addColorStop(.45,'rgb(255,255,255)');g.addColorStop(1,'rgb(255,255,255)');
   x.fillStyle=g;x.fillRect(0,0,1,64);
-  return new THREE.CanvasTexture(c);
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;
 }
 const skyMesh=new THREE.Mesh(new THREE.SphereGeometry(110,12,6),new THREE.MeshBasicMaterial({color:0x0b1a3b,map:_skyGradTex(),side:THREE.BackSide,fog:false,depthWrite:false}));scene.add(skyMesh);
 function _celestTex(core,edge){
   const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');
   x.fillStyle=edge;x.fillRect(0,0,16,16);x.fillStyle=core;x.fillRect(2,2,12,12);
-  const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;return t;
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;return t;
 }
 const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:_celestTex('#fff6c8','#ffd75e'),transparent:true,opacity:.95,fog:false,depthWrite:false}));
 sunSprite.scale.set(14,14,1);sunSprite.visible=false;scene.add(sunSprite);
@@ -386,7 +391,7 @@ function _mkTex(c){
   const x=c.getContext('2d'),s=TEX_SIZE;
   x.fillStyle='rgba(0,0,0,.16)';x.fillRect(0,0,s,1);x.fillRect(0,s-1,s,1);x.fillRect(0,1,1,s-2);x.fillRect(s-1,1,1,s-2);
   x.fillStyle='rgba(0,0,0,.07)';x.fillRect(1,1,s-2,1);x.fillRect(1,s-2,s-2,1);x.fillRect(1,2,1,s-4);x.fillRect(s-2,2,1,s-4);
-  const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestMipmapNearestFilter;return t;
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestMipmapNearestFilter;return t;
 }
 function _rng(seed){let s=seed>>>0||1;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
 // speckled solid block (stone, sand, dirt, snow…)
@@ -396,6 +401,21 @@ function noisyTex(base,seed,amt){
     const v=r();let f=0;
     if(v<.22)f=amt;else if(v<.44)f=-amt;else if(v<.5)f=-amt*1.8;
     x.fillStyle=_shade(base,f);x.fillRect(i,j,1,1);
+  }
+  return _mkTex(c);
+}
+// Natural blocks use a few larger clusters over the one-pixel grain. At a
+// distance the clusters remain visible, while close up the texture stays crisp.
+function naturalTex(base,seed,amt,clusters){
+  amt=amt==null?.12:amt;clusters=clusters==null?8:clusters;
+  const[c,x]=_texCtx(),r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){
+    const v=r();x.fillStyle=_shade(base,v<.18?amt:v<.38?-amt:v<.43?-amt*1.55:0);x.fillRect(i,j,1,1);
+  }
+  for(let n=0;n<clusters;n++){
+    const px=(r()*14)|0,py=(r()*14)|0,w=1+((r()*3)|0),h=1+((r()*2)|0);
+    x.fillStyle=_shade(base,r()<.52?-amt*1.45:amt*1.25);x.fillRect(px,py,w,h);
+    if(r()<.7){x.fillStyle=_shade(base,r()<.5?-amt*.55:amt*.55);x.fillRect(Math.min(15,px+w),py,1,h);}
   }
   return _mkTex(c);
 }
@@ -452,20 +472,20 @@ function oreTex(stoneCol,oreCol,seed){
 // vertexColors picks up the face shading baked into boxGeo
 function smat(map,extra){return new THREE.MeshStandardMaterial(Object.assign({map,roughness:.9,metalness:.05,vertexColors:true},extra||{}));}
 const _T={
-  grassTop:noisyTex(0x6fb13a,11,.13), grassSide:grassSideTex(0x6fb13a,0x7a5230,12), dirt:noisyTex(0x7a5230,13,.14),
-  forestTop:noisyTex(0x3f9a3a,14,.13), forestSide:grassSideTex(0x3f9a3a,0x5d4a28,15),
+  grassTop:naturalTex(0x668f3f,11,.11,7), grassSide:grassSideTex(0x668f3f,0x765333,12), dirt:naturalTex(0x765333,13,.13,10),
+  forestTop:naturalTex(0x477d3c,14,.11,8), forestSide:grassSideTex(0x477d3c,0x58462c,15),
   // neutral (near-white) grass-top used in-world: the actual green comes from
   // the per-column biome tint baked into vertex color, so it can blend
-  grassTopNeutral:noisyTex(0xffffff,1101,.13),
-  stone:noisyTex(0x8a8f98,21,.12), sand:noisyTex(0xd9c27a,22,.1),
+  grassTopNeutral:naturalTex(0xffffff,1101,.1,7),
+  stone:naturalTex(0x85888b,21,.11,11), sand:naturalTex(0xd4bf79,22,.075,7),
   logSide:logSideTex(0x6b4a2f,23), logTop:logTopTex(0x9a7a4f,24), brick:brickTex(0xc05a4a,25),
-  greyStone:noisyTex(0x78909c,26,.12), volcano:noisyTex(0x1a0a00,27,.5), snow:noisyTex(0xeef3ff,28,.06),
-  caveDirt:noisyTex(0x6b4226,29,.14), coal:oreTex(0x8a8f98,0x1a1a1a,30), deepStone:noisyTex(0x2a2e3d,31,.18),
+  greyStone:naturalTex(0x747d82,26,.12,10), volcano:naturalTex(0x1a0a00,27,.32,9), snow:naturalTex(0xe6edf2,28,.04,5),
+  caveDirt:naturalTex(0x62432b,29,.13,10), coal:oreTex(0x85888b,0x1a1a1a,30), deepStone:naturalTex(0x30343b,31,.14,10),
   iron:oreTex(0x8a8f98,0xcaa472,32), diamond:oreTex(0x7fb6c8,0x3fe0ff,33), lava:noisyTex(0xff4500,34,.22),
   ice:noisyTex(0xbfe6ff,61,.07), obsidian:noisyTex(0x1b0b2e,62,.35), crystal:oreTex(0x8a8f98,0xcc66ff,63),
   cactus:noisyTex(0x2e9e4f,64,.16), mushroom:oreTex(0xd0483e,0xffe9d0,65), clay:noisyTex(0xb0a08c,66,.1),
   woolBlk:noisyTex(0xf4f4ec,71,.05),
-  leaf:noisyTex(0x3f9e3f,72,.22),
+  leaf:naturalTex(0x477a3c,72,.15,11),
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
@@ -484,7 +504,7 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case 7: return smat(_T.volcano,{roughness:.3,metalness:.4,emissive:0x330000,emissiveIntensity:.3});
     case LAVA_BLOCK: return smat(_T.lava,{roughness:.8,emissive:0xff2200,emissiveIntensity:1.2,vertexColors:false}); // glows evenly, no face shading
     case SNOW_BLOCK: return smat(_T.snow,{roughness:.3,metalness:.1,emissive:0x8899bb,emissiveIntensity:.08});
-    case WATER_BLOCK: return new THREE.MeshStandardMaterial({color:c,roughness:.1,metalness:.2,transparent:true,opacity:.78,emissive:0x003366,emissiveIntensity:.12,vertexColors:true});
+    case WATER_BLOCK: return new THREE.MeshStandardMaterial({color:0x2f79ad,roughness:.16,metalness:.05,transparent:true,opacity:.66,depthWrite:false,emissive:0x062c48,emissiveIntensity:.08,vertexColors:true});
     case CAVE_DIRT: return smat(_T.caveDirt);
     case COAL_ORE: return smat(_T.coal,{roughness:.95,metalness:.05,emissive:0x111111,emissiveIntensity:.05});
     case DEEP_STONE: return smat(_T.deepStone,{roughness:.8,metalness:.15,emissive:0x0a0d1a,emissiveIntensity:.1});
@@ -535,11 +555,18 @@ let _waterUniforms=null;
 blockMats[WATER_BLOCK].onBeforeCompile=(sh)=>{
   sh.uniforms.uTime={value:0};
   _waterUniforms=sh.uniforms;
-  sh.vertexShader='uniform float uTime;\n'+sh.vertexShader.replace(
+  sh.vertexShader='uniform float uTime;\nvarying vec3 vJkWaterPos;\n'+sh.vertexShader.replace(
     '#include <begin_vertex>',
     ['#include <begin_vertex>',
      'vec4 jkW=modelMatrix*vec4(position,1.0);',
+     'vJkWaterPos=jkW.xyz;',
      'if(position.y>0.3){transformed.y+=sin(jkW.x*1.9+uTime*1.8)*.05+cos(jkW.z*1.6+uTime*2.2)*.04;}'
+    ].join('\n'));
+  sh.fragmentShader='uniform float uTime;\nvarying vec3 vJkWaterPos;\n'+sh.fragmentShader.replace(
+    '#include <output_fragment>',
+    ['#include <output_fragment>',
+     'float jkRipple=sin(vJkWaterPos.x*2.6+uTime*1.3)*cos(vJkWaterPos.z*2.2-uTime*1.1);',
+     'gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.28,0.62,0.82),0.07+jkRipple*0.025);'
     ].join('\n'));
 };
 // give the hotbar swatches the matching pixel-art look
@@ -582,7 +609,8 @@ function getGroundType(biome){return[0,2,5,1,7,SNOW_BLOCK][biome];}
 // Grass tops (ti 0 plains / ti 5 forest) render with a shared neutral texture
 // and get their green from this per-column tint instead, so the color fades
 // smoothly across a biome border rather than snapping at the tile edge.
-const PLAINS_GRASS_RGB=[0x6f/255,0xb1/255,0x3a/255],FOREST_GRASS_RGB=[0x3f/255,0x9a/255,0x3a/255];
+function _linearGrassTint(hex){const c=new THREE.Color(hex).convertSRGBToLinear();return[c.r,c.g,c.b];}
+const PLAINS_GRASS_RGB=_linearGrassTint(0x689443),FOREST_GRASS_RGB=_linearGrassTint(0x487d3e);
 function computeGrassTint(wx,wz,biomeAt){
   biomeAt=biomeAt||getBiome;
   let r=0,g=0,b=0,n=0;
@@ -681,6 +709,7 @@ function _cliffCarve(x,y,z){return noiseB(x*0.07,z*0.07+y*0.11)>0.34;}
 // その上に十字の1層を載せる。（以前は草ブロックの傘で、側面が土に見えて
 // キノコのような柱になっていた）
 function _growTree(wx,h,wz,th,meshes){
+  if(wx*wx+wz*wz<=16)return; // keep the first view around world spawn open
   for(let t=1;t<=th;t++){const m=addBlock(wx,h+t,wz,3,false);if(m)meshes.add(m);}
   for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){
     if(dx!==0||dz!==0){const m=addBlock(wx+dx,h+th,wz+dz,LEAF_BLOCK,false);if(m)meshes.add(m);}
