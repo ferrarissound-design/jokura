@@ -140,6 +140,7 @@ function breakBlock(bh){
   const v=voxels[k];
   if(v){
     ftvOnBlockBroken(k); // ⏳ 時間が止まった村: 時間結晶なら耐久を減らす
+    sucOnBlockBroken(k); // 🏛 封印された地底都市: 封印装置の結晶なら耐久を減らす
     spawnBlockDebris(d.x+.5,d.y+.5,d.z+.5,v.ti);
     addMaterial(v.ti);
     if(v.ti===TORCH_BLOCK){inv.torch++;updateInvHUD();}
@@ -155,6 +156,7 @@ function enemyBreakBlockAt(x,y,z){
   const k=vKey(x,y,z);const v=voxels[k];if(!v||!v.active||v.ti===WATER_BLOCK)return false;
   if(v.ti===OBSIDIAN_BLOCK)return false; // 黒曜石は耐爆: 敵・ボスには絶対に壊せない
   ftvOnBlockBroken(k); // ⏳ 敵が時間結晶を砕いた場合も解除が進む（詰み防止）
+  sucOnBlockBroken(k); // 🏛 敵が封印装置を砕いた場合も解除が進む（詰み防止）
   spawnBlockDebris(x+.5,y+.5,z+.5,v.ti);
   if(Math.hypot(x-P.x,z-P.z)<20)sfxBreak();
   if(v.playerPlaced)delete worldEdits.placed[k];else worldEdits.removed[k]=true;
