@@ -25,6 +25,7 @@ function overlaps(px,py,pz,hw,hh){
   for(const c of chests){const cx=c.x+.5,cy=c.y,cz=c.z+.5;if(px-hw<cx+CHW&&px+hw>cx-CHW&&py<cy+CHH&&py+hh>cy&&pz-hw<cz+CHW&&pz+hw>cz-CHW)return true;}
   for(const b of beds){const bx=b.x+.5,by=b.y,bz=b.z+.9;if(px-hw<bx+.5&&px+hw>bx-.5&&py<by+.35&&py+hh>by&&pz-hw<bz+.9&&pz+hw>bz-.9)return true;}
   for(const t of trophies){const tx=t.x+.5,ty=t.y,tz=t.z+.5;if(px-hw<tx+.38&&px+hw>tx-.38&&py<ty+.75&&py+hh>ty&&pz-hw<tz+.38&&pz+hw>tz-.38)return true;}
+  if(typeof wfOverlaps==='function'&&wfOverlaps(px,py,pz,hw,hh))return true;
   return false;
 }
 let lavaDmgTimer=0,snowDmgTimer=0,starveT=0;

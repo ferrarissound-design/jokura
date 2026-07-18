@@ -835,7 +835,7 @@ function updateChunks(force){
   // mesh build means fresh chunks see all their neighbours → no rebuild storm
   let grew=false;
   for(const[cx,cz]of list){
-    if(!chunks[cKey(cx,cz)]){generateChunk(cx,cz);grew=true;}
+    if(!chunks[cKey(cx,cz)]){generateChunk(cx,cz);wfMaybeSpawnNearChunk(cx,cz);grew=true;}
     if(!underChunks[ucKey(cx,-1,cz)]){generateUnderChunk(cx,-1,cz);grew=true;}
     if(P.y<0){for(let dy=0;dy<=DRAW_RY;dy++){const cy=pcy-dy;if(cy>=-1||cy<WORLD_CY_MIN)continue;if(!underChunks[ucKey(cx,cy,cz)]){generateUnderChunk(cx,cy,cz);grew=true;}}}
   }
@@ -6192,6 +6192,93 @@ function generateSunkenRoyalCity(){
   requestAnimationFrame(step);
 }
 
+
+// ═══ 歩き続ける巨大城塞（移動体特殊生成） ═══
+let walkingFortress=null;
+const WF_STEP_INTERVAL=3.0,WF_SPEED=.22,WF_VISIBLE_R=180;
+const WF_BODY_BOXES=[
+  [-13,10,-9,13,11,9],[-13,17,-9,13,18,9], // lower deck floor/ceiling
+  [-13,11,-9,-12,17,9],[12,11,-9,13,17,9],[-13,11,-9,13,17,-8],[-13,11,8,13,17,9], // lower walls
+  [-10,18,-7,10,19,7],[-10,21,-7,10,22,7], // central hall
+  [-10,19,-7,-9,21,7],[9,19,-7,10,21,7],[-10,19,-7,10,21,-6],[-10,19,6,10,21,7],
+  [-5,22,-4,5,23,4],[-5,26,-4,5,27,4], // control room
+  [-5,23,-4,-4,26,4],[4,23,-4,5,26,4],[-5,23,-4,5,26,-3],[-5,23,3,5,26,4],
+  [-15,12,-11,15,15,-9],[-15,12,9,15,15,11],[-15,12,-9,-13,15,9],[13,12,-9,15,15,9], // outer ramparts
+];
+function _wfBox(root,x0,y0,z0,x1,y1,z1,mat){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),mat);
+  m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
+  root.add(m);
+  return m;
+}
+function _wfBuildMesh(){
+  const root=new THREE.Group();root.userData.isWalkingFortress=true;
+  const mats=root.userData.mats={
+    stone:new THREE.MeshStandardMaterial({color:0x747780,roughness:.95}),
+    dark:new THREE.MeshStandardMaterial({color:0x2a2e3d,roughness:.9}),
+    core:new THREE.MeshStandardMaterial({color:0x00e5ff,emissive:0x00aacc,emissiveIntensity:1.2,roughness:.35}),
+    gold:new THREE.MeshStandardMaterial({color:0xd9b44a,roughness:.7}),
+  };
+  const stone=mats.stone,dark=mats.dark,core=mats.core,gold=mats.gold;
+  for(const b of WF_BODY_BOXES)_wfBox(root,...b,stone);
+  for(const sx of[-1,1])for(const sz of[-1,1]){
+    _wfBox(root,sx*10-1,0,sz*6-1,sx*10+1,11,sz*6+1,dark);
+    _wfBox(root,sx*8-2,11,sz*4-2,sx*12+2,13,sz*8+2,stone);
+  }
+  for(const sx of[-1,1])for(const sz of[-1,1]){_wfBox(root,sx*11-2,15,sz*7-2,sx*11+2,26,sz*7+2,stone);_wfBox(root,sx*11-3,26,sz*7-3,sx*11+3,28,sz*7+3,dark);}
+  _wfBox(root,-3,12,-11,3,17,-9,dark); // 侵入口
+  _wfBox(root,-8,19,-2,8,21,2,dark);   // 中央通路
+  _wfBox(root,-3,20,-3,3,24,3,core);    // 動力炉
+  _wfBox(root,-2,25,-2,2,27,2,gold);    // 玉座・制御室
+  for(let i=0;i<10;i++){const x=-12+i*2.6;_wfBox(root,x,15.2,-11.7,x+.8,17.2,-10.9,dark);_wfBox(root,x,15.2,10.9,x+.8,17.2,11.7,dark);}
+  markShadowCaster(root);return root;
+}
+function _wfSurfaceY(x,z){let y=getHeight(Math.floor(x),Math.floor(z));for(let yy=y+6;yy>=-4;yy--){const v=voxels[vKey(Math.floor(x),yy,Math.floor(z))];if(v&&v.ti!==WATER_BLOCK&&v.ti!==LAVA_BLOCK)return yy;}return y;}
+function _wfCreate(x,z,dir,phase,silent){
+  const y=_wfSurfaceY(x,z),ang=Math.atan2(dir.x,dir.z);
+  const mesh=_wfBuildMesh();mesh.position.set(x,y,z);mesh.rotation.y=ang;scene.add(mesh);
+  walkingFortress={generated:true,x,y,z,dir:{x:dir.x,z:dir.z},angle:ang,phase:phase||0,stepT:0,mesh,lastStamp:0};
+  if(!silent)showAlert('🏰 遠くで巨大城塞が歩き始めた…');
+  return walkingFortress;
+}
+function generateWalkingFortress(){
+  if(walkingFortress){showBonus('🏰 歩き続ける巨大城塞はすでに存在する');return;}
+  const a=yaw+(Math.random()-.5)*1.2,dist=120+Math.random()*80;
+  const x=P.x+Math.sin(a)*dist,z=P.z+Math.cos(a)*dist;
+  const dirA=a+Math.PI+(Math.random()-.5)*.8;
+  _wfCreate(x,z,{x:Math.sin(dirA),z:Math.cos(dirA)},Math.random()*Math.PI*2);
+}
+function resetWalkingFortress(){if(walkingFortress&&walkingFortress.mesh){scene.remove(walkingFortress.mesh);disposeObject3D(walkingFortress.mesh);}walkingFortress=null;}
+function wfSaveState(){const F=walkingFortress;if(!F)return null;return{generated:true,x:F.x,y:F.y,z:F.z,dir:F.dir,phase:F.phase};}
+function wfLoadState(d){resetWalkingFortress();if(!d||!d.generated)return;_wfCreate(d.x||0,d.z||0,d.dir||{x:1,z:0},d.phase||0,true);if(walkingFortress&&typeof d.y==='number'){walkingFortress.y=d.y;walkingFortress.mesh.position.y=d.y;}}
+function _wfLocal(F,x,z){const dx=x-F.x,dz=z-F.z,c=Math.cos(-(F.angle||0)),s=Math.sin(-(F.angle||0));return{x:dx*c-dz*s,z:dx*s+dz*c};}
+function _wfPlayerInside(F){if(!F)return false;const p=_wfLocal(F,P.x,P.z);return Math.abs(p.x)<16&&P.y>F.y+1&&P.y<F.y+29&&Math.abs(p.z)<13;}
+function _wfStampTrail(F){const now=performance.now();if(now-F.lastStamp<9000)return;F.lastStamp=now;for(const sx of[-10,10])for(const sz of[-6,6]){const x=Math.round(F.x+sx),z=Math.round(F.z+sz),y=_wfSurfaceY(x,z);const v=voxels[vKey(x,y,z)];if(v&&v.active&&v.ti!==LAVA_BLOCK&&v.ti!==WATER_BLOCK){removeBlock(x,y,z);addBlock(x,y,z,DEEP_STONE,true,true);worldEdits.placed[vKey(x,y,z)]=DEEP_STONE;}}}
+function wfMaybeSpawnNearChunk(cx,cz){
+  if(walkingFortress||isCreative())return;
+  if(Math.hypot(cx,cz)<8)return; // 初期探索圏には出さず、未探索エリア側でだけ低確率抽選
+  if(rand2(cx,cz,WORLD_SEED^0x57f0)>0.0035)return;
+  const x=cx*CHUNK+8,z=cz*CHUNK+8,a=Math.atan2(-z,-x)+(rand2(cx,cz,91)-.5)*.7;
+  _wfCreate(x,z,{x:Math.sin(a),z:Math.cos(a)},rand2(cx,cz,92)*Math.PI*2);
+}
+function updateWalkingFortress(dt){
+  const F=walkingFortress;if(!F||!F.mesh)return;
+  F.stepT+=dt;F.phase+=dt*1.5;
+  const near=Math.hypot(P.x-F.x,P.z-F.z)<WF_VISIBLE_R;
+  F.mesh.visible=near;if(!near)return;
+  const dx=F.dir.x*WF_SPEED*dt,dz=F.dir.z*WF_SPEED*dt;
+  F.x+=dx;F.z+=dz;
+  F.y+=(_wfSurfaceY(F.x,F.z)+1.5-F.y)*Math.min(1,dt*.25);
+  F.mesh.position.set(F.x,F.y+Math.sin(F.phase)*.08,F.z);
+  for(let i=0;i<F.mesh.children.length;i++){
+    const c=F.mesh.children[i];
+    if(i>=7&&i<11)c.position.y+=Math.sin(F.phase+i)*.002;
+  }
+  if(_wfPlayerInside(F)){P.x+=dx;P.z+=dz;}
+  if(F.stepT>WF_STEP_INTERVAL){F.stepT=0;_wfStampTrail(F);}
+}
+function wfOverlaps(px,py,pz,hw,hh){const F=walkingFortress;if(!F||!F.mesh||!F.mesh.visible)return false;const lp=_wfLocal(F,px,pz),lx=lp.x,lz=lp.z,ly=py-F.y;for(const e of WF_BODY_BOXES){if(lx-hw<e[3]&&lx+hw>e[0]&&ly<e[4]&&ly+hh>e[1]&&lz-hw<e[5]&&lz+hw>e[2])return true;}for(const sx of[-10,10])for(const sz of[-6,6])if(lx-hw<sx+1&&lx+hw>sx-1&&ly<11&&ly+hh>0&&lz-hw<sz+1&&lz+hw>sz-1)return true;return false;}
+
 // ═══ 特殊生成メニュー: 登録テーブル + ディスパッチャ ═══
 // UIの「特殊生成」ピッカーはこの配列を舐めてボタンを並べるだけ。新しい生成物を
 // 追加するときは、この配列に1エントリ足して generateXxx() を実装すればよい
@@ -6207,6 +6294,7 @@ const SPECIAL_STRUCTURES=[
   {key:'sealedUndergroundCity',icon:'🏛',label:'封印された地底都市',desc:'地上の小さな遺跡の地下深くに眠る古代都市。中央神殿の封印装置を解き放て',fn:generateSealedUndergroundCity},
   {key:'collapsingSkyCity',icon:'☁',label:'崩れかけの天空都市',desc:'雲上に浮かぶ半壊都市。中央動力炉を再起動して光の橋と隠し制御室を復旧',fn:generateCollapsingSkyCity},
   {key:'sunkenRoyalCity',icon:'🌊',label:'海底に沈んだ王都',desc:'海面下に眠る巨大都市。城壁と時計塔を越え、王宮の王の間と地下宝物庫を目指せ',fn:generateSunkenRoyalCity},
+  {key:'walkingFortress',icon:'🏰',label:'歩き続ける巨大城塞',desc:'四脚でゆっくり世界を歩く地形級の移動要塞。内部ホール・動力炉・制御室を探索',fn:generateWalkingFortress},
 ];
 function generateSpecialStructure(key){
   const def=SPECIAL_STRUCTURES.find(s=>s.key===key);
@@ -6229,4 +6317,3 @@ function findNearestStructure(px,pz,minDist){
   }
   return best;
 }
-
