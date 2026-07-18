@@ -63,6 +63,17 @@
   <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
   <button id="saveFloatBtn">💾</button>
   <button id="structBtn" style="display:none" title="特殊生成メニュー">🏗</button>
+  <button id="regionEditBtn" style="display:none" title="範囲編集ツール">▣</button>
+  <div id="regionEditHud" style="display:none">
+    <div id="regionEditStatus">範囲編集：点Aを選択</div>
+    <div id="regionEditGrid">
+      <button data-re="pickA">点A選択</button><button data-re="pickB">点B選択</button>
+      <button data-re="fill">埋める</button><button data-re="delete">削除</button>
+      <button data-re="wall">壁</button><button data-re="floor">床</button>
+      <button data-re="box">箱</button><button data-re="undo">Undo</button>
+      <button data-re="clear">選択解除</button><button data-re="close">閉じる</button>
+    </div>
+  </div>
   <div id="waveAlert"></div>
   <div id="waveTimer"></div>
   <div id="bonusPopup"></div>
@@ -256,7 +267,7 @@
 (function(){
   var V='20260731a';
   var PARTS=['state','achievements','crafting','save','ui','audio',
-             'world','combat','entities','humanoids','hud','input','main','cheats'];
+             'world','combat','entities','humanoids','hud','region_editor','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）

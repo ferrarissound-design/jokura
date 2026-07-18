@@ -54,6 +54,9 @@ function updateFlyBtns(){
 // ボタンは即座にメニューを開くだけ（クールダウン不要）。実際の一発生成（数千
 // ブロック編集）はメニュー内のボタン側で1.5秒クールダウンを共有して踏む。
 const $structBtn=document.getElementById('structBtn');
+const $regionEditBtn=document.getElementById('regionEditBtn');
+const $regionEditHud=document.getElementById('regionEditHud');
+const $regionEditStatus=document.getElementById('regionEditStatus');
 const $structPanel=document.getElementById('structPanel');
 const $structBody=document.getElementById('structBody');
 const $structCloseBtn=document.getElementById('structCloseBtn');
@@ -83,6 +86,10 @@ function openStructPanel(){if(!gs.running||!isCreative())return;buildStructPanel
 function closeStructPanel(){setPanel($structPanel,false);}
 function _onStructBtnTap(){if(!gs.running||!isCreative())return;initAudio();openStructPanel();}
 if($structBtn)bindTapSafe($structBtn,_onStructBtnTap);
+function updateRegionEditUI(){if(!$regionEditHud||!regionEditor)return;const on=regionEditor.state.active&&isCreative()&&gs.running;$regionEditHud.style.display=on?'':'none';if($regionEditStatus)$regionEditStatus.textContent=regionEditor.state.msg;}
+function _onRegionEditBtnTap(){if(!gs.running||!isCreative())return;initAudio();if(!regionEditor)regionEditor=makeRegionEditor();regionEditor.toggle();updateRegionEditUI();}
+if($regionEditBtn)bindTapSafe($regionEditBtn,_onRegionEditBtnTap);
+if($regionEditHud)$regionEditHud.addEventListener('pointerdown',(e)=>{e.stopPropagation();const b=e.target.closest('button[data-re]');if(!b||!regionEditor)return;e.preventDefault();const a=b.dataset.re;if(a==='pickA')regionEditor.setPickMode('A');else if(a==='pickB')regionEditor.setPickMode('B');else if(a==='fill')regionEditor.run('fill');else if(a==='delete')regionEditor.run('delete');else if(a==='wall')regionEditor.run('wall');else if(a==='floor')regionEditor.run('floor');else if(a==='box')regionEditor.run('box');else if(a==='undo')regionEditor.undo();else if(a==='clear')regionEditor.resetSelection();else if(a==='close')regionEditor.close();updateRegionEditUI();});
 if($structCloseBtn)bindTapSafe($structCloseBtn,closeStructPanel);
 // Creative-only spawn eggs: reuse the voxel mob builders and place the
 // selected mob a few blocks in front of the player.
@@ -121,6 +128,9 @@ function applyModeUI(){
   if($eatBtn)$eatBtn.style.display=cr?'none':'';
   if($meatLabel)$meatLabel.style.display=cr?'none':'';
   if($structBtn)$structBtn.style.display=cr?'':'none';
+  if($regionEditBtn)$regionEditBtn.style.display=cr?'':'none';
+  if(!cr&&regionEditor)regionEditor.close();
+  if(typeof updateRegionEditUI==='function')updateRegionEditUI();
   updateFlyBtns();
 }
 let _weaponBtnLastT=0;
@@ -256,6 +266,7 @@ function commonReset(){
   for(const it of items){scene.remove(it.mesh);it.mat.dispose();}items.length=0;
   for(const p of projectiles){scene.remove(p.mesh);p.mesh.material.dispose();}projectiles.length=0;
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
+  if(regionEditor){regionEditor.close();regionEditor.resetUndo();}
   clearWorld();yaw=0;pitch=0;attackCD=0;fishCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');undergroundSnapshot=null;prevPlayerUnderground=false;finalBossPending=false;bgmUnder=false;bgmUnderDragon=false;
   gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';$pauseBtn.style.display='none';
 }
@@ -402,8 +413,10 @@ function tick(now){
   if(isTouch&&now-lastT<FRAME_MIN){return;}
   const dt=Math.min(.05,(now-lastT)/1000);lastT=now;
   if(saveToastTimer>0){saveToastTimer-=dt;if(saveToastTimer<=0)$saveToast.classList.remove('show');}
-  if(!gs.running){rainGroup.visible=false;snowGroup.visible=false;renderer.render(scene,camera);return;}
-  if(gs.paused){renderer.render(scene,camera);return;}
+  if(!gs.running){rainGroup.visible=false;snowGroup.visible=false;if(regionEditor&&regionEditor.state.active)regionEditor.updateVisuals();
+  renderer.render(scene,camera);return;}
+  if(gs.paused){if(regionEditor&&regionEditor.state.active)regionEditor.updateVisuals();
+  renderer.render(scene,camera);return;}
   const prevTime=gs.time;gs.time=(gs.time+dt/DAY_DUR)%1;
   if(gs.time<prevTime){gs.day++;showAlert('🌅 DAY '+gs.day);}
   const isDay=(gs.time<.4||gs.time>.9);
@@ -565,6 +578,7 @@ function tick(now){
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}
   minimapT+=dt;if(minimapT>MINIMAP_INTERVAL){drawMinimap();minimapT=0;}
   if(settings.autoSave&&gs.running&&!gs.paused){autoSaveT+=dt;if(autoSaveT>=AUTOSAVE_INTERVAL){autoSaveT=0;saveGame();showSaveToast('💾 AUTO-SAVED');}}
+  if(regionEditor&&regionEditor.state.active)regionEditor.updateVisuals();
   renderer.render(scene,camera);
 }
 requestAnimationFrame(tick);
