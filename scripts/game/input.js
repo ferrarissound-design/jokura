@@ -56,6 +56,7 @@ document.addEventListener('keydown',(e)=>{
     if(!gs.running)return;
     if(_bedNearby())sleepBed();else placeBed();
   }
+  if(e.code==='KeyV'){if(typeof _onRegionEditBtnTap==='function')_onRegionEditBtnTap();}
   if(e.code==='Escape'||e.code==='KeyP'){if(gs.running)togglePause();}
 });
 document.addEventListener('keyup',(e)=>{keys[e.code]=false;});
@@ -63,7 +64,7 @@ if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.()
 
 // ═══ HOTBAR ═══
 let curType=0;const slots=[...document.querySelectorAll('.hslot')];
-function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');}
+function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');if(typeof updateRegionEditUI==='function')updateRegionEditUI();}
 slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();initAudio();setType(parseInt(s.dataset.i,10));});});
 function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
