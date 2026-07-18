@@ -232,4 +232,10 @@ canvas#c{display:block;touch-action:none}
 #regionEditGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 #regionEditGrid button{min-height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.22);background:rgba(40,70,95,.92);color:#fff;font-size:11px;font-weight:900;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 #regionEditGrid button:active{transform:scale(.95);background:rgba(80,130,160,.95)}
+#regionEditBlockRow{font-size:10px;font-weight:900;line-height:1.35;margin-bottom:6px;color:#ffe9b0}
+#regionEditGrid button.reActive{border-color:#66e0ff;background:rgba(25,150,205,.9);box-shadow:0 0 8px rgba(102,224,255,.6)}
+#regionEditGrid button.reDanger{background:rgba(150,45,58,.9);border-color:rgba(255,120,130,.5)}
+#regionEditGrid button.reDanger:active{background:rgba(200,60,75,.95)}
+#regionEditGrid button.reDisabled{opacity:.45}
+#regionEditHud.reBusy #regionEditGrid button{opacity:.45;pointer-events:none}
 @media (max-width:520px){#regionEditHud{top:calc(8px + var(--safeT));left:calc(8px + var(--safeL));right:auto;width:min(246px,calc(100vw - 16px - var(--safeL) - var(--safeR)))}#regionEditGrid button{min-height:38px;font-size:10px}}

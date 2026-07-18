@@ -57,6 +57,10 @@ const $structBtn=document.getElementById('structBtn');
 const $regionEditBtn=document.getElementById('regionEditBtn');
 const $regionEditHud=document.getElementById('regionEditHud');
 const $regionEditStatus=document.getElementById('regionEditStatus');
+const $regionEditBlockName=document.getElementById('regionEditBlockName');
+const $rePickABtn=document.getElementById('rePickABtn');
+const $rePickBBtn=document.getElementById('rePickBBtn');
+const $reUndoBtn=document.getElementById('reUndoBtn');
 const $structPanel=document.getElementById('structPanel');
 const $structBody=document.getElementById('structBody');
 const $structCloseBtn=document.getElementById('structCloseBtn');
@@ -86,7 +90,26 @@ function openStructPanel(){if(!gs.running||!isCreative())return;buildStructPanel
 function closeStructPanel(){setPanel($structPanel,false);}
 function _onStructBtnTap(){if(!gs.running||!isCreative())return;initAudio();openStructPanel();}
 if($structBtn)bindTapSafe($structBtn,_onStructBtnTap);
-function updateRegionEditUI(){if(!$regionEditHud||!regionEditor)return;const on=regionEditor.state.active&&isCreative()&&gs.running;$regionEditHud.style.display=on?'':'none';if($regionEditStatus)$regionEditStatus.textContent=regionEditor.state.msg;}
+function _hotbarSlotName(i){const s=(typeof slots!=='undefined')&&slots[i];return s?s.textContent.replace(/[0-9]/g,'').trim():'';}
+function updateRegionEditUI(){
+  if(!$regionEditHud||!regionEditor)return;
+  const st=regionEditor.state;
+  const on=st.active&&isCreative()&&gs.running;
+  $regionEditHud.style.display=on?'':'none';
+  if(!on)return;
+  if($regionEditStatus)$regionEditStatus.textContent=st.msg;
+  // バッチ編集中はボタンを無効化して二重実行や誤タップを防ぐ
+  $regionEditHud.classList.toggle('reBusy',st.busy);
+  // 次のタップでどちらの点が選ばれるかをボタンのハイライトで示す
+  if($rePickABtn)$rePickABtn.classList.toggle('reActive',!st.busy&&st.picking==='A');
+  if($rePickBBtn)$rePickBBtn.classList.toggle('reActive',!st.busy&&st.picking==='B');
+  if($regionEditBlockName)$regionEditBlockName.textContent=_hotbarSlotName(curType)||'?';
+  if($reUndoBtn){
+    const n=st.undoStack.length;
+    $reUndoBtn.textContent=n>0?'↩ Undo ('+n+')':'↩ Undo';
+    $reUndoBtn.classList.toggle('reDisabled',n===0);
+  }
+}
 function _onRegionEditBtnTap(){if(!gs.running||!isCreative())return;initAudio();if(!regionEditor)regionEditor=makeRegionEditor();regionEditor.toggle();updateRegionEditUI();}
 if($regionEditBtn)bindTapSafe($regionEditBtn,_onRegionEditBtnTap);
 if($regionEditHud)$regionEditHud.addEventListener('pointerdown',(e)=>{e.stopPropagation();const b=e.target.closest('button[data-re]');if(!b||!regionEditor)return;e.preventDefault();const a=b.dataset.re;if(a==='pickA')regionEditor.setPickMode('A');else if(a==='pickB')regionEditor.setPickMode('B');else if(a==='fill')regionEditor.run('fill');else if(a==='delete')regionEditor.run('delete');else if(a==='wall')regionEditor.run('wall');else if(a==='floor')regionEditor.run('floor');else if(a==='box')regionEditor.run('box');else if(a==='undo')regionEditor.undo();else if(a==='clear')regionEditor.resetSelection();else if(a==='close')regionEditor.close();updateRegionEditUI();});

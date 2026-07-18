@@ -6,11 +6,12 @@
 const REGION_EDIT_MAX_BLOCKS=10000;
 const REGION_EDIT_BATCH=450;
 const REGION_BOX_THICKNESS=1;
+const REGION_EDIT_UNDO_MAX=10;
 
 function makeRegionEditor(){
   const state={
     active:false,picking:'A',a:null,b:null,busy:false,done:0,total:0,
-    undo:null,msg:'範囲編集：点Aを選択',box:null,ma:null,mb:null
+    undoStack:[],msg:'範囲編集：点Aを選択',box:null,ma:null,mb:null
   };
   const matLine=new THREE.LineBasicMaterial({color:0x66e0ff,transparent:true,opacity:.9,depthTest:false});
   const matA=new THREE.MeshBasicMaterial({color:0x44ff77,transparent:true,opacity:.55,depthTest:false});
@@ -39,11 +40,17 @@ function makeRegionEditor(){
     };
   }
   function count(b){return (b.maxX-b.minX+1)*(b.maxY-b.minY+1)*(b.maxZ-b.minZ+1);}
+  function fmtPoint(p){return p?'('+p.x+', '+p.y+', '+p.z+')':'未選択';}
   function setMsg(){
     const b=bounds();
-    if(state.busy)state.msg='範囲を編集中 '+Math.floor(state.done/Math.max(1,state.total)*100)+'%\n'+state.done+' / '+state.total+' ブロック';
-    else if(b)state.msg='選択範囲：'+(b.maxX-b.minX+1)+' × '+(b.maxY-b.minY+1)+' × '+(b.maxZ-b.minZ+1)+'\n選択ブロック数：'+count(b);
-    else state.msg='範囲編集：点'+state.picking+'を選択';
+    if(state.busy){
+      state.msg='範囲を編集中 '+Math.floor(state.done/Math.max(1,state.total)*100)+'%\n'+state.done+' / '+state.total+' ブロック';
+    }else{
+      let m='🟩 点A '+fmtPoint(state.a)+'\n🟨 点B '+fmtPoint(state.b);
+      if(b)m+='\n選択範囲：'+(b.maxX-b.minX+1)+' × '+(b.maxY-b.minY+1)+' × '+(b.maxZ-b.minZ+1)+'（'+count(b)+' ブロック）';
+      m+='\n👆 ブロックをタップ → 点'+state.picking+'を選択';
+      state.msg=m;
+    }
     notifyUI();
   }
   function updateVisuals(){
@@ -65,10 +72,14 @@ function makeRegionEditor(){
   function open(){if(!gs.running||!isCreative())return;state.active=true;state.picking=state.a?'B':'A';setMsg();updateVisuals();}
   function close(){state.active=false;setMsg();updateVisuals();}
   function resetSelection(){if(state.busy)return;state.a=state.b=null;state.picking='A';setMsg();updateVisuals();}
+  // 点Aは基準点として固定し、2回目以降のタップは点Bを動かして範囲を微調整
+  // できるようにする（点Aをやり直すときは「点A」ボタンで切り替える）。
   function pick(hit){
     if(!state.active||state.busy||!hit)return false;
     const p={x:hit.x,y:hit.y,z:hit.z};
-    if(state.picking==='A'){state.a=p;state.picking='B';}else{state.b=p;state.picking='A';}
+    const picked=state.picking;
+    if(picked==='A'){state.a=p;state.picking='B';}else{state.b=p;}
+    if(typeof playTone==='function')playTone(picked==='A'?600:760,.05,.07,'square');
     setMsg();updateVisuals();return true;
   }
   function ensureChunks(b){
@@ -124,14 +135,19 @@ function makeRegionEditor(){
           if(++c>=REGION_EDIT_BATCH){setMsg();requestAnimationFrame(step);return;}
         }
       }finally{
-        if(y>b.maxY){_deferDirty=false;flushDirtyChunks();state.busy=false;state.undo=undo;safePlayer();setMsg();showBonus('範囲編集 完了');}
+        if(y>b.maxY){
+          _deferDirty=false;flushDirtyChunks();state.busy=false;
+          state.undoStack.push(undo);
+          if(state.undoStack.length>REGION_EDIT_UNDO_MAX)state.undoStack.shift();
+          safePlayer();setMsg();showBonus('範囲編集 完了（↩ Undoで戻せます）');
+        }
       }
     }
     requestAnimationFrame(step);
   }
   function undo(){
-    if(state.busy||!state.undo)return showBonus('Undo履歴がありません');
-    const hist=state.undo;state.undo=null;let i=0;
+    if(state.busy||!state.undoStack.length)return showBonus('Undo履歴がありません');
+    const hist=state.undoStack.pop();let i=0;
     state.busy=true;state.total=hist.length;state.done=0;setMsg();_deferDirty=true;
     function step(){
       let c=0;
@@ -141,11 +157,11 @@ function makeRegionEditor(){
           if(++c>=REGION_EDIT_BATCH){setMsg();requestAnimationFrame(step);return;}
         }
       }finally{
-        if(i>=hist.length){_deferDirty=false;flushDirtyChunks();state.busy=false;setMsg();showBonus('Undoしました');}
+        if(i>=hist.length){_deferDirty=false;flushDirtyChunks();state.busy=false;setMsg();showBonus('Undoしました'+(state.undoStack.length?'（残り'+state.undoStack.length+'回）':''));}
       }
     }
     requestAnimationFrame(step);
   }
-  return{state,open,close,toggle(){state.active?close():open();},pick,resetSelection,run,undo,setPickMode(m){if(!state.busy){state.picking=m;setMsg();}},resetUndo(){state.undo=null;},updateVisuals,setMsg};
+  return{state,open,close,toggle(){state.active?close():open();},pick,resetSelection,run,undo,setPickMode(m){if(!state.busy){state.picking=m;setMsg();}},resetUndo(){state.undoStack.length=0;},updateVisuals,setMsg};
 }
 let regionEditor=null;
