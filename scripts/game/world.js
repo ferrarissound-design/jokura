@@ -799,6 +799,7 @@ function generateChunk(cx,cz){
     if(biome===BIOMES.DESERT&&rand2(wx,wz,48)<0.02){const ch=1+Math.floor(rand2(wx,wz,49)*3);for(let cy=1;cy<=ch;cy++){const mc=addBlock(wx,h+cy,wz,CACTUS_BLOCK,false);if(mc)meshes.add(mc);}}
   }
   _spawnSurfaceStructures(cx,cz,meshes);
+  if(typeof maybeGenerateVillageForChunk==='function')maybeGenerateVillageForChunk(cx,cz,meshes);
   const rec=makeChunkRec(false);
   for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
   chunks[key]=rec;
