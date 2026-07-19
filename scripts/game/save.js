@@ -154,6 +154,8 @@ async function saveGame(){
     skyCity:(typeof sccSaveState==='function')?sccSaveState():null,
     // 🌊 海底に沈んだ王都（旧セーブに無い場合は未生成として扱う）
     sunkenCity:(typeof srcSaveState==='function')?srcSaveState():null,
+    // 🏰 歩き続ける巨大城塞（移動体なので現在位置・向き・歩行位相を保存）
+    walkingFortress:(typeof wfSaveState==='function')?wfSaveState():null,
     achievements:{...achievements},
     preview:captureSavePreview(),
     biomeName:getSaveBiomeName(),
