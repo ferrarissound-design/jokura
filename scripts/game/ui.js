@@ -10,7 +10,8 @@
 // ═══ HELP / SETTINGS ═══
 const SETTINGS_KEY='jokura-settings-v1';
 // difficulty: player-damage multiplier; lookSens: touch look multiplier; flash: hit/lava screen flashes; autoSave: periodic save
-const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival'};
+const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival',skyQuality:'auto'};
+const SKY_QUALITIES=['auto','low','medium','high'];
 const DIFF_MULT={easy:.6,normal:1,hard:1.5};
 function difficultyMult(){return DIFF_MULT[settings.difficulty]||1;}
 function loadSettings(){
@@ -19,6 +20,7 @@ function loadSettings(){
   settings.lookSens=Math.max(.4,Math.min(2,Number(settings.lookSens)||1));
   if(typeof settings.shadows!=='boolean')settings.shadows=!isTouch; // shadows default: PC on, mobile off
   if(typeof settings.bob!=='boolean')settings.bob=true;
+  if(SKY_QUALITIES.indexOf(settings.skyQuality)<0)settings.skyQuality='auto';
   // LS initialises from settings.lookSens at its own declaration; don't touch it here (TDZ)
 }
 function applyAccessibility(){try{LS=LS_BASE*settings.lookSens;}catch(e){}}
@@ -51,6 +53,8 @@ const $diffBtns={easy:document.getElementById('diffEasyBtn'),normal:document.get
 const $sensBtns=[document.getElementById('sensLowBtn'),document.getElementById('sensMidBtn'),document.getElementById('sensHighBtn')];
 const SENS_VALS=[.6,1,1.5];
 const $flashToggleBtn=document.getElementById('flashToggleBtn'),$autoSaveToggleBtn=document.getElementById('autoSaveToggleBtn'),$shadowToggleBtn=document.getElementById('shadowToggleBtn'),$bobToggleBtn=document.getElementById('bobToggleBtn');
+const $skyQualityBtn=document.getElementById('skyQualityBtn');
+const SKY_QUALITY_LABEL={auto:'AUTO',low:'LOW',medium:'MID',high:'HIGH'};
 function updateSettingsUI(){
   if($bgmToggleBtn){$bgmToggleBtn.textContent='BGM: '+(settings.bgmMuted?'OFF':'ON');$bgmToggleBtn.classList.toggle('on',!settings.bgmMuted);$bgmToggleBtn.classList.toggle('off',settings.bgmMuted);}
   if($sfxToggleBtn){$sfxToggleBtn.textContent='SE: '+(settings.sfxMuted?'OFF':'ON');$sfxToggleBtn.classList.toggle('on',!settings.sfxMuted);$sfxToggleBtn.classList.toggle('off',settings.sfxMuted);}
@@ -60,6 +64,7 @@ function updateSettingsUI(){
   if($flashToggleBtn){$flashToggleBtn.textContent='画面フラッシュ: '+(settings.flash?'ON':'OFF');$flashToggleBtn.classList.toggle('on',settings.flash);$flashToggleBtn.classList.toggle('off',!settings.flash);}
   if($autoSaveToggleBtn){$autoSaveToggleBtn.textContent='オートセーブ: '+(settings.autoSave?'ON':'OFF');$autoSaveToggleBtn.classList.toggle('on',settings.autoSave);$autoSaveToggleBtn.classList.toggle('off',!settings.autoSave);}
   if($shadowToggleBtn){$shadowToggleBtn.textContent='影(シャドウ): '+(settings.shadows?'ON':'OFF');$shadowToggleBtn.classList.toggle('on',!!settings.shadows);$shadowToggleBtn.classList.toggle('off',!settings.shadows);}
+  if($skyQualityBtn){$skyQualityBtn.textContent='空の品質: '+(SKY_QUALITY_LABEL[settings.skyQuality]||'AUTO');$skyQualityBtn.classList.add('on');}
   if($bobToggleBtn){$bobToggleBtn.textContent='画面の揺れ: '+(settings.bob?'ON':'OFF');$bobToggleBtn.classList.toggle('on',!!settings.bob);$bobToggleBtn.classList.toggle('off',!settings.bob);}
 }
 function toggleBgmMute(){
@@ -75,6 +80,13 @@ function toggleFlash(){settings.flash=!settings.flash;saveSettings();updateSetti
 function toggleAutoSave(){settings.autoSave=!settings.autoSave;saveSettings();updateSettingsUI();showSaveToast(settings.autoSave?'オートセーブ ON':'オートセーブ OFF');}
 function toggleShadows(){settings.shadows=!settings.shadows;saveSettings();updateSettingsUI();applyShadowSetting();showSaveToast(settings.shadows?'🌤 影 ON':'影 OFF');}
 function toggleBob(){settings.bob=!settings.bob;saveSettings();updateSettingsUI();showSaveToast(settings.bob?'画面の揺れ ON':'画面の揺れ OFF');}
+function cycleSkyQuality(){
+  const i=SKY_QUALITIES.indexOf(settings.skyQuality);
+  settings.skyQuality=SKY_QUALITIES[(i+1)%SKY_QUALITIES.length];
+  saveSettings();updateSettingsUI();
+  try{if(typeof skySystem!=='undefined')skySystem.setQuality(settings.skyQuality);}catch(e){}
+  showSaveToast('空の品質: '+(SKY_QUALITY_LABEL[settings.skyQuality]||'AUTO'));
+}
 loadSettings();updateSettingsUI();
 // ─── MODE SELECT (title screen): NEW GAME starts in the selected mode ───
 if(settings.gameMode!=='creative')settings.gameMode='survival';
@@ -104,6 +116,7 @@ if($flashToggleBtn)bindTapSafe($flashToggleBtn,toggleFlash);
 if($autoSaveToggleBtn)bindTapSafe($autoSaveToggleBtn,toggleAutoSave);
 if($shadowToggleBtn)bindTapSafe($shadowToggleBtn,toggleShadows);
 if($bobToggleBtn)bindTapSafe($bobToggleBtn,toggleBob);
+if($skyQualityBtn)bindTapSafe($skyQualityBtn,cycleSkyQuality);
 // ─── ROBUST MENU CLOSE ───
 // On small phones a tall panel can push the bottom CLOSE button past the visible
 // viewport. Give every .menuPanel an always-visible corner ✕ (pinned to the
