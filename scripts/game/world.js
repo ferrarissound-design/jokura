@@ -6195,7 +6195,7 @@ function generateSunkenRoyalCity(){
 
 // ═══ 歩き続ける巨大城塞（移動体特殊生成） ═══
 let walkingFortress=null;
-const WF_STEP_INTERVAL=3.0,WF_SPEED=.22,WF_DETAIL_R=190,WF_VISIBLE_R=420;
+const WF_STEP_INTERVAL=1.2,WF_SPEED=.85,WF_DETAIL_R=190,WF_VISIBLE_R=420;
 const WF_LEG_POS=[[-15,-8],[-15,8],[0,-9],[0,9],[15,-8],[15,8]];
 const WF_BODY_BOXES=[
   [-13,10,-9,13,11,9],[-13,17,-9,13,18,9], // lower deck floor/ceiling
@@ -6209,7 +6209,7 @@ const WF_BODY_BOXES=[
 function _wfBox(root,x0,y0,z0,x1,y1,z1,mat,tag){
   const m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0),mat);
   m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);
-  m.userData.baseY=m.position.y;
+  m.userData.baseX=m.position.x;m.userData.baseY=m.position.y;m.userData.baseZ=m.position.z;
   if(tag)m.userData[tag]=true;
   root.add(m);
   return m;
@@ -6295,7 +6295,7 @@ function _wfSurfaceY(x,z){let y=getHeight(Math.floor(x),Math.floor(z));for(let y
 function _wfCreate(x,z,dir,phase,silent){
   const y=_wfSurfaceY(x,z),ang=Math.atan2(dir.x,dir.z);
   const mesh=_wfBuildMesh();mesh.position.set(x,y,z);mesh.rotation.y=ang;scene.add(mesh);
-  walkingFortress={generated:true,x,y,z,dir:{x:dir.x,z:dir.z},angle:ang,phase:phase||0,stepT:0,mesh,lastStamp:0};
+  walkingFortress={generated:true,x,y,z,dir:{x:dir.x,z:dir.z},angle:ang,phase:phase||0,stepT:0,motionCueT:0,mesh,lastStamp:0};
   if(!silent)showAlert('🏰 遠くで巨大城塞が歩き始めた…');
   return walkingFortress;
 }
@@ -6332,22 +6332,34 @@ function wfMaybeSpawnNearChunk(cx,cz){
 }
 function updateWalkingFortress(dt){
   const F=walkingFortress;if(!F||!F.mesh)return;
-  F.stepT+=dt;F.phase+=dt*1.5;
+  F.stepT+=dt;F.motionCueT=(F.motionCueT||0)+dt;F.phase+=dt*3.2;
   const dist=Math.hypot(P.x-F.x,P.z-F.z),near=dist<WF_DETAIL_R;
-  F.mesh.visible=dist<WF_VISIBLE_R;if(!F.mesh.visible)return;
+  F.mesh.visible=dist<WF_VISIBLE_R;
   if(F.mesh.userData.detail)F.mesh.userData.detail.visible=near;
-  if(F.mesh.userData.silhouette)F.mesh.userData.silhouette.visible=!near;
+  if(F.mesh.userData.silhouette)F.mesh.userData.silhouette.visible=F.mesh.visible&&!near;
   const dx=F.dir.x*WF_SPEED*dt,dz=F.dir.z*WF_SPEED*dt;
-  F.x+=dx;F.z+=dz;
+  F.x+=dx;F.z+=dz; // 非表示距離でも座標は進める: 再接近した時に確実に移動済みに見える
   F.y+=(_wfSurfaceY(F.x,F.z)+1.5-F.y)*Math.min(1,dt*.25);
-  F.mesh.position.set(F.x,F.y+Math.sin(F.phase)*.08,F.z);
-  let li=0;
-  F.mesh.traverse(c=>{
-    if(c.userData&&(c.userData.wfLeg||c.userData.wfFoot)){
-      c.position.y=(c.userData.baseY||c.position.y)+Math.sin(F.phase+li)*.18;
-      li++;
-    }
-  });
+  F.mesh.position.set(F.x,F.y+Math.sin(F.phase)*.35,F.z);
+  F.mesh.rotation.z=Math.sin(F.phase*.5)*.018;
+  if(F.mesh.visible){
+    let li=0;
+    F.mesh.traverse(c=>{
+      if(c.userData&&(c.userData.wfLeg||c.userData.wfFoot)){
+        const ph=F.phase+li*.9,step=Math.sin(ph),swing=Math.cos(ph)*.42;
+        c.position.x=(c.userData.baseX!=null?c.userData.baseX:c.position.x)+(c.userData.wfFoot?swing*.7:swing*.25);
+        c.position.y=(c.userData.baseY!=null?c.userData.baseY:c.position.y)+(c.userData.wfFoot?Math.max(0,step)*.75:step*.38);
+        c.position.z=(c.userData.baseZ!=null?c.userData.baseZ:c.position.z)+(c.userData.wfFoot?swing*.55:swing*.18);
+        li++;
+      }
+    });
+  }
+
+  if(near&&F.motionCueT>.35){
+    F.motionCueT=0;
+    const p=WF_LEG_POS[Math.floor(F.phase*2)%WF_LEG_POS.length],wp=_wfWorld(F,p[0],p[1]);
+    if(typeof spawnParticles==='function')spawnParticles(wp.x,_wfSurfaceY(wp.x,wp.z)+1,wp.z,0x8a7a66,3);
+  }
   if(_wfPlayerInside(F)){P.x+=dx;P.z+=dz;}
   if(F.stepT>WF_STEP_INTERVAL){F.stepT=0;_wfStampTrail(F);}
 }
