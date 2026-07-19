@@ -18,7 +18,8 @@ if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAu
 function doFurnitureAction(){
   if(!gs.running)return;
   if(mounted){dismountHorse();return;} // 騎乗中のXは常に降車
-  if(_merchantNearby())               openMerchantPanel();
+  if(typeof openNearestVillagerUI==='function'&&openNearestVillagerUI()){}
+  else if(_merchantNearby())               openMerchantPanel();
   else if(_bedNearby())                    sleepBed();
   else if(_chestNearby())             interactChest();
   else if(_treasureNearby())          openTreasure();

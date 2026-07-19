@@ -229,3 +229,6 @@ if($codexCloseBtn)bindTapSafe($codexCloseBtn,closeCodex);
 if($questBtn)bindTapSafe($questBtn,openQuest);
 if($questCloseBtn)bindTapSafe($questCloseBtn,closeQuest);
 
+// village NPC panel uses the same menu-panel behavior as the miner/merchant UI.
+const $villagerCloseBtn=document.getElementById('villagerCloseBtn');
+if($villagerCloseBtn)bindTapSafe($villagerCloseBtn,()=>{if(typeof closeVillagerUI==='function')closeVillagerUI();});

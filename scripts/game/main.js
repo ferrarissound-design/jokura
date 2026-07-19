@@ -279,7 +279,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
-  clearHumanoids();
+  if(typeof clearVillages==='function')clearVillages();else clearHumanoids();
   removePet();removeHorse();removeMerchant();merchantSpawnT=60+Math.random()*60;
   resetMeteorEvent();resetWalkingFortress();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;cheatsUsed=false;godMode=false;
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
@@ -318,7 +318,7 @@ async function startGame(){
   $pauseBtn.style.display='flex';
   applyModeUI();
   if(isCreative())showAlert('🪄 CREATIVE MODE：自由に建築しよう！');
-  spawnAnimals(8);spawnHumanoids(1);updateInvHUD();resize();
+  spawnAnimals(8);if(!villagers||!villagers.length)spawnHumanoids(1);updateInvHUD();resize();
 }
 async function continueGame(){
   const d=await loadSaveData();if(!d)return;
@@ -362,9 +362,11 @@ async function continueGame(){
   srcLoadState(d.sunkenCity);
   // 🏰 歩き続ける巨大城塞: 移動体なのでチャンク生成前に位置だけ復元
   wfLoadState(d.walkingFortress);
+  if(d.villages&&typeof generatedVillageChunks!=='undefined')(d.villages.generatedChunks||[]).forEach(k=>generatedVillageChunks.add(k));
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
+  if(typeof villagesLoadState==='function')villagesLoadState(d.villages);
   // チェスト復元
   chestCount=d.chestCount||0;
   if(d.chests){for(const cd of d.chests){const mesh=makeChestMesh();mesh.position.set(cd.x+.5,cd.y,cd.z+.5);scene.add(mesh);chests.push({mesh,x:cd.x,y:cd.y,z:cd.z,contents:cd.contents||{wood:0,stone:0,sand:0,grass:0,brick:0,meat:0}});}}
