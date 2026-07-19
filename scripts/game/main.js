@@ -281,7 +281,7 @@ function commonReset(){
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   clearHumanoids();
   removePet();removeHorse();removeMerchant();merchantSpawnT=60+Math.random()*60;
-  resetMeteorEvent();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;cheatsUsed=false;godMode=false;
+  resetMeteorEvent();resetWalkingFortress();fullMoonNight=false;_wasDayPhase=true;fullMoonSpawnT=0;cheatsUsed=false;godMode=false;
   resetChests();resetBeds();resetTrophies();resetEnchTables();resetFurnaces();resetTreasures();resetFarmPlots();
   endlessMode=false;if($endlessBtn)$endlessBtn.style.display='none';
   if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;$bossWrap.classList.remove('show');}
@@ -360,6 +360,8 @@ async function continueGame(){
   sccLoadState(d.skyCity);
   // 🌊 沈んだ王都も座標を先に復元する（updateChunks が深部チャンクの生成フックを参照するため）
   srcLoadState(d.sunkenCity);
+  // 🏰 歩き続ける巨大城塞: 移動体なのでチャンク生成前に位置だけ復元
+  wfLoadState(d.walkingFortress);
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
@@ -503,6 +505,7 @@ function tick(now){
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
   updateCollapsingSkyCity(dt); // ☁ 天空都市: 近距離だけ炉・輪・落石・接触再起動を更新
   srcUpdate(dt); // 🌊 沈んだ王都: 海面メッシュの表示と海中の青いフォグ（遠距離では即リターン）
+  updateWalkingFortress(dt); // 🏰 歩き続ける巨大城塞: 低頻度の移動体更新・搭乗中の運搬
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
