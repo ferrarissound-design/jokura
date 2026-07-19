@@ -156,6 +156,7 @@ async function saveGame(){
     sunkenCity:(typeof srcSaveState==='function')?srcSaveState():null,
     // 🏰 歩き続ける巨大城塞（移動体なので現在位置・向き・歩行位相を保存）
     walkingFortress:(typeof wfSaveState==='function')?wfSaveState():null,
+    villages:(typeof villagesSaveState==='function')?villagesSaveState():null,
     achievements:{...achievements},
     preview:captureSavePreview(),
     biomeName:getSaveBiomeName(),
