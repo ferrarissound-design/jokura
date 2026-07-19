@@ -317,7 +317,9 @@ async function startGame(){
   resetWeather();
   $pauseBtn.style.display='flex';
   applyModeUI();
+  const starterVillageReady=(typeof ensureStarterVillage==='function')&&ensureStarterVillage();
   if(isCreative())showAlert('🪄 CREATIVE MODE：自由に建築しよう！');
+  else if(starterVillageReady&&villages&&villages[0])showAlert('🏘 近くに村があります：X '+Math.round(villages[0].center.x)+' / Z '+Math.round(villages[0].center.z));
   spawnAnimals(8);if(!villagers||!villagers.length)spawnHumanoids(1);updateInvHUD();resize();
 }
 async function continueGame(){
