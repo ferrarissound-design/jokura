@@ -27,7 +27,16 @@
 // ─── ACES トーンマップ + sRGB エンコード（シーン本体と同じ見え方に揃える）───
 // 旧スカイドームは MeshBasicMaterial だったため three が自動でトーンマップ/エンコード
 // していた。生 ShaderMaterial では自前で同じ処理を行い、地形と色調を一致させる。
+// _SKY_KEYS の16進色は「画面に出したい最終色（sRGB）」として選んでいるため、ACES に
+// 渡す前に一度 sRGB→linear へ戻す（skySrgb2lin）。これを省くと linear 値として誤って
+// 扱われ、最後の skyLin2srgb で二重にガンマ補正がかかり、彩度が大きく失われて
+// 空全体が白っぽく霞んで見えてしまう（青空が薄く見える主因だった）。
 const _SKY_TONEMAP_GLSL = [
+  'vec3 skySrgb2lin(vec3 c){',
+  '  vec3 lo=c/12.92;',
+  '  vec3 hi=pow((c+0.055)/1.055,vec3(2.4));',
+  '  return mix(hi,lo,vec3(lessThanEqual(c,vec3(0.04045))));',
+  '}',
   'vec3 skyAces(vec3 color,float exposure){',
   '  color*=exposure/0.6;',
   '  const mat3 ACESInputMat=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777);',
@@ -48,7 +57,9 @@ const _SKY_TONEMAP_GLSL = [
 
 // ─── 時間帯キーフレーム ───
 // h は 24時間表記。gs.time(0..1) → hour への変換は _skyHour() で行う。
-// 各キーは linear 値としてシェーダ/ライトへ渡し、上の ACES+sRGB を通す。
+// zen/mid/hor/glow/haze/sun は「画面に出したい最終色（sRGB 16進）」として選んでおり、
+// ドームのシェーダ内で skySrgb2lin → ACES → skyLin2srgb を通す（sunC/hemC/fog は既存の
+// three.js ライト/フォグの慣例どおり、そのまま linear 相当としてライトへ渡す）。
 // 色は仕様の「目安」を基準に、トーンマップ後に破綻しない範囲で調整している。
 //   zen  天頂 / mid 中間 / hor 地平線 / glow 地平線発光 / haze 霞
 //   sun  太陽方向の色偏り / fog シーンフォグ色
@@ -71,8 +82,8 @@ const _SKY_KEYS = [
   // 朝 (8:45)
   {h:8.75, zen:0x168bd8, mid:0x63c6ee, hor:0xdff8ff, glow:0xf0ffff, haze:0xdff6ff, sun:0xfff1d6, fog:0xd8f0ff,
    sunC:0xfff3df, sunI:0.9,  hemC:0xcfe6ff, hemI:0.85, night:0.0, star:0.0, milky:0.0, cloudT:0xffffff, cloudOp:0.6},
-  // 昼 (12:45)
-  {h:12.75,zen:0x0876d9, mid:0x38aef2, hor:0xbfeaff, glow:0xeefcff, haze:0xcfeeff, sun:0xffffff, fog:0xcbecff,
+  // 昼 (12:45) — 天頂は濃く鮮やかな青、地平線だけ白みのある水色（白霞を上まで広げない）
+  {h:12.75,zen:0x0477e8, mid:0x3db7ff, hor:0xcfeeff, glow:0xf5fbff, haze:0xcfeeff, sun:0xfff6e0, fog:0xcbecff,
    sunC:0xffffff, sunI:1.0,  hemC:0xbfdcff, hemI:0.95, night:0.0, star:0.0, milky:0.0, cloudT:0xffffff, cloudOp:0.6},
   // 午後 (16:00)
   {h:16.0, zen:0x1f78cc, mid:0x5cb2e8, hor:0xd6ecf4, glow:0xffeccb, haze:0xdcedf2, sun:0xffe6b0, fog:0xd2ebf0,
@@ -167,18 +178,26 @@ class SkySystem {
       'void main(){',
       '  vec3 dir=normalize(vDir);',
       '  float h=clamp(dir.y,0.0,1.0);',
-      '  vec3 col=mix(uHorizon,uMid,smoothstep(0.0,0.34,h));',
-      '  col=mix(col,uZenith,smoothstep(0.30,0.92,h));',
-      '  float band=pow(1.0-h,4.0);',                 // 地平線発光帯
-      '  col=mix(col,uGlow,band*0.55);',
+      // 入力は sRGB として選んだ色なので、以降の混色・トーンマップは linear で行う
+      '  vec3 zenith=skySrgb2lin(uZenith);',
+      '  vec3 mid=skySrgb2lin(uMid);',
+      '  vec3 horizon=skySrgb2lin(uHorizon);',
+      '  vec3 glowC=skySrgb2lin(uGlow);',
+      '  vec3 hazeC=skySrgb2lin(uHaze);',
+      '  vec3 sunTint=skySrgb2lin(uSunTint);',
+      // 地平線帯を低い高度に絞り、中間〜天頂の青を早めに強く見せる（白霞が上まで広がらないように）
+      '  vec3 col=mix(horizon,mid,smoothstep(0.0,0.10,h));',
+      '  col=mix(col,zenith,smoothstep(0.06,0.42,h));',
+      '  float band=pow(1.0-h,7.0);',                 // 地平線発光帯（指数を上げて範囲を絞る）
+      '  col=mix(col,glowC,band*0.5);',
       '  float sd=max(dot(dir,uSunDir),0.0);',        // 太陽方向の明るさ
-      '  float sunGlow=pow(sd,4.0)*clamp(uSunHeight+0.35,0.0,1.0);',
-      '  col+=uSunTint*sunGlow*0.55;',
+      '  float sunGlow=pow(sd,5.0)*clamp(uSunHeight+0.35,0.0,1.0);',
+      '  col+=sunTint*sunGlow*0.4;',
       '  float horizonSun=pow(sd,2.0)*band;',         // 夕焼け方向へ色を偏らせる
-      '  col=mix(col,uSunTint,horizonSun*0.5);',
+      '  col=mix(col,sunTint,horizonSun*0.4);',
       '  float anti=max(-dot(normalize(vec3(dir.x,0.0,dir.z)),normalize(vec3(uSunDir.x,0.0,uSunDir.z))),0.0);',
       '  col=mix(col,col*vec3(0.9,0.94,1.08),anti*band*0.35);', // 反対側は少し青く
-      '  col=mix(col,uHaze,band*0.25);',              // 地平線の霞
+      '  col=mix(col,hazeC,band*0.18);',              // 地平線の霞（青を打ち消さない程度に弱める）
       '  float g=dot(col,vec3(0.299,0.587,0.114));',
       '  col=mix(col,vec3(g),uSat);',                 // 天候による彩度低下
       '  col=skyAces(col,uExposure);',
