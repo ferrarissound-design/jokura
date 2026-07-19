@@ -153,73 +153,18 @@ function updateUnderAtmosphere(py){
   scene.fog.far=depth>22?42:depth>10?52:58;
 }
 let WEATHER_DIM=0; // 0 clear .. ~0.5 storm; darkens sky/fog/light (visual only)
-function updateSky(t,inVolcano,inSnow){const b=.5-.5*Math.cos((t-.15)*Math.PI*2);
-// sunrise/sunset glow: peaks when the sun crosses the horizon (dayT 0 and 0.5)
-const _dT=(t+0.1)%1;const _edge=Math.min(_dT,Math.abs(_dT-.5),1-_dT);const glow=Math.max(0,1-_edge/0.07);
-if(inVolcano){skyMesh.material.color.setRGB(.18+b*.05,.04,.02);scene.fog.color.setRGB(.22,.05,.02);renderer.setClearColor(scene.fog.color);sun.color.setHex(0xff6600);sun.intensity=Math.max(.3,.8-.4*b);hemLight.color.setHex(0xff3300);hemLight.intensity=.5;}else if(inSnow){skyMesh.material.color.setRGB(Math.max(.15,.55-.3*b),Math.max(.18,.65-.35*b),Math.max(.22,.8-.4*b));scene.fog.color.setRGB(Math.max(.2,.6-.3*b),Math.max(.22,.68-.35*b),Math.max(.25,.82-.4*b));renderer.setClearColor(scene.fog.color);sun.color.setHex(0xaaccff);sun.intensity=Math.max(.2,.7-.4*b);hemLight.color.setHex(0xaaddff);hemLight.intensity=Math.max(.2,.7-.4*b);}else{
-  let sr=Math.max(.02,.45-.43*b),sg=Math.max(.03,.70-.66*b),sb=Math.max(.05,.98-.92*b);
-  let fr=Math.max(.04,.55-.49*b),fg=Math.max(.04,.73-.67*b),fb=Math.max(.06,.93-.85*b);
-  const gm=glow*.55; // mix toward warm orange at dawn/dusk
-  sr=sr*(1-gm)+1.0*gm;sg=sg*(1-gm)+.45*gm;sb=sb*(1-gm)+.20*gm;
-  fr=fr*(1-gm)+1.0*gm;fg=fg*(1-gm)+.52*gm;fb=fb*(1-gm)+.26*gm;
-  skyMesh.material.color.setRGB(sr,sg,sb);scene.fog.color.setRGB(fr,fg,fb);renderer.setClearColor(scene.fog.color);
-  sun.color.setRGB(1,1-glow*.35,1-glow*.6);sun.intensity=Math.max(.05,1-.95*b);
-  hemLight.color.setHex(0xbfdcff);hemLight.intensity=Math.max(.1,.95-.82*b);
+// 空・フォグ・ライトの色は sky.js の SkySystem が時間帯キーフレーム補間で管理する。
+// updateSky/updateCelestial は既存の呼び出し規約を保ったまま SkySystem へ委譲する薄い
+// ラッパー。LIGHTNING の加算（updateWeather）は従来どおり hemLight に対して行われる。
+function updateSky(t,inVolcano,inSnow){
+  skySystem.updateAtmosphere(t,{inVolcano,inSnow,weather,weatherDim:WEATHER_DIM,fullMoon:fullMoonNight});
+  const b=.5-.5*Math.cos((t-.15)*Math.PI*2);
+  $di.textContent=b>.5?(fullMoonNight?'🌕':'🌙'):'☀️';
 }
-// storm darkening (visual only): pull light down and desaturate sky/fog toward grey
-if(WEATHER_DIM>0.01&&!inVolcano){
-  const k=1-WEATHER_DIM*0.7;
-  sun.intensity*=1-WEATHER_DIM*0.85;
-  hemLight.intensity=Math.max(.12,hemLight.intensity*(1-WEATHER_DIM*0.5));
-  scene.fog.color.multiplyScalar(k);skyMesh.material.color.multiplyScalar(k);
-  renderer.setClearColor(scene.fog.color);
-}
-$di.textContent=b>.5?(fullMoonNight?'🌕':'🌙'):'☀️';}
 
 // ─── CELESTIAL: sun/moon orbit, drifting clouds, sky follows player ───
 function updateCelestial(t,dt){
-  const px=P.x,py=P.y,pz=P.z;
-  skyMesh.position.set(px,py,pz);
-  // sunrise t=0.9, noon t=0.15, sunset t=0.4; night 0.4-0.9
-  const dayT=(t+0.1)%1;
-  const isDayNow=dayT<0.5;
-  const sunA=Math.PI*Math.min(1,dayT/0.5);
-  const moonA=Math.PI*Math.max(0,Math.min(1,(t-0.4)/0.5));
-  const sunDir={x:Math.cos(sunA)*.85,y:Math.sin(sunA)+.04,z:.35};
-  const moonDir={x:Math.cos(moonA)*.85,y:Math.sin(moonA)+.04,z:-.3};
-  const d=isDayNow?sunDir:moonDir;
-  const dl=Math.hypot(d.x,d.y,d.z);
-  // snap the light anchor to whole blocks to reduce shadow shimmer while walking
-  const ax=Math.round(px),ay=Math.round(py),az=Math.round(pz);
-  sun.position.set(ax+d.x/dl*60,ay+Math.max(.15,d.y)/dl*60,az+d.z/dl*60);
-  sun.target.position.set(ax,ay,az);
-  sunSprite.position.set(px+sunDir.x*96,py+sunDir.y*90,pz+sunDir.z*96);
-  moonSprite.position.set(px+moonDir.x*96,py+moonDir.y*90,pz+moonDir.z*96);
-  const skyVis=skyMesh.visible;
-  sunSprite.visible=skyVis&&isDayNow&&sunDir.y>.02;
-  moonSprite.visible=skyVis&&!isDayNow&&moonDir.y>.02;
-  // 🌕満月の夜: 月を大きく赤みがかった色にして視覚的に警告する
-  const moonBig=!isDayNow&&fullMoonNight;
-  moonSprite.scale.set(moonBig?13:9,moonBig?13:9,1);
-  moonSprite.material.color.setHex(moonBig?0xffb060:0xffffff);
-  cloudGroup.visible=skyVis;
-  sun.castShadow=SHADOWS_ON&&skyVis;
-  starPivot.position.set(px,py,pz);
-  starPivot.rotation.z=-dayT*Math.PI*.5;
-  starPivot.visible=skyVis;
-  if(skyVis){
-    const b=.5-.5*Math.cos((t-.15)*Math.PI*2); // same brightness curve as updateSky
-    starMat.opacity=Math.max(0,Math.min(1,(b-.55)*3))*.9; // fade in after dusk
-    const cb=Math.max(.25,1-b*.8);
-    cloudMat.color.setRGB(cb,cb,Math.min(1,cb+.02));
-    for(const cl of cloudGroup.children){
-      cl.position.x+=dt*1.4;
-      if(cl.position.x-px>CLOUD_RANGE)cl.position.x-=CLOUD_RANGE*2;
-      else if(px-cl.position.x>CLOUD_RANGE)cl.position.x+=CLOUD_RANGE*2;
-      if(cl.position.z-pz>CLOUD_RANGE)cl.position.z-=CLOUD_RANGE*2;
-      else if(pz-cl.position.z>CLOUD_RANGE)cl.position.z+=CLOUD_RANGE*2;
-    }
-  }
+  skySystem.updateBodies(t,dt,{fullMoon:fullMoonNight,weather});
 }
 
 // ─── WEATHER STATE ───

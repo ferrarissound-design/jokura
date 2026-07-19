@@ -55,52 +55,12 @@ function updateTorchLights(){
   }
   for(let i=0;i<torchLights.length;i++){const l=torchLights[i];if(i<near.length){l.position.set(near[i].x,near[i].y,near[i].z);l.intensity=1.8;}else l.intensity=0;}
 }
-// ─── SKY: gradient dome + square sun/moon + drifting clouds ───
-function _skyGradTex(){
-  const c=document.createElement('canvas');c.width=1;c.height=64;const x=c.getContext('2d');
-  const g=x.createLinearGradient(0,0,0,64); // canvas top = zenith (uv.y=1)
-  g.addColorStop(0,'rgb(106,118,170)');g.addColorStop(.45,'rgb(255,255,255)');g.addColorStop(1,'rgb(255,255,255)');
-  x.fillStyle=g;x.fillRect(0,0,1,64);
-  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;
-}
-const skyMesh=new THREE.Mesh(new THREE.SphereGeometry(110,12,6),new THREE.MeshBasicMaterial({color:0x0b1a3b,map:_skyGradTex(),side:THREE.BackSide,fog:false,depthWrite:false}));scene.add(skyMesh);
-function _celestTex(core,edge){
-  const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');
-  x.fillStyle=edge;x.fillRect(0,0,16,16);x.fillStyle=core;x.fillRect(2,2,12,12);
-  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;return t;
-}
-const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:_celestTex('#fff6c8','#ffd75e'),transparent:true,opacity:.95,fog:false,depthWrite:false}));
-sunSprite.scale.set(14,14,1);sunSprite.visible=false;scene.add(sunSprite);
-const moonSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:_celestTex('#e8ecf5','#9aa4c0'),transparent:true,opacity:.9,fog:false,depthWrite:false}));
-moonSprite.scale.set(9,9,1);moonSprite.visible=false;scene.add(moonSprite);
-const cloudGroup=new THREE.Group();scene.add(cloudGroup);
-const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.42,fog:false,depthWrite:false});
-const CLOUD_Y=46,CLOUD_RANGE=150;
-(function(){
-  const g=new THREE.BoxGeometry(1,1,1);
-  for(let i=0;i<26;i++){
-    const m=new THREE.Mesh(g,cloudMat);
-    m.scale.set(9+Math.random()*16,.8,6+Math.random()*10);
-    m.position.set((Math.random()*2-1)*CLOUD_RANGE,CLOUD_Y+Math.random()*6,(Math.random()*2-1)*CLOUD_RANGE);
-    cloudGroup.add(m);
-  }
-})();
-// night stars: points on the upper sky dome, fading in with darkness and
-// slowly rotating with the day cycle like the real Minecraft sky
-const starPivot=new THREE.Group();scene.add(starPivot);
-const starMat=new THREE.PointsMaterial({color:0xffffff,size:1.0,sizeAttenuation:true,transparent:true,opacity:0,fog:false,depthWrite:false});
-(function(){
-  const N=320,pos=new Float32Array(N*3);
-  for(let i=0;i<N;i++){
-    // random direction biased to the upper hemisphere
-    let x,y,z,l;
-    do{x=Math.random()*2-1;y=Math.random();z=Math.random()*2-1;l=Math.hypot(x,y,z);}while(l>1||l<.2||y/l<.06);
-    pos[i*3]=x/l*100;pos[i*3+1]=y/l*100;pos[i*3+2]=z/l*100;
-  }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  const stars=new THREE.Points(g,starMat);stars.frustumCulled=false;stars.renderOrder=1;
-  starPivot.add(stars);
-})();
+// ─── SKY ───
+// スカイドーム/太陽/月/星/雲などの空表現は sky.js の SkySystem へ移設した
+// （world.js の直後に読み込まれ、ここで作った scene/camera/renderer/sun/hemLight を
+// 利用する）。skyMesh / sunSprite / moonSprite のグローバルは sky.js が別名として提供する。
+// CLOUD_Y だけは天空都市の生成高さ算出（_scc/_srcPlanなどのbaseY）で参照するため残す。
+const CLOUD_Y=46;
 
 // ─── WEATHER: rain / snow precipitation fields (shader-animated, follow player) ───
 // A fixed column of streaks (rain) / flakes (snow) around the player; the fall

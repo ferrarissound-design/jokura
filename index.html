@@ -201,6 +201,7 @@
     <button class="pmBtn settingToggle" id="flashToggleBtn">画面フラッシュ: ON</button>
     <button class="pmBtn settingToggle" id="autoSaveToggleBtn">オートセーブ: ON</button>
     <button class="pmBtn settingToggle" id="shadowToggleBtn">影(シャドウ): ON</button>
+    <button class="pmBtn settingToggle" id="skyQualityBtn">空の品質: AUTO</button>
     <button class="pmBtn settingToggle" id="bobToggleBtn">画面の揺れ: ON</button>
     <div class="menuText small">設定はこの端末に保存されます。難易度は被ダメージ量に影響します。</div>
     <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
@@ -276,7 +277,7 @@
 (function(){
   var V='20260731b';
   var PARTS=['state','achievements','crafting','save','ui','audio',
-             'world','combat','entities','humanoids','hud','region_editor','input','main','cheats'];
+             'world','sky','combat','entities','humanoids','hud','region_editor','input','main','cheats'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）
