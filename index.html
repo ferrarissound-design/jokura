@@ -269,7 +269,7 @@
     <button class="pmBtn menuClose" id="structCloseBtn">CLOSE</button>
   </div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three/three.r128.min.js"></script>
 <script>
 // ゲーム本体は scripts/game/*.js に機能別分割されている。各ファイルは同一の
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
@@ -291,7 +291,9 @@
   }
   if(typeof THREE==='undefined'){
     var fallback=document.createElement('script');
-    fallback.src='https://unpkg.com/three@0.128.0/build/three.min.js';
+    // The bundled file is the offline path. CDN is only a last-resort fallback
+    // for older deployments that have not copied vendor/three/three.r128.min.js yet.
+    fallback.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
     fallback.onload=loadParts;
     fallback.onerror=fail;
     document.head.appendChild(fallback);
