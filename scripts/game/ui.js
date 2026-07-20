@@ -14,8 +14,8 @@ const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,fla
 const SKY_QUALITIES=['auto','low','medium','high'];
 const DIFF_MULT={easy:.6,normal:1,hard:1.5};
 function difficultyMult(){return DIFF_MULT[settings.difficulty]||1;}
-function loadSettings(){
-  try{const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');Object.assign(settings,saved);}catch(e){}
+async function loadSettings(){
+  try{const r=await window.storage.get(SETTINGS_KEY);const saved=JSON.parse((r&&r.value)||'{}');Object.assign(settings,saved);}catch(e){}
   if(!(settings.difficulty in DIFF_MULT))settings.difficulty='normal';
   settings.lookSens=Math.max(.4,Math.min(2,Number(settings.lookSens)||1));
   if(typeof settings.shadows!=='boolean')settings.shadows=!isTouch; // shadows default: PC on, mobile off
@@ -24,7 +24,7 @@ function loadSettings(){
   // LS initialises from settings.lookSens at its own declaration; don't touch it here (TDZ)
 }
 function applyAccessibility(){try{LS=LS_BASE*settings.lookSens;}catch(e){}}
-function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
+async function saveSettings(){try{await window.storage.set(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}}
 const $helpPanel=document.getElementById('helpPanel'),$settingsPanel=document.getElementById('settingsPanel'),$achievementsPanel=document.getElementById('achievementsPanel');
 const $helpBtn=document.getElementById('helpBtn'),$helpCloseBtn=document.getElementById('helpCloseBtn');
 const $achievementsBtn=document.getElementById('achievementsBtn'),$achievementsCloseBtn=document.getElementById('achievementsCloseBtn'),$achievementsList=document.getElementById('achievementsList');
@@ -87,7 +87,7 @@ function cycleSkyQuality(){
   try{if(typeof skySystem!=='undefined')skySystem.setQuality(settings.skyQuality);}catch(e){}
   showSaveToast('空の品質: '+(SKY_QUALITY_LABEL[settings.skyQuality]||'AUTO'));
 }
-loadSettings();updateSettingsUI();
+loadSettings().then(()=>{updateSettingsUI();updateModeBtn();});
 // ─── MODE SELECT (title screen): NEW GAME starts in the selected mode ───
 if(settings.gameMode!=='creative')settings.gameMode='survival';
 const $modeBtn=document.getElementById('modeBtn');
