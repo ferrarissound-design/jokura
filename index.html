@@ -15,53 +15,68 @@
 <canvas id="c"></canvas>
 <div id="hud">
   <div id="topBar">
-    <div class="pi"><div class="plabel">SCORE</div><div class="pval" id="scoreVal">0</div></div>
-    <div class="pi"><div class="pval" id="dayIcon">☀️</div><div class="pval" id="dayVal">DAY 1</div></div>
-    <div class="pi"><div class="plabel">KILLS</div><div class="pval" id="killVal">0</div></div>
+    <div class="tbSide tbLeft">
+      <div class="pi"><div class="plabel">SCORE</div><div class="pval" id="scoreVal">0</div></div>
+    </div>
+    <div class="tbCenter">
+      <div id="dayCluster"><div id="dayIcon">☀️</div><div class="pval" id="dayVal">DAY 1</div></div>
+      <div id="biomeLabel">🌿 PLAINS</div>
+      <div id="creativeBadge">∞ CREATIVE</div>
+    </div>
+    <div class="tbSide tbRight">
+      <div class="pi"><div class="plabel">KILLS</div><div class="pval" id="killVal">0</div></div>
+      <div id="menuBtns">
+        <button id="bagBtn" class="uiIcon" aria-label="インベントリ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8V7a4 4 0 0 1 8 0v1h2.4a2 2 0 0 1 2 1.8l.9 9A2 2 0 0 1 17.3 21H2.7a2 2 0 0 1-2-2.2l.9-9A2 2 0 0 1 3.6 8H6zm2 0h4V7a2 2 0 1 0-4 0v1z"/></svg></button>
+        <button id="questBtn" class="uiIcon" aria-label="クエスト"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm8 1.5V8h3.5L14 4.5zM7.5 11h9v1.6h-9V11zm0 3.2h9v1.6h-9v-1.6zm0 3.2h6v1.6h-6v-1.6z"/></svg></button>
+        <button id="craftBtn" class="uiIcon" aria-label="クラフト"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.2l-6 6 2.1 2.1 6-6a4 4 0 0 0 5.6-4.6l-2.3 2.3-2.1-.6-.6-2.1 2.3-2.3a4 4 0 0 0-1.9.9zM3.5 3l3.4 3.4-1 1L2.5 4l1-1z"/></svg></button>
+        <button id="pauseBtn" class="uiIcon" aria-label="メニュー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="3" height="12" rx="1"/><rect x="14" y="6" width="3" height="12" rx="1"/></svg></button>
+      </div>
+    </div>
   </div>
-  <div id="hpArea"><div id="hpLabel">HP ❤️</div><div id="hpBar"><div id="hpFill"></div></div></div>
-  <div id="fdArea" title="満腹度"><div id="fdBar"><div id="fdFill"></div></div></div>
-  <div id="biomeLabel">🌿 PLAINS</div>
-  <div id="weaponLabel">👊 Fist</div>
-  <div id="goalLabel">🎯 目標: 木を集めて剣を作ろう</div>
-  <div id="armorLabel" style="display:none"></div>
-  <div id="meatLabel">🥩 MEAT: 0</div>
-  <div id="petLabel" style="display:none"></div>
-  <button id="eatBtn" class="disabled">🍖 EAT</button>
-  <div id="invPanel">
+  <div id="leftStatus">
+    <div id="hpArea"><div id="hpLabel">HP ❤️</div><div id="hpBar"><div id="hpFill"></div></div></div>
+    <div id="fdArea" title="満腹度"><div id="fdBar"><div id="fdFill"></div></div></div>
+    <div id="armorLabel" style="display:none"></div>
+    <div id="foodRow"><span id="meatLabel">🥩 MEAT: 0</span><button id="eatBtn" class="disabled">🍖 EAT</button></div>
+    <div id="petLabel" style="display:none"></div>
+    <div id="goalLabel">🎯 目標: 木を集めて剣を作ろう</div>
+  </div>
+  <div id="weaponLabel" style="display:none">👊 Fist</div>
+  <div id="craftPanel"></div>
+  <div id="coordsDisplay" style="display:none">X:0 Z:0</div>
+  <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas><div id="miniCoords"></div></div>
+  <button id="saveFloatBtn" style="display:none">💾</button>
+  <!-- 旧・左側素材一覧は #invPanel（display:none）としてDOMに残し、既存の updateInvHUD /
+       チェスト等HUD更新が参照するデータシンクとして使う。可視のインベントリは
+       下部の #bagPanel（タブ+グリッド）が担当し、mobileui.js が inv から描画する。 -->
+  <div id="invPanel" aria-hidden="true">
     <div class="invRow" id="invWood">🪵 WOOD: 0</div>
     <div class="invRow" id="invStone">🪨 STONE: 0</div>
     <div class="invRow" id="invSand">🏖 SAND: 0</div>
     <div class="invRow" id="invGrass">🌿 GRASS: 0</div>
     <div class="invRow" id="invBrick">🧱 BRICK: 0</div>
-    <div class="invRow tappable" id="invArrow">🏹 ARROW: 0</div>
-    <div class="invRow tappable" id="invFireArrow" style="color:#ffb27a">🔥 FIRE ARROW: 0</div>
-    <div class="invRow tappable" id="invIceArrow" style="color:#a8e6ff">🧊 ICE ARROW: 0</div>
-    <div class="invRow" id="invDiamond" style="color:#00e5ff;text-shadow:0 0 6px #00bfff88">💎 DIAMOND: 0</div>
-    <div class="invRow" id="invDragonCore" style="color:#88ffff;text-shadow:0 0 6px #00e5ff88">💠 DRAGON CORE: 0</div>
+    <div class="invRow" id="invArrow">🏹 ARROW: 0</div>
+    <div class="invRow" id="invFireArrow">🔥 FIRE ARROW: 0</div>
+    <div class="invRow" id="invIceArrow">🧊 ICE ARROW: 0</div>
+    <div class="invRow" id="invDiamond">💎 DIAMOND: 0</div>
+    <div class="invRow" id="invDragonCore">💠 DRAGON CORE: 0</div>
     <div class="invRow" id="invSeed">🌱 SEED: 0</div>
     <div class="invRow" id="invWheat">🌾 WHEAT: 0</div>
     <div class="invRow" id="invWool">🧶 WOOL: 0</div>
-    <div class="invRow" id="invIce" style="color:#bfeaff">🧊 ICE: 0</div>
-    <div class="invRow" id="invObsidian" style="color:#b499e6">⬛ OBSIDIAN: 0</div>
-    <div class="invRow" id="invCrystal" style="color:#e0a8ff">🔮 CRYSTAL: 0</div>
-    <div class="invRow" id="invCactus" style="color:#7fdc8a">🌵 CACTUS: 0</div>
-    <div class="invRow" id="invMushroom" style="color:#ff9e9e">🍄 MUSHROOM: 0</div>
-    <div class="invRow" id="invClay" style="color:#cdb69a">🟤 CLAY: 0</div>
-    <div class="invRow" id="invIronOre" style="color:#e8b27a">🔶 IRON ORE: 0</div>
-    <div class="invRow" id="invIronIngot" style="color:#dfe4ee">🔩 IRON INGOT: 0</div>
+    <div class="invRow" id="invIce">🧊 ICE: 0</div>
+    <div class="invRow" id="invObsidian">⬛ OBSIDIAN: 0</div>
+    <div class="invRow" id="invCrystal">🔮 CRYSTAL: 0</div>
+    <div class="invRow" id="invCactus">🌵 CACTUS: 0</div>
+    <div class="invRow" id="invMushroom">🍄 MUSHROOM: 0</div>
+    <div class="invRow" id="invClay">🟤 CLAY: 0</div>
+    <div class="invRow" id="invIronOre">🔶 IRON ORE: 0</div>
+    <div class="invRow" id="invIronIngot">🔩 IRON INGOT: 0</div>
     <div class="invRow" id="invChest">📦 CHEST: 0</div>
     <div class="invRow" id="invBed">🛏 BED: 0</div>
-    <div class="invRow" id="invFurnace" style="color:#ffab6e">🔥 FURNACE: 0</div>
-    <div class="invRow" id="invEnchantTable" style="color:#ffd76e">⚒ ENCHANT TABLE: 0</div>
-    <div class="invRow" id="invTrophy" style="color:#aaf0ff">🏆 DRAGON STATUE: 0</div>
+    <div class="invRow" id="invFurnace">🔥 FURNACE: 0</div>
+    <div class="invRow" id="invEnchantTable">⚒ ENCHANT TABLE: 0</div>
+    <div class="invRow" id="invTrophy">🏆 DRAGON STATUE: 0</div>
   </div>
-  <button id="craftBtn">🛠 CRAFT</button>
-  <button id="questBtn">📋 QUEST</button>
-  <div id="craftPanel"></div>
-  <div id="coordsDisplay">X:0 Z:0</div>
-  <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas></div>
-  <button id="saveFloatBtn">💾</button>
   <button id="structBtn" style="display:none" title="特殊生成メニュー">🏗</button>
   <button id="regionEditBtn" style="display:none" title="範囲編集ツール">▣</button>
   <div id="regionEditHud" style="display:none">
@@ -87,7 +102,6 @@
   <div id="treasureInfo"></div>
   <div id="treasureCompass" style="display:none"><div id="tcArrow">⬆</div><div id="tcText">🗺</div></div>
   <div id="merchantInfo"></div>
-  <button id="pauseBtn">⏸</button>
   <div id="pauseOverlay">
     <div id="pauseTitle">⏸ PAUSE</div>
     <button class="pmBtn" id="resumeBtn">▶ RESUME</button>
@@ -120,16 +134,16 @@
     <div class="hslot" data-i="8"><div class="dot" style="background:linear-gradient(135deg,rgba(191,230,255,.75),rgba(191,230,255,.25));border:1px solid rgba(255,255,255,.5)"></div>Glass<span class="hcount" id="glassCount"></span></div>
     <div class="hslot" data-i="9"><div class="dot" style="background:radial-gradient(circle at 50% 40%,#ffffff,#e6e6dc)"></div>Wool<span class="hcount" id="woolBlockCount"></span></div>
   </div>
-  <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / ⛏攻撃 / 🧱設置(長押し=家具) / 🔄武器切替</div>
-  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-0:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト / V:範囲編集(クリエイティブ)</div>
+  <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / メインアクションで攻撃・採掘 / サブで設置(長押し=家具)</div>
+  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-0:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト / I:インベントリ / V:範囲編集(クリエイティブ)</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
-  <button id="weaponBtn">🔄 WEAPON</button>
+  <button id="weaponBtn"><span class="wIcon" id="weaponBtnIcon">👊</span><span class="wLabel">武器</span></button>
   <div id="actionWrap">
-    <button class="abtn" id="breakBtn">⛏ ATTACK</button>
-    <button class="abtn" id="placeBtn">🧱 PLACE</button>
-    <button class="abtn" id="jumpBtn">↑ JUMP</button>
     <button class="abtn" id="flyBtn" style="display:none">🕊 FLY</button>
     <button class="abtn" id="flyDownBtn" style="display:none">⬇ DOWN</button>
+    <button class="abtn" id="jumpBtn"><span class="aIcon">↑</span><span class="aLabel">JUMP</span></button>
+    <button class="abtn subAct" id="placeBtn"><span class="aIcon" id="subActIcon">🧱</span><span class="aLabel" id="subActLabel">PLACE</span></button>
+    <button class="abtn mainAct" id="breakBtn"><span class="aIcon" id="mainActIcon">⚔</span><span class="aLabel" id="mainActLabel">ATTACK</span></button>
   </div>
 </div>
 <div id="overlay">
@@ -203,6 +217,7 @@
     <button class="pmBtn settingToggle" id="shadowToggleBtn">影(シャドウ): ON</button>
     <button class="pmBtn settingToggle" id="skyQualityBtn">空の品質: AUTO</button>
     <button class="pmBtn settingToggle" id="bobToggleBtn">画面の揺れ: ON</button>
+    <button class="pmBtn settingToggle" id="coordsToggleBtn">座標表示: OFF</button>
     <div class="menuText small">設定はこの端末に保存されます。難易度は被ダメージ量に影響します。</div>
     <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
   </div>
@@ -269,6 +284,16 @@
     <button class="pmBtn menuClose" id="structCloseBtn">CLOSE</button>
   </div>
 </div>
+<div id="bagPanel" class="menuPanel">
+  <div class="menuCard bagCard">
+    <div class="menuTitle">🎒 INVENTORY</div>
+    <div id="bagCreative">CREATIVE&nbsp;&nbsp;∞</div>
+    <div id="bagTabs"></div>
+    <div id="bagGrid"></div>
+    <div class="menuText small" id="bagHint">アイテムをタップで選択・使用できます。</div>
+    <button class="pmBtn menuClose" id="bagCloseBtn">CLOSE</button>
+  </div>
+</div>
 <script src="vendor/three/three.r128.min.js"></script>
 <script>
 // ゲーム本体は scripts/game/*.js に機能別分割されている。各ファイルは同一の
@@ -285,7 +310,7 @@
              'structures_inverted_castle','structures_frozen_village',
              'structures_underground_city','structures_sky_city','structures_sunken_city',
              'structures_walking_fortress','structures_registry',
-             'sky','combat','entities','humanoids','hud','region_editor','input','main','cheats'];
+             'sky','combat','entities','humanoids','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）

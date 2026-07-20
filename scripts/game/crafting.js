@@ -57,11 +57,13 @@ function updateInvHUD(){
   if($invSeed)$invSeed.textContent='🌱 SEED: '+q(inv.seed);
   if($invWheat)$invWheat.textContent='🌾 WHEAT: '+q(inv.wheat);
   if($invWool)$invWool.textContent='🧶 WOOL: '+q(inv.wool);
-  const tc=document.getElementById('torchCount');if(tc)tc.textContent=isCreative()?'∞':(inv.torch>0?inv.torch:'');
-  const slc=document.getElementById('slabCount');if(slc)slc.textContent=isCreative()?'∞':(inv.slab>0?inv.slab:'');
-  const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'∞':(inv.stair>0?inv.stair:'');
-  const glc=document.getElementById('glassCount');if(glc)glc.textContent=isCreative()?'∞':(inv.glass>0?inv.glass:'');
-  const wbc=document.getElementById('woolBlockCount');if(wbc)wbc.textContent=isCreative()?'∞':(inv.woolBlock>0?inv.woolBlock:'');
+  // クリエイティブでは個数を表示しない（∞の羅列を避け、CREATIVEバッジに集約）
+  const tc=document.getElementById('torchCount');if(tc)tc.textContent=isCreative()?'':(inv.torch>0?inv.torch:'');
+  const slc=document.getElementById('slabCount');if(slc)slc.textContent=isCreative()?'':(inv.slab>0?inv.slab:'');
+  const stc=document.getElementById('stairCount');if(stc)stc.textContent=isCreative()?'':(inv.stair>0?inv.stair:'');
+  const glc=document.getElementById('glassCount');if(glc)glc.textContent=isCreative()?'':(inv.glass>0?inv.glass:'');
+  const wbc=document.getElementById('woolBlockCount');if(wbc)wbc.textContent=isCreative()?'':(inv.woolBlock>0?inv.woolBlock:'');
+  if(typeof renderBagIfOpen==='function')renderBagIfOpen();
 }
 
 // ─── 矢の切替（通常/火矢/氷矢）: 左のARROW行タップ or Rキー ───

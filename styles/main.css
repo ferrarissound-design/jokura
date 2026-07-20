@@ -4,37 +4,58 @@ canvas#c{display:block;touch-action:none}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block}
 #hud{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
 #hud::before{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(6,12,16,.13) 100%)}
-:root{--safeT:env(safe-area-inset-top,0px);--safeR:env(safe-area-inset-right,0px);--safeB:env(safe-area-inset-bottom,0px);--safeL:env(safe-area-inset-left,0px)}
-#topBar{position:absolute;top:0;left:0;right:0;padding:calc(6px + var(--safeT)) calc(10px + var(--safeR)) 6px calc(10px + var(--safeL));display:flex;justify-content:space-between;align-items:flex-start;background:linear-gradient(rgba(0,0,0,.72),transparent);z-index:10}
+:root{
+  --safeT:env(safe-area-inset-top,0px);--safeR:env(safe-area-inset-right,0px);--safeB:env(safe-area-inset-bottom,0px);--safeL:env(safe-area-inset-left,0px);
+  /* ── 統一UIトークン（背景/枠線/角丸/文字色） ── */
+  --ui-bg:rgba(10,14,18,.62);
+  --ui-bg-active:rgba(44,50,58,.86);
+  --ui-border:rgba(255,255,255,.26);
+  --ui-highlight:#ffd84a;
+  --ui-text:#ffffff;
+  --ui-muted:rgba(255,255,255,.66);
+  --ui-radius:13px;
+  --ui-radius-sm:9px;
+  --ui-shadow:1px 1px 2px rgba(0,0,0,.75);
+  --ui-bw:1.5px;
+}
+#topBar{position:absolute;top:0;left:0;right:0;padding:calc(6px + var(--safeT)) calc(8px + var(--safeR)) 6px calc(8px + var(--safeL));display:flex;justify-content:space-between;align-items:flex-start;gap:8px;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:12}
+.tbSide{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.tbRight{justify-content:flex-end}
+.tbCenter{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;flex:1}
+#dayCluster{display:flex;align-items:center;gap:5px}
+#dayIcon{font-size:15px;line-height:1}
 .pi{display:flex;flex-direction:column;gap:1px;text-align:center;min-width:0}
-.plabel{font-size:8px;color:#ffffff88;letter-spacing:1.5px;text-transform:uppercase}
-.pval{font-size:18px;font-weight:900;text-shadow:1px 1px 0 #000}
-#scoreVal{color:#f9d342}#dayVal{color:#7ecfff;font-size:12px}#killVal{color:#ff6b6b}
-#hpArea{position:absolute;top:calc(56px + var(--safeT));left:calc(10px + var(--safeL));z-index:10}
-#hpLabel{font-size:8px;color:#fff9;letter-spacing:1.5px;margin-bottom:2px}
-#hpBar{width:min(150px,35vw);height:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+.plabel{font-size:8px;color:var(--ui-muted);letter-spacing:1.5px;text-transform:uppercase}
+.pval{font-size:17px;font-weight:900;text-shadow:var(--ui-shadow)}
+#scoreVal{color:var(--ui-highlight)}#dayVal{color:#7ecfff;font-size:12px}#killVal{color:#ff6b6b}
+#biomeLabel{font-size:9px;color:var(--ui-muted);letter-spacing:1px;text-shadow:var(--ui-shadow);white-space:nowrap}
+#creativeBadge{display:none;font-size:10px;font-weight:900;letter-spacing:2px;color:var(--ui-highlight);text-shadow:0 0 8px rgba(255,216,74,.4),var(--ui-shadow);padding:1px 8px;border:var(--ui-bw) solid rgba(255,216,74,.45);border-radius:20px;background:var(--ui-bg)}
+body.creative #creativeBadge{display:block}
+/* ── 上部右のアイコンメニュー（バッグ/クエスト/クラフト/メニュー） ── */
+#menuBtns{display:flex;gap:6px;align-items:center}
+.uiIcon{width:38px;height:38px;padding:0;border-radius:var(--ui-radius-sm);border:var(--ui-bw) solid var(--ui-border);background:var(--ui-bg);color:var(--ui-text);cursor:pointer;pointer-events:auto;z-index:12;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center;transition:filter .1s,transform .1s}
+.uiIcon svg{width:22px;height:22px;fill:currentColor;filter:drop-shadow(var(--ui-shadow))}
+.uiIcon:active{transform:scale(.92);background:var(--ui-bg-active)}
+#pauseBtn{display:none}
+/* ── 左側ステータス列（HP/満腹度/防具/食料/相棒/目標） ── */
+#leftStatus{position:absolute;top:calc(52px + var(--safeT));left:calc(8px + var(--safeL));z-index:10;display:flex;flex-direction:column;gap:4px;pointer-events:none;max-width:min(240px,52vw)}
+#leftStatus>*{pointer-events:auto}
+#hpLabel{font-size:8px;color:var(--ui-muted);letter-spacing:1.5px;margin-bottom:1px}
+#hpBar{width:min(150px,35vw);height:10px;background:rgba(255,255,255,.1);border:1px solid var(--ui-border);border-radius:3px;overflow:hidden}
 #hpFill{height:100%;width:100%;background:linear-gradient(90deg,#43a047,#a5d6a7);transition:width .25s,background .4s}
-#fdArea{position:absolute;top:calc(80px + var(--safeT));left:calc(10px + var(--safeL));z-index:10}
-#fdBar{width:min(150px,35vw);height:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+#fdBar{width:min(150px,35vw);height:8px;background:rgba(255,255,255,.1);border:1px solid var(--ui-border);border-radius:3px;overflow:hidden}
 #fdFill{height:100%;width:100%;background:linear-gradient(90deg,#e07f1f,#ffcf7f);transition:width .25s,background .4s}
-#biomeLabel{position:absolute;top:calc(92px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#fff8;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#weaponLabel{position:absolute;top:calc(106px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f9d342cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#goalLabel{position:absolute;top:calc(122px + var(--safeT));left:calc(10px + var(--safeL));max-width:min(430px,72vw);padding:4px 7px;border:1px solid rgba(249,211,66,.3);border-radius:7px;background:rgba(0,0,0,.45);font-size:9px;color:#fff8c6;text-shadow:1px 1px 0 #000;z-index:10;font-weight:800;line-height:1.35;letter-spacing:.2px}
-#armorLabel{position:absolute;top:calc(144px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#meatLabel{position:absolute;top:calc(158px + var(--safeT));left:calc(10px + var(--safeL));font-size:9px;color:#f4a9a8cc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#petLabel{position:absolute;top:calc(158px + var(--safeT));left:calc(118px + var(--safeL));font-size:9px;color:#9fd8ffcc;letter-spacing:1px;z-index:10;text-shadow:1px 1px 0 #000}
-#eatBtn{position:absolute;top:calc(172px + var(--safeT));left:calc(10px + var(--safeL));padding:4px 10px;border-radius:7px;border:1.5px solid #f4a9a866;background:rgba(244,169,168,.22);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
-#eatBtn:active{transform:scale(.92)}
-#eatBtn.disabled{opacity:.3;pointer-events:none}
-#invPanel{position:absolute;top:calc(197px + var(--safeT));left:calc(10px + var(--safeL));z-index:10;pointer-events:none}
-.invRow{font-size:8px;color:#cccddda0;letter-spacing:.8px;text-shadow:1px 1px 0 #000;line-height:1.55}
-/* 矢の種類切替: 行タップで装填する矢を選ぶ（親パネルはpointer-events:none） */
-.invRow.tappable{pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.invRow.sel{color:#f9d342;text-shadow:0 0 6px #f9d34266,1px 1px 0 #000}
-#craftBtn{position:absolute;top:calc(347px + var(--safeT));left:calc(10px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #26c6da66;background:rgba(38,198,218,.18);color:#7fffff;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
-#craftBtn:active{transform:scale(.92)}
-#questBtn{position:absolute;top:calc(347px + var(--safeT));left:calc(100px + var(--safeL));padding:5px 10px;border-radius:7px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#fff1a6;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
-#questBtn:active{transform:scale(.92)}
+#armorLabel{font-size:9px;letter-spacing:1px;text-shadow:var(--ui-shadow)}
+#foodRow{display:flex;align-items:center;gap:8px}
+#meatLabel{font-size:9px;color:#f4b6b5;letter-spacing:1px;text-shadow:var(--ui-shadow)}
+#petLabel{font-size:9px;color:#9fd8ff;letter-spacing:1px;text-shadow:var(--ui-shadow)}
+#eatBtn{padding:3px 10px;border-radius:var(--ui-radius-sm);border:var(--ui-bw) solid rgba(244,169,168,.5);background:var(--ui-bg);color:#f4a9a8;font-size:10px;font-weight:800;cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.5px}
+#eatBtn:active{transform:scale(.92);background:var(--ui-bg-active)}
+#eatBtn.disabled{display:none}
+#goalLabel{max-width:min(240px,52vw);padding:3px 7px;border:1px solid rgba(255,216,74,.3);border-radius:var(--ui-radius-sm);background:var(--ui-bg);font-size:9px;color:#fff2c6;text-shadow:var(--ui-shadow);font-weight:700;line-height:1.35;letter-spacing:.2px}
+body.creative #goalLabel{display:none}
+#invPanel{display:none}
+.invRow{display:none}
 #craftPanel{position:absolute;top:calc(373px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 402px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #craftPanel.open{display:block}
 /* 横向きスマホ等の低い viewport では上の HUD 列(topBar〜craftBtn)だけで
@@ -66,26 +87,40 @@ canvas#c{display:block;touch-action:none}
 #worldTreeProgress #wtpLabel{font-size:15px;font-weight:900;color:#a6f0b4;text-shadow:0 0 12px #3fd06a88,2px 2px 0 #000;letter-spacing:1px;margin-bottom:8px}
 #worldTreeProgress #wtpBar{width:200px;height:10px;margin:0 auto;border:1.5px solid #3fd06a88;border-radius:6px;background:rgba(0,0,0,.5);overflow:hidden}
 #worldTreeProgress #wtpFill{width:0%;height:100%;background:linear-gradient(90deg,#3f9e3f,#8fe08f);transition:width .12s linear}
-#hotbar{position:absolute;bottom:calc(135px + var(--safeB));left:50%;transform:translateX(-50%);display:flex;gap:4px;pointer-events:auto;z-index:10}
-.hslot{position:relative;width:40px;height:40px;border-radius:6px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:7px;color:#aaa;-webkit-tap-highlight-color:transparent;cursor:pointer;transition:transform .15s,border-color .15s}
-.hcount{position:absolute;top:1px;right:3px;font-size:8px;font-weight:bold;color:#ffd27a;text-shadow:0 1px 2px #000}
-.hslot.active{border-color:#f9d342;color:#f9d342;transform:scale(1.08)}
-.dot{width:16px;height:16px;border-radius:3px}
-/* 8 slots need to fit narrow portrait screens */
-@media (max-width:400px){.hslot{width:33px;height:33px;font-size:6px}.dot{width:13px;height:13px}}
-@media (max-width:370px){#hotbar{gap:3px}.hslot{width:29px;height:29px;font-size:0}.hslot .dot{width:15px;height:15px}.hcount{font-size:7px}}
-#joyWrap{position:absolute;left:calc(10px + var(--safeL));bottom:calc(14px + var(--safeB));width:120px;height:120px;pointer-events:auto;touch-action:none;z-index:10}
-#joyBase{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04)}
-#joyKnob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.2),rgba(255,255,255,.06));will-change:left,top}
-#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(18px + var(--safeB));display:grid;grid-template-columns:82px 82px;gap:14px;pointer-events:auto;z-index:10}
-.abtn{min-width:88px;padding:10px 6px;border-radius:9px;border:1.5px solid rgba(255,255,255,.2);color:#eee;font-size:11px;font-weight:800;letter-spacing:.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;background:rgba(0,0,0,.45);transition:transform .1s;touch-action:manipulation}
-.abtn:active{transform:scale(.92)}
-#breakBtn{border-color:#e5393566;background:rgba(229,57,53,.22);grid-column:1/3;justify-self:center}
-#placeBtn{border-color:#43a04766;background:rgba(67,160,71,.22)}
-#jumpBtn{border-color:#1e88e566;background:rgba(30,136,229,.22)}
-#weaponBtn{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:80px;padding:7px 4px;border-radius:8px;border:1.5px solid #f9d34266;background:rgba(249,211,66,.18);color:#f9d342;font-size:9px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.3px;text-align:center}
-#weaponBtn:active{transform:scale(.92)}
-#saveFloatBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(8px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #26c6da44;background:rgba(38,198,218,.15);color:#7fffff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
+/* ── ホットバー: 画面下部に固定・横一列・横スクロール対応 ── */
+#hotbar{position:absolute;bottom:calc(8px + var(--safeB));left:calc(8px + var(--safeL));right:calc(8px + var(--safeR));display:flex;gap:5px;justify-content:center;pointer-events:auto;z-index:11;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;padding:2px;scrollbar-width:none}
+#hotbar::-webkit-scrollbar{display:none}
+.hslot{position:relative;flex:0 0 auto;width:44px;height:44px;border-radius:var(--ui-radius-sm);border:var(--ui-bw) solid var(--ui-border);background:var(--ui-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:7px;color:var(--ui-muted);text-shadow:var(--ui-shadow);-webkit-tap-highlight-color:transparent;cursor:pointer;transition:transform .12s,border-color .12s,background .12s}
+.hcount{position:absolute;bottom:1px;right:3px;font-size:9px;font-weight:bold;color:#ffd27a;text-shadow:0 1px 2px #000}
+.hslot.active{border-color:var(--ui-highlight);color:var(--ui-highlight);background:var(--ui-bg-active);box-shadow:0 0 8px rgba(255,216,74,.35)}
+.dot{width:18px;height:18px;border-radius:3px}
+@media (max-width:430px){.hslot{width:40px;height:40px}.dot{width:16px;height:16px}}
+@media (max-width:400px){.hslot{width:38px;height:38px;font-size:6px}.dot{width:15px;height:15px}}
+@media (max-width:360px){#hotbar{justify-content:flex-start;gap:4px}.hslot{width:34px;height:34px;font-size:0}.hslot .dot{width:16px;height:16px}.hcount{font-size:7px}}
+#joyWrap{position:absolute;left:calc(10px + var(--safeL));bottom:calc(64px + var(--safeB));width:118px;height:118px;pointer-events:auto;touch-action:none;z-index:10}
+#joyBase{position:absolute;inset:0;border-radius:50%;border:var(--ui-bw) solid var(--ui-border);background:rgba(255,255,255,.04)}
+#joyKnob{position:absolute;left:34px;top:34px;width:50px;height:50px;border-radius:50%;border:var(--ui-bw) solid rgba(255,255,255,.28);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.22),rgba(255,255,255,.06));will-change:left,top}
+/* ── 右手操作: メイン(大)＋サブ＋JUMP＋FLY ── */
+#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(64px + var(--safeB));display:grid;grid-template-columns:64px 84px;grid-template-rows:auto auto;grid-template-areas:"fly fly" "sub jump" "sub main";column-gap:10px;row-gap:10px;align-items:end;pointer-events:auto;z-index:10}
+.abtn{border-radius:var(--ui-radius);border:var(--ui-bw) solid var(--ui-border);color:var(--ui-text);font-weight:800;letter-spacing:.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;background:var(--ui-bg);transition:transform .1s,background .1s;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
+.abtn:active{transform:scale(.93);background:var(--ui-bg-active)}
+.abtn .aIcon{font-size:20px;line-height:1}
+.abtn .aLabel{font-size:10px;font-weight:800}
+#breakBtn{grid-area:main;width:84px;height:84px;border-radius:50%;border-color:rgba(255,120,110,.55);background:rgba(150,40,38,.5)}
+#breakBtn .aIcon{font-size:28px}
+#breakBtn .aLabel{font-size:11px}
+#breakBtn:active{background:rgba(190,60,55,.7)}
+#placeBtn{grid-area:sub;width:64px;height:64px;border-color:rgba(120,210,130,.5);background:rgba(40,110,55,.5)}
+#placeBtn:active{background:rgba(60,140,70,.7)}
+#jumpBtn{grid-area:jump;width:84px;height:52px;border-color:rgba(120,180,255,.5);background:rgba(30,90,160,.5)}
+#jumpBtn:active{background:rgba(45,120,200,.7)}
+#flyBtn{grid-area:fly;justify-self:end;width:84px;height:40px;flex-direction:row;gap:4px;font-size:11px}
+#flyDownBtn{grid-area:fly;justify-self:start;width:64px;height:40px;flex-direction:row;gap:3px;font-size:11px}
+#weaponBtn{position:absolute;right:calc(14px + var(--safeR));bottom:calc(212px + var(--safeB));width:58px;height:50px;border-radius:var(--ui-radius);border:var(--ui-bw) solid rgba(255,216,74,.5);background:var(--ui-bg);color:var(--ui-highlight);font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
+#weaponBtn .wIcon{font-size:20px;line-height:1}
+#weaponBtn .wLabel{font-size:9px;letter-spacing:.3px}
+#weaponBtn:active{transform:scale(.92);background:var(--ui-bg-active)}
+#saveFloatBtn{display:none}
 /* 🏗 特殊生成メニュー（クリエイティブ限定）: 💾 の左隣に並ぶフローティングボタン */
 #structBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(50px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #b388ff55;background:rgba(149,117,205,.2);color:#e6d9ff;font-size:16px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #structBtn:active{transform:scale(.92)}
@@ -95,9 +130,14 @@ canvas#c{display:block;touch-action:none}
 #lavaFlash.on{opacity:1}
 #snowFlash{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(150,200,255,.25);transition:opacity .2s;z-index:28}
 #snowFlash.on{opacity:1}
-#hint{position:absolute;bottom:calc(128px + var(--safeB));width:100%;text-align:center;font-size:8px;color:rgba(255,255,255,.35);letter-spacing:.5px;z-index:5}
+#hint{position:absolute;bottom:calc(60px + var(--safeB));left:calc(140px + var(--safeL));right:calc(200px + var(--safeR));text-align:center;font-size:8px;color:rgba(255,255,255,.32);letter-spacing:.3px;z-index:5;pointer-events:none;line-height:1.3}
+@media (max-width:520px){#hint{display:none}}
 #hintPC{position:absolute;bottom:calc(6px + var(--safeB));width:100%;text-align:center;font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.5px;display:none}
-#minimap{position:absolute;top:calc(82px + var(--safeT));right:calc(8px + var(--safeR));width:90px;height:90px;border:1px solid rgba(255,255,255,.18);border-radius:5px;background:rgba(0,0,0,.5);overflow:hidden;z-index:10}
+/* ── ミニマップ: 20%ほど縮小・細枠・やや透明。タップで拡大 ── */
+#minimap{position:absolute;top:calc(50px + var(--safeT));right:calc(8px + var(--safeR));width:72px;height:72px;border:1px solid var(--ui-border);border-radius:var(--ui-radius-sm);background:rgba(0,0,0,.4);overflow:hidden;z-index:10;opacity:.82;pointer-events:auto;touch-action:manipulation;transition:width .18s,height .18s,opacity .18s}
+#minimap.big{width:150px;height:150px;opacity:1}
+#minimap.big #miniCoords{display:block}
+#miniCoords{position:absolute;left:3px;bottom:2px;display:none;font-size:8px;font-weight:700;color:#cfe8ff;text-shadow:1px 1px 0 #000;letter-spacing:.3px;pointer-events:none}
 #miniCanvas{width:100%;height:100%;display:block}
 #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:999;pointer-events:auto}
 #overlay.hide{display:none}
@@ -116,10 +156,10 @@ canvas#c{display:block;touch-action:none}
 .mc-btn.secondary{background:linear-gradient(to bottom,#5f5578 0%,#3d3557 100%);width:min(260px,70vw);padding:10px 0;font-size:min(9px,2.5vw)}
 #saveInfo{font-family:'Press Start 2P',monospace;font-size:min(7px,2vw);color:#7ecfff66;letter-spacing:.3px;text-align:center}
 #rankInfo{text-align:center;margin-top:2px;min-height:0}
-#coordsDisplay{position:absolute;top:calc(56px + var(--safeT));right:calc(8px + var(--safeR));font-size:8px;color:#fff6;letter-spacing:.5px;z-index:10;text-shadow:1px 1px 0 #000;text-align:right}
+#coordsDisplay{position:absolute;top:calc(126px + var(--safeT));right:calc(8px + var(--safeR));font-size:8px;color:var(--ui-muted);letter-spacing:.5px;z-index:10;text-shadow:var(--ui-shadow);text-align:right}
 #cdBar{position:absolute;bottom:calc(180px + var(--safeB));right:calc(14px + var(--safeR));width:80px;height:5px;background:rgba(0,0,0,.4);border-radius:2px;z-index:10;overflow:hidden}
 #cdFill{height:100%;width:0%;background:#f80;border-radius:2px;transition:width .05s}
-#saveToast{position:absolute;top:calc(110px + var(--safeT));left:50%;transform:translateX(-50%);background:rgba(38,198,218,.85);color:#fff;font-size:11px;font-weight:800;padding:5px 16px;border-radius:20px;letter-spacing:1px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:50;white-space:nowrap}
+#saveToast{position:absolute;top:calc(96px + var(--safeT));left:50%;transform:translateX(-50%);background:var(--ui-bg-active);border:var(--ui-bw) solid var(--ui-border);color:#fff;font-size:11px;font-weight:800;padding:5px 16px;border-radius:20px;letter-spacing:1px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:50;white-space:nowrap;text-shadow:var(--ui-shadow)}
 #saveToast.show{opacity:1}
 #chestInfo{position:absolute;bottom:calc(148px + var(--safeB));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);border:1px solid rgba(255,200,80,.35);border-radius:8px;padding:4px 12px;font-size:10px;font-weight:700;color:#ffe082;text-shadow:1px 1px 0 #000;letter-spacing:.3px;z-index:10;pointer-events:none;white-space:nowrap;display:none}
 #chestInfo.show{display:block}
@@ -136,7 +176,6 @@ canvas#c{display:block;touch-action:none}
 #bossHpBar{width:100%;height:14px;background:rgba(0,0,0,.6);border:1.5px solid rgba(255,100,100,.4);border-radius:3px;overflow:hidden}
 #bossHpFill{height:100%;width:100%;background:linear-gradient(90deg,#ff1744,#ff6d00);transition:width .2s}
 #bossPhase{text-align:center;font-size:9px;color:#ff9999;margin-top:2px;letter-spacing:1px}
-#pauseBtn{position:absolute;top:calc(57px + var(--safeT));left:calc(min(150px,35vw) + 24px + var(--safeL));width:30px;height:22px;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);background:rgba(0,0,0,.5);color:#eee;font-size:15px;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:none;align-items:center;justify-content:center}
 #pauseOverlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:rgba(0,0,0,.78);z-index:500;pointer-events:auto}
 #pauseOverlay.show{display:flex}
 #pauseTitle{font-size:26px;font-weight:900;color:#f9d342;text-shadow:2px 2px 0 #000;letter-spacing:3px}
@@ -239,3 +278,53 @@ canvas#c{display:block;touch-action:none}
 #regionEditGrid button.reDisabled{opacity:.45}
 #regionEditHud.reBusy #regionEditGrid button{opacity:.45;pointer-events:none}
 @media (max-width:520px){#regionEditHud{top:calc(8px + var(--safeT));left:calc(8px + var(--safeL));right:auto;width:min(246px,calc(100vw - 16px - var(--safeL) - var(--safeR)))}#regionEditGrid button{min-height:38px;font-size:10px}}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   インベントリ（バッグ）パネル: タブ + アイコングリッド
+   ═══════════════════════════════════════════════════════════════════════ */
+.bagCard{width:min(560px,94vw)}
+#bagCreative{display:none;margin:0 auto 10px;padding:4px 14px;border:var(--ui-bw) solid rgba(255,216,74,.5);border-radius:20px;background:rgba(255,216,74,.1);color:var(--ui-highlight);font-weight:900;font-size:13px;letter-spacing:3px;text-shadow:0 0 8px rgba(255,216,74,.4)}
+body.creative #bagCreative{display:block}
+#bagTabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px}
+.bagTab{padding:7px 11px;border-radius:var(--ui-radius-sm);border:var(--ui-bw) solid var(--ui-border);background:var(--ui-bg);color:var(--ui-muted);font-size:11px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;letter-spacing:.3px;transition:background .1s,color .1s,border-color .1s}
+.bagTab:active{transform:scale(.96)}
+.bagTab.sel{color:var(--ui-highlight);border-color:var(--ui-highlight);background:var(--ui-bg-active)}
+#bagGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin:6px 0 12px;max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.bagItem{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 4px;min-height:78px;border-radius:var(--ui-radius-sm);border:var(--ui-bw) solid var(--ui-border);background:var(--ui-bg);color:var(--ui-text);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-shadow:var(--ui-shadow);transition:background .1s,border-color .1s,transform .1s}
+.bagItem.act:active{transform:scale(.95);background:var(--ui-bg-active)}
+.bagItem.sel{border-color:var(--ui-highlight);background:var(--ui-bg-active);box-shadow:0 0 8px rgba(255,216,74,.3)}
+.bagItem.empty{opacity:.4}
+.bagItem.locked{opacity:.45;cursor:default}
+.bagItem.info{cursor:default}
+.bagIcon{width:34px;height:34px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1}
+.bagName{font-size:9px;font-weight:700;color:var(--ui-muted);letter-spacing:.2px;text-align:center;line-height:1.2}
+.bagCount{position:absolute;top:3px;right:5px;font-size:10px;font-weight:900;color:#ffd27a;text-shadow:0 1px 2px #000}
+.bagItem.sel .bagName{color:var(--ui-highlight)}
+.bagBadge{position:absolute;top:3px;left:5px;font-size:8px;font-weight:900;color:var(--ui-highlight)}
+
+/* ═══ レスポンシブ: 狭い端末ではアイコン優先・ラベル簡略化 ═══ */
+@media (max-width:430px){
+  .uiIcon{width:34px;height:34px}
+  .uiIcon svg{width:20px;height:20px}
+  #menuBtns{gap:5px}
+  .tbSide{gap:7px}
+}
+@media (max-width:360px){
+  .uiIcon{width:31px;height:31px}
+  .uiIcon svg{width:18px;height:18px}
+  #menuBtns{gap:4px}
+  #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
+  #actionWrap{grid-template-columns:58px 76px}
+  #breakBtn{width:76px;height:76px}
+  #jumpBtn{width:76px;height:46px}
+  #placeBtn{width:58px;height:58px}
+  #weaponBtn .wLabel{display:none}
+  #weaponBtn{height:44px}
+  #leftStatus{max-width:44vw}
+}
+/* ラベル簡略のとき JUMP/PLACE はアイコンのみに */
+@media (max-height:440px){
+  #leftStatus{gap:2px}
+  #goalLabel{display:none}
+  #hint{display:none}
+}
