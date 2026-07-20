@@ -1,0 +1,13 @@
+{
+  "name": "jokura",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ブラウザで遊べるボクセルサバイバルゲーム",
+  "scripts": {
+    "lint": "node tools/lint.mjs"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0"
+  }
+}

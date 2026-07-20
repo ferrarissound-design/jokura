@@ -126,6 +126,8 @@ if($cheatBtn)bindTapSafe($cheatBtn,openCheatPanel);
 if($cheatCloseBtn)bindTapSafe($cheatCloseBtn,closeCheatPanel);
 
 const _continueGameRestoreSavedPose=continueGame;
+// 意図的な関数差し替え（ロード後に保存時の座標・視点を復元するラッパー）
+// eslint-disable-next-line no-func-assign
 continueGame=async function(){
   const d=await loadSaveData();
   if(!d)return;
