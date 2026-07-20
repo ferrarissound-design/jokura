@@ -316,21 +316,24 @@ const SCORE_KEY='jokura_scores';
 // 難易度は被ダメージ0.6〜1.5倍とスコア難度に大きく影響するため、ランキングにも
 // 記録して表示する。旧バージョンの記録には diff が無いので表示側は空欄でフォールバックする。
 const DIFF_TAG={easy:'😌EASY',normal:'⚔NORM',hard:'🔥HARD'};
-function saveScore(cleared){
+async function saveScore(cleared){
   if(isCreative()||cheatsUsed)return; // creative / cheat-used runs don't enter the ranking
   try{
-    const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
+    const r=await window.storage.get(SCORE_KEY);
+    const arr=JSON.parse((r&&r.value)||'[]');
     const now=new Date();
     arr.push({score:gs.score,wave:gs.wave,kills:gs.kills,day:gs.day,cleared,diff:settings.difficulty||'normal',date:(now.getMonth()+1)+'/'+(now.getDate())+'/'+String(now.getFullYear()).slice(2)});
     arr.sort((a,b)=>b.score-a.score);arr.splice(5);
-    localStorage.setItem(SCORE_KEY,JSON.stringify(arr));
+    await window.storage.set(SCORE_KEY,JSON.stringify(arr));
+    renderRankHUD();
   }catch(e){}
 }
 const $rankInfo=document.getElementById('rankInfo');
-function renderRankHUD(){
+async function renderRankHUD(){
   if(!$rankInfo)return;
   try{
-    const arr=JSON.parse(localStorage.getItem(SCORE_KEY)||'[]');
+    const r=await window.storage.get(SCORE_KEY);
+    const arr=JSON.parse((r&&r.value)||'[]');
     if(!arr.length){$rankInfo.innerHTML='<div style="color:#f9d34299;font-size:min(9px,2.5vw);letter-spacing:1px">🏆 BEST SCORE: 0</div>';return;}
     const medals=['🥇','🥈','🥉','',''];
     const best=arr[0];
