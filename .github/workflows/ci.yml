@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # scripts/game/*.js を index.html の PARTS 順に連結して ESLint 検査
+      # （no-undef のタイポ検出 / no-redeclare の二重定義検出 / PARTS 載せ忘れ検出）
+      - run: npm run lint

@@ -8,32 +8,65 @@
 // ============================================================================
 
 // ═══ WORLD EDITS ═══
-const worldEdits={placed:{},removed:{}};
+// 編集はチャンク列("cx,cz")ごとに索引し、「前回の適用以降に新しく生成された
+// チャンク列」の分だけ再生する。以前は applyWorldEdits がチャンク境界を跨ぐたびに
+// 全編集キーを走査していたため、長時間プレイで編集が数万件に育つと0.5秒ごとの
+// スパイクになっていた。placed/removed の書き込み箇所はゲーム全域に散らばっている
+// ので、Proxy の set トラップで索引を自動維持し、書き込み側のイディオム
+// （worldEdits.placed[k]=v / worldEdits.removed[k]=true / delete ...）は一切変えない。
+const _weIndex=new Map();       // "cx,cz" → Set(voxelKey) 編集のチャンク列索引
+const _wePendingCols=new Set(); // 前回適用以降に（再）生成されたチャンク列
+function _weTrack(k){
+  // voxelキー "x|y|z" からチャンク列キーを導く（world.js の cKey と同じ書式）
+  const x=+k.slice(0,k.indexOf('|')),z=+k.slice(k.lastIndexOf('|')+1);
+  const col=Math.floor(x/CHUNK)+','+Math.floor(z/CHUNK);
+  let s=_weIndex.get(col);
+  if(!s){s=new Set();_weIndex.set(col,s);}
+  s.add(k);
+}
+// delete は索引から消さない（placed/removed 両方に載るキーがあるため参照カウントが
+// 要る）。陳腐化した索引エントリは applyWorldEdits が検証時に破棄する。
+const _weHandler={set(t,k,v){t[k]=v;_weTrack(k);return true;}};
+const worldEdits={placed:new Proxy({},_weHandler),removed:new Proxy({},_weHandler)};
+// world.js の generateChunk/generateUnderChunk（唯一の生成入口）から呼ばれる
+function weMarkChunkGenerated(cx,cz){_wePendingCols.add(cx+','+cz);}
 function resetWorldEdits(){
   for(const k in worldEdits.placed)delete worldEdits.placed[k];
   for(const k in worldEdits.removed)delete worldEdits.removed[k];
+  _weIndex.clear();
+  // _wePendingCols はクリアしない: ロード時は updateChunks(true)（列を記録）→
+  // resetWorldEdits → unpack → applyWorldEdits の順で走るため、ここで消すと
+  // ロード直後の再生対象が失われる。生成済みで編集の無い列は適用時に無視される。
 }
 function applyWorldEdits(){
+  if(_wePendingCols.size===0)return;
   _deferDirty=true; // batch chunk rebuilds: one per touched chunk, not per edit
-  for(const k in worldEdits.removed){
-    if(voxels[k]&&voxels[k].active){
-      const[x,y,z]=k.split('|').map(Number);
-      removeBlock(x,y,z);
+  for(const col of _wePendingCols){
+    const set=_weIndex.get(col);
+    if(!set)continue;
+    for(const k of set){
+      const removed=worldEdits.removed[k];
+      const raw=worldEdits.placed[k]; // packed ti|(meta<<5); legacy saves store plain ti (≤16, meta 0)
+      if(removed===undefined&&raw===undefined){set.delete(k);continue;} // 取り消し済み編集の陳腐化索引
+      // 同一キーは removed → placed の順（put が地形上書き時に両方を記録するため）
+      if(removed&&voxels[k]&&voxels[k].active){
+        const[x,y,z]=k.split('|').map(Number);
+        removeBlock(x,y,z);
+      }
+      if(raw!==undefined&&!voxels[k]){
+        const[x,y,z]=k.split('|').map(Number);
+        // Do not replay edits into chunks that are not currently generated.
+        // applyWorldEdits() runs after chunk generation, so the edit will be
+        // applied once its owning chunk record exists instead of creating an
+        // invisible orphan voxel with collision but no merged-mesh membership.
+        // (地下層は列より細かい単位で生成されるため、この voxel 単位の検証は
+        // チャンク列索引になっても引き続き必要)
+        if(recAt(x,y,z))addBlock(x,y,z,raw&31,true,true,raw>>5);
+      }
     }
+    if(set.size===0)_weIndex.delete(col);
   }
-  for(const k in worldEdits.placed){
-    if(!voxels[k]){
-      const[x,y,z]=k.split('|').map(Number);
-      // Do not replay edits into chunks that are not currently generated.
-      // applyWorldEdits() runs after chunk generation, so the edit will be
-      // applied once its owning chunk record exists instead of creating an
-      // invisible orphan voxel with collision but no merged-mesh membership.
-      if(!recAt(x,y,z))continue;
-      // placed values are packed ti|(meta<<5); legacy saves store plain ti (≤16, meta 0)
-      const raw=worldEdits.placed[k];
-      addBlock(x,y,z,raw&31,true,true,raw>>5);
-    }
-  }
+  _wePendingCols.clear();
   _deferDirty=false;flushDirtyChunks();
 }
 // ─── セーブ時のworldEdits圧縮 ───
@@ -206,36 +239,6 @@ function formatSaveDetails(d){
   ];
   if(d.biomeName)parts.push(d.biomeName);
   return parts.join(' / ');
-}
-async function updateOverlaySaveInfo(options={}){
-  const rows=await getAllSaveSlots();
-  const filled=rows.filter(r=>r.data);
-  const keepContState=options===true||options.enableContinueButton===false;
-  const isEndOverlay=!gs.running&&!overlay.classList.contains('hide')&&(ovTitle.textContent==='GAME OVER'||ovTitle.textContent==='GAME CLEAR!!');
-  // game-over / clear screens disable the continue button on purpose; don't override that
-  // even when save-slot actions refresh this info while the end overlay is visible.
-  if(!keepContState&&!isEndOverlay)$contBtn.classList.remove('disabled');
-  if(filled.length){$saveInfo.textContent=`💾 SLOT ${activeSaveSlot}: ${formatSaveMeta(rows[activeSaveSlot-1].data)}　(${filled.length}/${SAVE_SLOT_COUNT})`;}
-  else{$saveInfo.textContent='セーブデータなし / セーブスロットから空スロットを選べます';}
-}
-async function renderSaveSlots(){
-  if(!$saveSlotList)return;
-  const rows=await getAllSaveSlots();
-  $saveSlotList.innerHTML='';
-  rows.forEach(({slot,data})=>{
-    const wrap=document.createElement('div');
-    wrap.className='saveSlot'+(slot===activeSaveSlot?' active':'');
-    const title=document.createElement('div');title.className='saveSlotTitle';title.textContent='SLOT '+slot+(slot===activeSaveSlot?'  ★ SELECTED':'');wrap.appendChild(title);
-    const meta=document.createElement('div');meta.className='saveSlotMeta';meta.textContent=formatSaveMeta(data);wrap.appendChild(meta);
-    const btns=document.createElement('div');btns.className='saveSlotBtns';
-    const main=document.createElement('button');main.className='slotBtn';main.textContent=data?'LOAD':'NEW GAME';main.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);closeSaveSlots();data?continueGame():startGame();});btns.appendChild(main);
-    const use=document.createElement('button');use.className='slotBtn secondary';use.textContent='SELECT';use.addEventListener('pointerdown',(e)=>{e.preventDefault();e.stopPropagation();setActiveSaveSlot(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' SELECTED');});btns.appendChild(use);
-    if(data){
-      const fresh=document.createElement('button');fresh.className='slotBtn danger';fresh.textContent='NEW';fresh.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();await startNewGameWithConfirm(slot);});btns.appendChild(fresh);
-      const del=document.createElement('button');del.className='slotBtn danger';del.textContent='DELETE';del.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();if(confirm('SLOT '+slot+' を削除しますか？')){await deleteSave(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' DELETED');}});btns.appendChild(del);
-    }
-    wrap.appendChild(btns);$saveSlotList.appendChild(wrap);
-  });
 }
 function openSaveSlots(){renderSaveSlots();if($saveSlotPanel)$saveSlotPanel.classList.add('show');}
 function closeSaveSlots(){if($saveSlotPanel)$saveSlotPanel.classList.remove('show');}
