@@ -49,10 +49,10 @@ function togglePause(){
   if(!gs.running)return;
   gs.paused=!gs.paused;
   if(gs.paused){
-    $pauseOverlay.classList.add('show');$pauseBtn.textContent='▶';
+    $pauseOverlay.classList.add('show');
     if(audioCtx&&audioCtx.state==='running')audioCtx.suspend();
   }else{
-    $pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';
+    $pauseOverlay.classList.remove('show');
     lastT=performance.now();
     if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
   }
@@ -114,6 +114,7 @@ function updateHUD(){
   const arrowIcon=weaponIdx===3&&arrowMode!=='normal'?(arrowMode==='fire'?'🔥':'🧊'):'';
   $wl.textContent=w.name+arrowIcon+enchSuffix()+(unlockedWeapons[weaponIdx]?'':'🔒');
   updateGoalHUD();updatePetHUD();updateTreasureCompass();
+  if(typeof updateActionBtns==='function')updateActionBtns();
   const cdRatio=attackCD>0?attackCD/w.cd:0;$cdFill.style.width=(cdRatio*100)+'%';
   updateChestInfo();_updateTreasureInfo();updateMerchantInfo();
   const nextDef=BOSS_DEFS.find(b=>b.wave===gs.wave+1);

@@ -155,6 +155,7 @@ function applyModeUI(){
   if(!cr&&regionEditor)regionEditor.close();
   if(typeof updateRegionEditUI==='function')updateRegionEditUI();
   updateFlyBtns();
+  if(typeof applyMobileModeUI==='function')applyMobileModeUI();
 }
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
@@ -291,7 +292,7 @@ function commonReset(){
   for(let i=particles.length-1;i>=0;i--){scene.remove(particles[i].mesh);particles[i].mat.dispose();}particles.length=0;
   if(regionEditor){regionEditor.close();regionEditor.resetUndo();}
   clearWorld();yaw=0;pitch=0;attackCD=0;fishCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');undergroundSnapshot=null;prevPlayerUnderground=false;finalBossPending=false;bgmUnder=false;bgmUnderDragon=false;
-  gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.textContent='⏸';$pauseBtn.style.display='none';
+  gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.style.display='none';
 }
 async function startGame(){
   await deleteSave();$contDeathBtn.style.display='none';
