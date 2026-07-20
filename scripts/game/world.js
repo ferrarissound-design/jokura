@@ -17,6 +17,17 @@ renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=.78;
 let SHADOWS_ON=false;
+// ─── 距離フォグ（空気遠近法）の調律パラメータ ───
+// 地表のフォグ near/far は毎フレーム DRAW_R*CHUNK（＝描画半径・ワールド単位）に
+// 下記の倍率を掛けて決める（main.js の tick 内）。THREE.Fog は線形＋smoothstep で、
+// depth>=far のピクセルは完全にフォグ色（＝空色）へ飽和する。旧値では far が描画縁
+// (0.98) にほぼ一致し、ロード済みチャンクの外周がまるごと空色に溶けて「遠景が半透明の
+// 板」に見えていた。far を 1.0（描画縁）より外へ置くことで、最遠でもシルエットと地表色
+// を ~2 割残し、空気遠近法らしい馴染みに変える。色は sky.js が地平線色へ同期させたまま
+// なので、地平線と空の境界は従来どおりシームレス。組み込みフォグのみで完結し、マテリアル
+// 透明度もシェーダも増やさないため、スマホでも追加負荷はゼロ。
+const FOG_START_MULTIPLIER=0.76; // 旧 0.70：近～中景をより長くクリアに保つ（フォグ開始を少し遠く）
+const FOG_END_MULTIPLIER=1.10;   // 旧 0.98：描画縁を越えて薄まりを緩め、遠景を消さず残す
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x0b0f17,20,60);
 const camera=new THREE.PerspectiveCamera(72,1,.05,130);
 function resize(){
