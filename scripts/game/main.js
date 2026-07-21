@@ -469,7 +469,7 @@ function tick(now){
   const _isUnder=P.y<0;
   updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome,_isUnder);
   if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
-  else{scene.fog.near=DRAW_R*CHUNK*FOG_START_MULTIPLIER;scene.fog.far=DRAW_R*CHUNK*FOG_END_MULTIPLIER;skyMesh.visible=true;}
+  else{scene.fog.near=DRAW_R*CHUNK*FOG_START_MULTIPLIER;scene.fog.far=DRAW_R*CHUNK*FOG_END_MULTIPLIER;skyMesh.visible=true;if(typeof updateBiomeAtmosphere==='function')updateBiomeAtmosphere(curBiome);}
   updateCelestial(gs.time,dt);
   updateWeather(dt,inVolcano,inSnow,_isUnder,now/1000);
   updateMeteorEvent(dt,_isUnder);

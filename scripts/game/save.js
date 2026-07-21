@@ -174,7 +174,7 @@ async function saveGame(){
     pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
     horseTamed:!!horse,mounted,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
-    worldSeed:WORLD_SEED,
+    worldSeed:WORLD_SEED,worldGenVersion:2,
     worldEdits:packWorldEdits(worldEdits),
     explosives:(typeof tntSaveState==='function')?tntSaveState():[],
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
