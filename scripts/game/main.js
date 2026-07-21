@@ -303,7 +303,7 @@ async function startGame(){
   overlay.classList.add('hide');initAudio();
   gameMode=settings.gameMode==='creative'?'creative':'survival';
   initWorldNoise(Math.floor(Math.random()*999999));
-  commonReset();resetInv();resetAchievements();resetWorldEdits();
+  commonReset();resetInv();resetAchievements();resetWorldEdits();if(typeof resetBiomeDiscoveries==='function')resetBiomeDiscoveries();
   P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.food=100;P.invT=0;P.flying=false;
   if(isCreative())for(let i=0;i<unlockedWeapons.length;i++)unlockedWeapons[i]=true; // creative: all weapons
   weaponIdx=0;curType=0;setType(0);
@@ -329,7 +329,7 @@ async function continueGame(){
   const d=await loadSaveData();if(!d)return;
   $contDeathBtn.style.display='none';
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
-  overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);
+  overlay.classList.add('hide');initAudio();commonReset();resetInv();loadAchievements(d.achievements);if(typeof loadBiomeDiscoveries==='function')loadBiomeDiscoveries(d.discoveredBiomes);
   gameMode=d.gameMode==='creative'?'creative':'survival';
   gs.score=d.score||0;gs.kills=d.kills||0;gs.wave=d.wave||0;gs.day=d.day||1;gs.time=d.time||0;gs.nextWave=d.nextWave??30;gs.running=true;
   _wasDayPhase=(gs.time<.4||gs.time>.9); // ロード直後に夜開始イベント（満月抽選）が誤発火しないよう同期
@@ -465,6 +465,7 @@ function tick(now){
   if(!isCreative()&&!_wasDayPhase&&isDay&&fullMoonNight){unlockAchievement('fullMoonSurvivor');fullMoonNight=false;}
   _wasDayPhase=isDay;
   const curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
+  if(typeof updateBiomeDiscovery==='function')updateBiomeDiscovery(curBiome);
   const inVolcano=curBiome===BIOMES.VOLCANO,inSnow=curBiome===BIOMES.SNOW;
   const _isUnder=P.y<0;
   updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome,_isUnder);

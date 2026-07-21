@@ -618,6 +618,28 @@ function isBoatNavigableBlock(ti){return ti===WATER_BLOCK;}
 function getAquaticState(wx,wz){const depth=getWaterDepth(wx,wz);return{biome:getBiome(Math.floor(wx),Math.floor(wz)),surfaceY:getWaterSurfaceY(wx,wz),depth,kind:depth<=0?'land':depth<2?'shallow':'water'};}
 function isPlayerOnWater(){const st=getAquaticState(P.x,P.z);return st.depth>0&&Math.abs(P.y-(st.surfaceY+1.6))<2.2;}
 function getFishingContext(wx,wz){const b=getBiome(Math.floor(wx),Math.floor(wz)),def=BIOME_DEFS[b]||BIOME_DEFS[BIOMES.PLAINS];return{biome:b,biomeKey:def.key,waterSurfaceY:getWaterSurfaceY(wx,wz),waterDepth:getWaterDepth(wx,wz),table:FISHING_LOOT_TABLES[def.fishingKey]||FISHING_LOOT_TABLES.default};}
+const discoveredBiomes={};
+let _lastDiscoveredBiome=null;
+function resetBiomeDiscoveries(){for(const k in discoveredBiomes)delete discoveredBiomes[k];_lastDiscoveredBiome=null;}
+function loadBiomeDiscoveries(saved){
+  resetBiomeDiscoveries();
+  if(saved&&typeof saved==='object')for(const id of Object.keys(saved)){const n=Number(id);if(BIOME_DEFS[n])discoveredBiomes[n]=!!saved[id];}
+}
+function getDiscoveredBiomeIds(){return Object.keys(discoveredBiomes).map(Number).filter(id=>BIOME_DEFS[id]&&discoveredBiomes[id]);}
+function markBiomeDiscovered(biome){
+  if(!BIOME_DEFS[biome]||discoveredBiomes[biome])return false;
+  discoveredBiomes[biome]=true;
+  const count=getDiscoveredBiomeIds().length,total=Object.keys(BIOME_DEFS).length;
+  showAlert('🧭 '+getBiomeName(biome)+' 発見！  '+count+'/'+total);
+  if(count>=total&&typeof unlockAchievement==='function')unlockAchievement('biomeExplorer');
+  if(typeof renderCodex==='function')renderCodex();
+  return true;
+}
+function updateBiomeDiscovery(biome){
+  if(biome===_lastDiscoveredBiome)return;
+  _lastDiscoveredBiome=biome;
+  markBiomeDiscovered(biome);
+}
 function updateBiomeAtmosphere(biome){
   const def=BIOME_DEFS[biome]||BIOME_DEFS[BIOMES.PLAINS];
   if(!def.colors)return;

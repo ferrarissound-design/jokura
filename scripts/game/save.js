@@ -193,6 +193,7 @@ async function saveGame(){
     walkingFortress:(typeof wfSaveState==='function')?wfSaveState():null,
     villages:(typeof villagesSaveState==='function')?villagesSaveState():null,
     achievements:{...achievements},
+    discoveredBiomes:(typeof discoveredBiomes!=='undefined')?{...discoveredBiomes}:{},
     preview:captureSavePreview(),
     biomeName:getSaveBiomeName(),
     goalText:getSaveGoalText(),
