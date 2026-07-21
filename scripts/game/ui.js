@@ -220,6 +220,19 @@ function renderQuestLog(){
   }
   return h;
 }
+function renderBiomeDiscoveryGuide(){
+  if(typeof BIOME_DEFS==='undefined'||typeof discoveredBiomes==='undefined')return '';
+  const ids=Object.keys(BIOME_DEFS).map(Number).sort((a,b)=>a-b),found=ids.filter(id=>discoveredBiomes[id]).length;
+  let h='<div class="codexSection"><div class="codexHd">🧭 バイオーム図鑑 '+found+'/'+ids.length+'</div>';
+  for(const id of ids){
+    const def=BIOME_DEFS[id],ok=!!discoveredBiomes[id];
+    const terrain=ok?'地表: '+def.surface+' / 地中: '+def.subsurface+' / 水面: '+(def.waterLevel==null?'なし':def.waterLevel):'未発見のため詳細不明';
+    const hooks=ok?'植生: '+(def.vegetation||[]).join(', ')+' / 構造: '+(def.structures||[]).join(', '):'探索して発見しよう';
+    h+='<div class="codexRow"><span>'+(ok?'✅ ':'⬛ ')+def.name+'</span><span class="codexCost">'+(ok?def.key:'???')+'</span></div><div class="codexNote">'+terrain+'<br>'+hooks+'</div>';
+  }
+  h+='</div>';
+  return h;
+}
 function renderRecipeGuide(){
   let h='<div class="codexSection"><div class="codexHd">🛠 クラフト図鑑</div>';
   for(const r of CRAFT_RECIPES)h+='<div class="codexRow"><span>'+r.name+'</span><span class="codexCost">'+r.desc+' / '+recipeStatusText(r)+'</span></div>';
@@ -249,12 +262,12 @@ function renderWorldGuide(){
     '<div class="codexSub">重要WAVE</div><div class="codexNote">'+waveText+'</div></div>';
 }
 function renderCodex(){
-  const body=renderQuestLog()+renderRecipeGuide()+renderWorldGuide()+'<div class="codexSection"><div class="codexHd">🏅 実績ヒント</div>';
+  const body=renderQuestLog()+renderBiomeDiscoveryGuide()+renderRecipeGuide()+renderWorldGuide()+'<div class="codexSection"><div class="codexHd">🏅 実績ヒント</div>';
   let h=body;
   for(const def of Object.values(ACHIEVEMENT_DEFS))h+='<div class="codexRow"><span>'+def.title+'</span><span class="codexCost">'+def.desc+'</span></div>';
   h+='</div>';
   if($codexBody)$codexBody.innerHTML=h;
-  if($questBody)$questBody.innerHTML=renderQuestLog()+renderRecipeGuide()+renderWorldGuide();
+  if($questBody)$questBody.innerHTML=renderQuestLog()+renderBiomeDiscoveryGuide()+renderRecipeGuide()+renderWorldGuide();
 }
 function openCodex(){renderCodex();setPanel($codexPanel,true);}
 function closeCodex(){setPanel($codexPanel,false);}

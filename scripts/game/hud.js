@@ -109,7 +109,7 @@ function updateHUD(){
   $hf.style.background=pct>40?'linear-gradient(90deg,#43a047,#a5d6a7)':'linear-gradient(90deg,#e53935,#ff8a80)';
   const fpct=Math.max(0,Math.min(100,P.food));if($ff){$ff.style.width=fpct+'%';$ff.style.background=fpct>20?'linear-gradient(90deg,#e07f1f,#ffcf7f)':'linear-gradient(90deg,#b71c1c,#ff8a65)';}
   {const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
-  $cd.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
+  {const aq=typeof getAquaticState==='function'?getAquaticState(P.x,P.z):null;const sy=surfaceHeightAt(Math.floor(P.x),Math.floor(P.z));$cd.textContent='X:'+Math.floor(P.x)+' Y:'+Math.floor(P.y)+' Z:'+Math.floor(P.z)+'\nBiome: '+getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z))).replace(/^[^ ]+ /,'')+'\nSurface:'+sy+(aq?' WaterY:'+(aq.surfaceY==null?'-':aq.surfaceY)+' Depth:'+aq.depth.toFixed(1)+' '+aq.kind:'');}
   const w=WEAPONS[weaponIdx];
   const arrowIcon=weaponIdx===3&&arrowMode!=='normal'?(arrowMode==='fire'?'🔥':'🧊'):'';
   $wl.textContent=w.name+arrowIcon+enchSuffix()+(unlockedWeapons[weaponIdx]?'':'🔒');
@@ -128,7 +128,7 @@ function updateHUD(){
 }
 
 const miniCanvas=document.getElementById('miniCanvas');const miniCtx=miniCanvas.getContext('2d');
-function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fillRect(0,0,S,S);const sc=1.2,cx=S/2,cy=S/2;for(let dx=-20;dx<=20;dx+=2)for(let dz=-20;dz<=20;dz+=2){const wx=Math.floor(P.x)+dx,wz=Math.floor(P.z)+dz,b=getBiome(wx,wz);miniCtx.fillStyle=['#3a7d3a','#c4a44a','#1b5e1b','#6a6a6a','#cc3300','#aaccee'][b];miniCtx.fillRect(cx+dx*sc-1,cy+dz*sc-1,3,3);}
+function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fillRect(0,0,S,S);const sc=1.2,cx=S/2,cy=S/2;for(let dx=-20;dx<=20;dx+=2)for(let dz=-20;dz<=20;dz+=2){const wx=Math.floor(P.x)+dx,wz=Math.floor(P.z)+dz,b=getBiome(wx,wz);miniCtx.fillStyle=(['#3a7d3a','#c4a44a','#1b5e1b','#6a6a6a','#cc3300','#aaccee','#1d5f9f','#375f35','#8a4fa0'][b]||'#3a7d3a');miniCtx.fillRect(cx+dx*sc-1,cy+dz*sc-1,3,3);}
   for(const mob of mobs){const mp=mob.root.position,mx2=cx+(mp.x-P.x)*sc,my2=cy+(mp.z-P.z)*sc;if(mx2>-2&&mx2<S+2&&my2>-2&&my2<S+2){miniCtx.fillStyle=mob.kind==='wolf'?'#b8c4d0':'#f4a9a8';miniCtx.fillRect(mx2-1.5,my2-1.5,3,3);}}
   if(pet){const petP=pet.root.position,ptx=cx+(petP.x-P.x)*sc,pty=cy+(petP.z-P.z)*sc;if(ptx>-2&&ptx<S+2&&pty>-2&&pty<S+2){miniCtx.fillStyle='#7fd4ff';miniCtx.fillRect(ptx-1.5,pty-1.5,3,3);}}
   if(horse&&!mounted){const hp3=horse.root.position,htx=cx+(hp3.x-P.x)*sc,hty=cy+(hp3.z-P.z)*sc;if(htx>-2&&htx<S+2&&hty>-2&&hty<S+2){miniCtx.fillStyle='#d9a066';miniCtx.fillRect(htx-1.5,hty-1.5,3,3);}}
