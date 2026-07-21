@@ -243,8 +243,8 @@ function undergroundDeath(){
   $df.classList.add('on');
   setTimeout(()=>{
     $df.classList.remove('on');
-    const sh=getHeight(Math.floor(P.x),Math.floor(P.z));
-    P.y=sh+1.5;P.velY=0;P.onGround=false;
+    const sp=findSafeSpawn(Math.floor(P.x),Math.floor(P.z));
+    P.x=sp.x;P.z=sp.z;P.y=sp.y+.5;P.velY=0;P.onGround=false;
     P.hp=30;P.invT=4;gs.running=true;
     updateInvHUD();saveGame();
     showAlert('☠ 地下で倒れた… 戦利品を失い地上へ戻された');
@@ -304,6 +304,33 @@ function commonReset(){
   clearWorld();yaw=0;pitch=0;attackCD=0;fishCD=0;coyoteTime=0;jumpBuffer=0;lavaDmgTimer=0;snowDmgTimer=0;resetKnob();stopBgm();stopSeq();bgmBiome=-1;bgmBoss=false;bgmWave=false;closeCraftPanel();$wt.classList.remove('show');undergroundSnapshot=null;prevPlayerUnderground=false;finalBossPending=false;bgmUnder=false;bgmUnderDragon=false;
   gs.paused=false;$pauseOverlay.classList.remove('show');$pauseBtn.style.display='none';
 }
+// 安全なスポーン位置を探す。プレイヤーの当たり判定(半径0.35)はブロックの角に
+// 立つと周囲4列にまたがるため、必ずブロック中央(+.5)に立たせた上で overlaps()
+// で全身(高さ1.75)の空きを検証する。木の幹・崖・張り出しに埋まる列は避けて
+// 近隣へ螺旋探索し、乾いた列が無ければ水上も許可する。
+function findSafeSpawn(bx,bz){
+  const tryCol=(x,z,allowWet)=>{
+    let sy=null,wet=false;
+    for(let y=getHeight(x,z)+34;y>=-6;y--){
+      const v=voxels[vKey(x,y,z)];if(!v||!v.active)continue;
+      if(v.ti===LAVA_BLOCK)return null;
+      if(v.ti===WATER_BLOCK){wet=true;continue;}
+      sy=y;break;
+    }
+    if(sy===null||(wet&&!allowWet))return null;
+    const px=x+.5,pz=z+.5,py=sy+1.01;
+    if(overlaps(px,py,pz))return null;
+    return {x:px,y:py,z:pz};
+  };
+  for(let pass=0;pass<2;pass++){
+    for(let r=0;r<=12;r++)for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++){
+      if(Math.max(Math.abs(dx),Math.abs(dz))!==r)continue;
+      const p=tryCol(bx+dx,bz+dz,pass===1);
+      if(p)return p;
+    }
+  }
+  return {x:bx+.5,y:surfaceHeightAt(bx,bz)+1.01,z:bz+.5}; // 最後の手段: 実測高さの真上
+}
 async function startGame(){
   await deleteSave();$contDeathBtn.style.display='none';
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';
@@ -317,12 +344,8 @@ async function startGame(){
   weaponIdx=0;curType=0;setType(0);
   updateChunks(true);
   // spawn on the actual generated surface: 3D carving (cave mouths / cliffs)
-  // can differ from the raw heightmap at (0,0)
-  {
-    let sy=getHeight(0,0);
-    for(let y=getHeight(0,0)+3;y>=-6;y--){const v=voxels[vKey(0,y,0)];if(v&&v.ti!==WATER_BLOCK&&v.ti!==LAVA_BLOCK){sy=y;break;}}
-    P.y=sy+1.01;
-  }
+  // and trees can differ from the raw heightmap at (0,0)
+  {const sp=findSafeSpawn(0,0);P.x=sp.x;P.z=sp.z;P.y=sp.y;}
   P.onGround=true;
   gs.score=0;gs.kills=0;gs.wave=0;gs.day=1;gs.time=0;gs.nextWave=isCreative()?999999:18;gs.running=true;
   resetWeather();
