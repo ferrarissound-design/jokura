@@ -1,5 +1,5 @@
 *{box-sizing:border-box;margin:0;padding:0;touch-action:none}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:fixed;inset:0}
+html,body{width:100%;height:100%;height:100dvh;overflow:hidden;background:#000;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:fixed;inset:0}
 canvas#c{display:block;touch-action:none}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block}
 #hud{position:absolute;inset:0;pointer-events:none;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
@@ -127,7 +127,9 @@ body.creative #goalLabel{display:none}
 #jumpBtn:active{background:rgba(45,120,200,.7)}
 #flyBtn{grid-area:fly;justify-self:end;width:84px;height:40px;flex-direction:row;gap:4px;font-size:11px}
 #flyDownBtn{grid-area:fly;justify-self:start;width:64px;height:40px;flex-direction:row;gap:3px;font-size:11px}
-#weaponBtn{position:absolute;right:calc(14px + var(--safeR));bottom:calc(212px + var(--safeB));width:58px;height:50px;border-radius:var(--ui-radius);border:var(--ui-bw) solid rgba(255,216,74,.5);background:var(--ui-bg);color:var(--ui-highlight);font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
+/* actionWrap の最上段(FLY)より上へ置く。旧 bottom:212px は FLY とほぼ同じ
+   座標になり、iPhone 縦画面で両ボタンの押下領域が重なっていた。 */
+#weaponBtn{position:absolute;right:calc(14px + var(--safeR));bottom:calc(270px + var(--safeB));width:58px;height:50px;border-radius:var(--ui-radius);border:var(--ui-bw) solid rgba(255,216,74,.5);background:var(--ui-bg);color:var(--ui-highlight);font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
 #weaponBtn .wIcon{font-size:20px;line-height:1}
 #weaponBtn .wLabel{font-size:9px;letter-spacing:.3px}
 #weaponBtn:active{transform:scale(.92);background:var(--ui-bg-active)}
@@ -315,10 +317,25 @@ body.creative #bagCreative{display:block}
 
 /* ═══ レスポンシブ: 狭い端末ではアイコン優先・ラベル簡略化 ═══ */
 @media (max-width:430px){
-  .uiIcon{width:34px;height:34px}
-  .uiIcon svg{width:20px;height:20px}
-  #menuBtns{gap:5px}
-  .tbSide{gap:7px}
+  #topBar{padding-right:calc(12px + var(--safeR))}
+  .uiIcon{width:32px;height:32px}
+  .uiIcon svg{width:19px;height:19px}
+  #menuBtns{gap:4px}
+  .tbSide{gap:6px}
+  #minimap{right:calc(12px + var(--safeR))}
+
+  /* iPhone 縦画面: 右側を占有しすぎない140px幅の操作群にする。
+     48px以上の主要タップ領域は保ち、右端には16pxの指掛かりを確保。 */
+  #actionWrap{right:calc(16px + var(--safeR));bottom:calc(62px + var(--safeB));grid-template-columns:56px 76px;column-gap:8px;row-gap:8px}
+  #breakBtn{width:76px;height:76px}
+  #breakBtn .aIcon{font-size:25px}
+  #placeBtn{width:56px;height:56px}
+  #jumpBtn{width:76px;height:48px}
+  #flyBtn{width:76px;height:38px}
+  #flyDownBtn{width:56px;height:38px}
+  #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
+  #weaponBtn{right:calc(18px + var(--safeR));bottom:calc(248px + var(--safeB));width:54px;height:46px}
+  #cdBar{right:calc(18px + var(--safeR));bottom:calc(151px + var(--safeB));width:72px}
 }
 @media (max-width:360px){
   .uiIcon{width:31px;height:31px}
