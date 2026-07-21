@@ -65,6 +65,7 @@ function updateInvHUD(){
   const wbc=document.getElementById('woolBlockCount');if(wbc)wbc.textContent=isCreative()?'':(inv.woolBlock>0?inv.woolBlock:'');
   const tnc=document.getElementById('tntCount');if(tnc)tnc.textContent=isCreative()?'':(inv.tnt>0?inv.tnt:'');
   if(typeof updateCrustBombBtn==='function')updateCrustBombBtn();
+  if(typeof updateTsarBombBtn==='function')updateTsarBombBtn();
   if(typeof renderBagIfOpen==='function')renderBagIfOpen();
 }
 
@@ -155,6 +156,8 @@ const MATERIAL_LABELS={
   woolBlock:'🧶 WOOL BLOCK',
   tnt:'💣 TNT',
   steak:'🍖 STEAK',
+  crustBomb:'🌋 地殻貫通爆弾',
+  tsarBomba:'☢ ツァーリ・ボンバ',
   meat:'🥩 MEAT'
 };
 
@@ -231,6 +234,7 @@ function doCraft(idx){
   else if(r.wi===-28){inv.woolBlock+=4;showBonus('🧶 ウールブロック×4 CRAFTED!');}
   else if(r.wi===-29){inv.tnt+=2;showBonus('💣 TNT ×2 CRAFTED!');}
   else if(r.wi===-30){inv.crustBomb+=1;showAlert('🌋 地殻貫通爆弾 CRAFTED! 飛行中に N / 投下ボタンで使用');playTone(70,.22,.2,'sawtooth');setTimeout(()=>playTone(52,.3,.22,'sawtooth'),160);}
+  else if(r.wi===-31){inv.tsarBomba+=1;showAlert('☢ ツァーリ・ボンバ CRAFTED! M / ☢ボタンで設置 or 飛行中に投下');playTone(60,.3,.24,'sawtooth');setTimeout(()=>playTone(45,.4,.22,'sawtooth'),200);}
   else if(r.wi===-19){enchTableCount++;updateEnchTableHUD();showBonus('⚒ 強化台×'+enchTableCount+'  X/PLACE長押しで設置！');}
   else if(r.wi===-25){furnaceCount++;updateFurnaceHUD();showBonus('🔥 かまど×'+furnaceCount+'  X/PLACE長押しで設置！');}
   else if(r.wi===-26){applyIronSword();showAlert('🔩 IRON SWORD CRAFTED!');playTone(1000,.18,.18,'square');setTimeout(()=>playTone(1300,.14,.16,'square'),140);setTimeout(()=>playTone(1600,.1,.14,'square'),280);}
@@ -389,7 +393,7 @@ document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains
 function resetInv(){
   inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.fireArrow=0;inv.iceArrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
   inv.ice=0;inv.obsidian=0;inv.crystal=0;inv.cactus=0;inv.mushroom=0;inv.clay=0;
-  inv.ironOre=0;inv.ironIngot=0;inv.glass=0;inv.woolBlock=0;inv.tnt=0;inv.steak=0;inv.crustBomb=0;
+  inv.ironOre=0;inv.ironIngot=0;inv.glass=0;inv.woolBlock=0;inv.tnt=0;inv.steak=0;inv.crustBomb=0;inv.tsarBomba=0;
   arrowMode='normal';resetEnchants();
   hasDiamondSword=false;hasIronSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;

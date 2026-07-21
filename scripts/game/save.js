@@ -177,6 +177,7 @@ async function saveGame(){
     worldSeed:WORLD_SEED,worldGenVersion:2,
     worldEdits:packWorldEdits(worldEdits),
     explosives:(typeof tntSaveState==='function')?tntSaveState():[],
+    tsarBombs:(typeof tsarBombaSaveState==='function')?tsarBombaSaveState():[],
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),

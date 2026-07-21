@@ -277,6 +277,8 @@ body.creative #goalLabel{display:none}
 
 #lightning{position:absolute;inset:0;background:#eaf2ff;opacity:0;pointer-events:none;z-index:6;transition:opacity .06s}
 #lightning.on{opacity:.65}
+/* ☢ ツァーリ・ボンバの全画面白飛び。JSが opacity を直接制御して減衰させる（transition なし） */
+#tsarFlash{position:absolute;inset:0;background:#ffffff;opacity:0;pointer-events:none;z-index:34}
 #regionEditBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(92px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #66e0ff66;background:rgba(20,120,160,.22);color:#bff6ff;font-size:18px;font-weight:900;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #regionEditBtn:active{transform:scale(.92)}
 #regionEditHud{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:min(270px,calc(100vw - 18px - var(--safeL) - var(--safeR)));padding:8px;border-radius:12px;border:1.5px solid rgba(102,224,255,.45);background:rgba(5,10,18,.82);box-shadow:0 0 18px rgba(0,180,255,.18);pointer-events:auto;z-index:40;color:#e7fbff;text-shadow:1px 1px 0 #000;touch-action:manipulation}
