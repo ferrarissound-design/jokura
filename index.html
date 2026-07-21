@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260731b">
+<link rel="stylesheet" href="styles/main.css?v=20260802tnt">
 
 </head>
 <body>
@@ -133,7 +133,14 @@
     <div class="hslot" data-i="7"><div class="dot" style="background:conic-gradient(from 180deg at 50% 50%,#8a8f98 0 25%,rgba(255,255,255,.08) 25% 50%,#8a8f98 50% 100%)"></div>Stairs<span class="hcount" id="stairCount"></span></div>
     <div class="hslot" data-i="8"><div class="dot" style="background:linear-gradient(135deg,rgba(191,230,255,.75),rgba(191,230,255,.25));border:1px solid rgba(255,255,255,.5)"></div>Glass<span class="hcount" id="glassCount"></span></div>
     <div class="hslot" data-i="9"><div class="dot" style="background:radial-gradient(circle at 50% 40%,#ffffff,#e6e6dc)"></div>Wool<span class="hcount" id="woolBlockCount"></span></div>
+    <div class="hslot" data-i="10"><div class="dot tntDot"></div>TNT<span class="hcount" id="tntCount"></span></div>
   </div>
+  <button id="tntModeBtn" style="display:none">💣 MANUAL</button>
+  <div id="tntControl">
+    <div id="tntControlStatus">💣 TNT</div>
+    <div class="tntControlRow"><button id="tntIgniteBtn">🔥 起爆</button><button id="tntModeControlBtn">近接爆弾へ</button><button id="tntRangeBtn">◯ 範囲</button><button id="tntRecoverBtn">↩ 回収</button><button id="tntCancelBtn">×</button></div>
+  </div>
+  <pre id="tntDebug" style="display:none"></pre>
   <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / メインアクションで攻撃・採掘 / サブで設置(長押し=家具)</div>
   <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-0:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト / I:インベントリ / V:範囲編集(クリエイティブ)</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
@@ -176,6 +183,7 @@
       <b>防具</b>: 鎧をクラフトすると敵の攻撃を軽減（🛡木20%→🛡石35%→🔩鉄45%→💎ダイヤ55%）。防ぐたび耐久が減り、0で壊れる。再クラフトで修理。溶岩・寒冷・空腹には無効。<br>
       <b>🔥 精錬・調理</b>: 地下(深さ13〜)で🔶鉄鉱石を掘り、🪨×12のかまどを設置。近くでクラフトを開くと「🔥精錬」「🍖調理」メニューが出る。鉄鉱石＋🪵木(燃料)で🔩鉄インゴット、🏖砂＋🪵木で🪟ガラス、🥩肉＋🪵木で🍖ステーキ(満腹度+60/HP+25・EATで優先して食べる)を作れる。<br>
       <b>🪟 建築ブロック</b>: 🪟ガラス(半透明)と🧶ウールブロック(🧶×2→×4でクラフト)はホットバーの9・0番スロット(スマホはタップ)で選んで設置する。<br>
+      <b>💣 TNT</b>: TNTを選んで通常どおり設置。TNTを照準してF/左クリック/PLACEを押すと小型操作UIが開き、起爆・近接罠切替・範囲表示・回収ができる。TキーでTNTを選択。<br>
       <b>動物・牧畜</b>: 🐷豚は倒すと🥩肉。🐑羊は近くでXキー(スマホはPLACE長押し)で刈ると倒さず🧶ウールが手に入り、しばらくすると毛が生え変わる。🐔鶏は時々🥚卵を産み落とし、拾うと満腹度が回復。<br>
       <b>🐺相棒</b>: 野生のオオカミは🥩肉を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で肉をあげると手なずけられ、付いてきて敵と戦ってくれる。倒れても時間か肉で復活。肉でHP回復。<br>
       <b>🐴騎乗</b>: 野生のウマは🌾小麦を持っていると寄ってくる。近くでXキー(スマホはPLACE長押し)で小麦をあげると手なずけられ、もう一度Xで騎乗。移動速度アップ・ジャンプ強化・ダッシュの満腹度消費なし。降りるのもX。<br>
@@ -218,6 +226,16 @@
     <button class="pmBtn settingToggle" id="skyQualityBtn">空の品質: AUTO</button>
     <button class="pmBtn settingToggle" id="bobToggleBtn">画面の揺れ: ON</button>
     <button class="pmBtn settingToggle" id="coordsToggleBtn">座標表示: OFF</button>
+    <div class="setLabel">💣 TNT / 爆発</div>
+    <button class="pmBtn settingToggle" id="tntRadiusBtn">爆発半径: 5</button>
+    <button class="pmBtn settingToggle" id="tntDestroyBtn">ブロック破壊: ON</button>
+    <button class="pmBtn settingToggle" id="tntEntityDamageBtn">エンティティダメージ: ON</button>
+    <button class="pmBtn settingToggle" id="tntPlayerDamageBtn">プレイヤーダメージ: ON</button>
+    <button class="pmBtn settingToggle" id="tntDropsBtn">アイテムドロップ: OFF</button>
+    <button class="pmBtn settingToggle" id="tntShakeBtn">画面揺れ: ON</button>
+    <button class="pmBtn settingToggle" id="tntChainBtn">連鎖爆発: ON</button>
+    <button class="pmBtn settingToggle" id="tntPreviewBtn">爆破範囲表示: ON</button>
+    <button class="pmBtn settingToggle" id="tntQualityBtn">爆発演出: AUTO</button>
     <div class="menuText small">設定はこの端末に保存されます。難易度は被ダメージ量に影響します。</div>
     <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
   </div>
@@ -300,7 +318,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260801a';
+  var V='20260802tnt';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
   var PARTS=['state','achievements','crafting','save','ui','audio',
@@ -310,7 +328,7 @@
              'structures_inverted_castle','structures_frozen_village',
              'structures_underground_city','structures_sky_city','structures_sunken_city',
              'structures_walking_fortress','structures_registry',
-             'sky','combat','entities','humanoids','hud','region_editor','input','main','cheats','mobileui'];
+             'sky','combat','entities','humanoids','explosives','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）

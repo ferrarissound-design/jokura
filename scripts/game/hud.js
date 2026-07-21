@@ -419,6 +419,7 @@ function resetMining(){miningKey='';miningProgress=0;crackMesh.visible=false;}
 function weaponMinePower(){if(weaponIdx===2)return hasDiamondHammer?6:4;if(weaponIdx===1)return 1.5;if(weaponIdx===4)return 2;return 1;}
 function mineBlock(bh){
   const d=bh;if(d.ti===WATER_BLOCK)return;
+  if(d.ti===TNT_BLOCK){openTNTControlFromHit(d);resetMining();return;}
   if(isCreative()){breakBlock(bh);sfxBreak();resetMining();return;} // creative: instant break (even lava rock)
   const hard=BLOCK_HARDNESS[d.ti]!==undefined?BLOCK_HARDNESS[d.ti]:99;
   const now=performance.now()/1000;

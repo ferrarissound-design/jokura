@@ -40,13 +40,16 @@ function doFurnitureAction(){
 
 // ═══ INPUT ═══
 let lActive=false,lId=null,lX=0,lY=0;const LS_BASE=.006;let LS=LS_BASE*(settings.lookSens||1);const uiPointers=new Set();
-if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#regionEditHud')||el.id==='regionEditBtn'||el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='questBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay')||el.closest('.menuPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
+if(!isDesktop){document.addEventListener('pointerdown',(e)=>{if(e.clientX<window.innerWidth*.38)return;const el=e.target;if(el&&(el.closest('#regionEditHud')||el.closest('#tntControl')||el.id==='tntModeBtn'||el.id==='regionEditBtn'||el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='questBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay')||el.closest('.menuPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
 const keys={};
 document.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
   if(e.code==='Space'&&gs.running){e.preventDefault();if(!e.repeat)doJump();}
   if(e.code>='Digit1'&&e.code<='Digit9')setType(parseInt(e.code[5])-1);
   if(e.code==='Digit0')setType(9);
+  if(e.code==='KeyT')setType(SLOT_TI.indexOf(TNT_BLOCK));
+  if(e.code==='KeyF'&&gs.running){const bh=castVoxel(true);if(bh&&bh.ti===TNT_BLOCK)openTNTControlFromHit(bh);}
+  if(e.code==='F8'){e.preventDefault();toggleTNTDebug();}
   if(e.code==='KeyE')cycleWeapon();
   if(e.code==='KeyR')cycleArrowMode();
   if(e.code==='F5'&&gs.running){e.preventDefault();saveGame();}
@@ -65,7 +68,7 @@ if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.()
 
 // ═══ HOTBAR ═══
 let curType=0;const slots=[...document.querySelectorAll('.hslot')];
-function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');if(typeof updateRegionEditUI==='function')updateRegionEditUI();}
+function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');if(typeof updateRegionEditUI==='function')updateRegionEditUI();if(typeof updateTNTModeButton==='function')updateTNTModeButton();}
 slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();initAudio();setType(parseInt(s.dataset.i,10));});});
 function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
@@ -258,6 +261,7 @@ function doPlace(e){
   if(e)e.preventDefault();if(!gs.running)return;initAudio();
   if(regionEditor&&regionEditor.state.active){const rb=castVoxel(true);if(rb)regionEditor.pick(rb);return;}
   const bh=castVoxel(true);if(!bh)return;
+  if(bh.ti===TNT_BLOCK&&openTNTControlFromHit(bh))return;
   if(tryFishing(bh))return;
   const n={x:bh.nx,y:bh.ny,z:bh.nz},d=bh;
   const px=d.x+Math.round(n.x),py=d.y+Math.round(n.y),pz=d.z+Math.round(n.z);
@@ -265,6 +269,7 @@ function doPlace(e){
   for(const en of enemies){const ep=en.root.position,fy=ep.y-.85;if(px<ep.x+.5&&px+1>ep.x-.5&&py<fy+1.7&&py+1>fy&&pz<ep.z+.5&&pz+1>ep.z-.5)return;}
   for(const h of humanoids){const p=h.root.position;if(px<p.x+.4&&px+1>p.x-.4&&py<p.y+2.5&&py+1>p.y&&pz<p.z+.4&&pz+1>p.z-.4)return;}
   const mat=SLOT_MAT[curType],ti=SLOT_TI[curType];
+  if(ti===TNT_BLOCK&&!canPlaceTNT())return;
   if(!isCreative()){ // creative: infinite blocks, nothing consumed
     if(inv[mat]<=0){showBonus(mat==='torch'?'🔥 トーチがない！クラフトしよう':mat==='slab'?'⬜ ハーフブロックがない！クラフトしよう':mat==='stair'?'🪜 階段がない！クラフトしよう':'素材がない！ 🪵');playTone(180,.1,.1,'sawtooth');return;}
     inv[mat]--;updateInvHUD();
@@ -280,6 +285,7 @@ function doPlace(e){
   }
   addBlock(px,py,pz,ti,true,true,meta);
   const pk=vKey(px,py,pz);worldEdits.placed[pk]=ti|(meta<<5);delete worldEdits.removed[pk];
+  if(ti===TNT_BLOCK)configurePlacedTNT(pk,_tntPlacementMode);
   sfxPlace();triggerPlaceSwing();
 }
 

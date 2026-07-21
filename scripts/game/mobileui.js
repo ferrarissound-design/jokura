@@ -27,8 +27,8 @@ const _subActLabel=document.getElementById('subActLabel');
 const _weaponBtnIcon=document.getElementById('weaponBtnIcon');
 const _miniCoords=document.getElementById('miniCoords');
 // ホットバーの各スロット（ブロック）のアイコン絵文字と表示名
-const BLOCK_ICONS=['🌿','🪨','🏖','🪵','🧱','🔥','⬜','🪜','🪟','🧶'];
-const BLOCK_NAMES=['Grass','Stone','Sand','Wood','Brick','Torch','Slab','Stairs','Glass','Wool'];
+const BLOCK_ICONS=['🌿','🪨','🏖','🪵','🧱','🔥','⬜','🪜','🪟','🧶','💣'];
+const BLOCK_NAMES=['Grass','Stone','Sand','Wood','Brick','Torch','Slab','Stairs','Glass','Wool','TNT'];
 function _weaponGlyph(){const n=(WEAPONS[weaponIdx]&&WEAPONS[weaponIdx].name)||'';return n.split(' ')[0]||'👊';}
 function _weaponVerb(){
   const w=WEAPONS[weaponIdx];if(!w)return 'ATTACK';

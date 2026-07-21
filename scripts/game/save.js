@@ -99,11 +99,11 @@ function unpackWorldEditsInto(target,saved){
 }
 
 // ═══ SAVE ═══
-const SAVE_VERSION=6;
+const SAVE_VERSION=7;
 const SAVE_SLOT_COUNT=3;
-const SAVE_BASE_KEY='jokura-save-v6';
+const SAVE_BASE_KEY='jokura-save-v7';
 const SAVE_KEY=SAVE_BASE_KEY; // legacy single-slot key kept for migration
-const LEGACY_SAVE_KEYS=['jokura-save-v5'];
+const LEGACY_SAVE_KEYS=['jokura-save-v6','jokura-save-v5'];
 const ACTIVE_SAVE_SLOT_KEY='jokura-active-save-slot';
 function getStoredActiveSaveSlot(){
   try{const n=Number(localStorage.getItem(ACTIVE_SAVE_SLOT_KEY)||1);return Math.max(1,Math.min(SAVE_SLOT_COUNT,n||1));}
@@ -119,12 +119,12 @@ function migrateSaveData(data){
   if(!data||typeof data!=='object')return null;
   const migrated={...data};
   const version=Number(migrated.version||0);
-  if(version<6)migrated.version=6;
+  if(version<7)migrated.version=7;
   return migrated;
 }
 async function loadSaveData(slot=activeSaveSlot){
   const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
-  const keys=[saveKeyForSlot(safeSlot)];
+  const keys=[saveKeyForSlot(safeSlot),'jokura-save-v6-slot-'+safeSlot];
   if(safeSlot===1)keys.push(SAVE_KEY,...LEGACY_SAVE_KEYS);
   for(const key of keys){
     try{
@@ -152,6 +152,7 @@ async function getAllSaveSlots(){
 async function deleteSave(slot=activeSaveSlot){
   const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
   try{await window.storage.delete(saveKeyForSlot(safeSlot));}catch(e){}
+  try{await window.storage.delete('jokura-save-v6-slot-'+safeSlot);}catch(e){}
   if(safeSlot===1){
     try{await window.storage.delete(SAVE_KEY);}catch(e){}
     for(const key of LEGACY_SAVE_KEYS){try{await window.storage.delete(key);}catch(e){}}
@@ -175,6 +176,7 @@ async function saveGame(){
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:WORLD_SEED,
     worldEdits:packWorldEdits(worldEdits),
+    explosives:(typeof tntSaveState==='function')?tntSaveState():[],
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),

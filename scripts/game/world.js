@@ -161,9 +161,9 @@ const DRAW_RY=isTouch?1:2;
 // memory stays bounded no matter how far the player wanders (Minecraft-style
 // chunk loading/unloading rather than a hard world border)
 const UNLOAD_R=DRAW_R+4;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec,0x3f9e3f];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block,leaf]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1,1];
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec,0x3f9e3f,0xe53920];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block,leaf,tnt]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1,1,1];
 const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16,SLAB_BLOCK=17,STAIR_BLOCK=18;
 // バイオーム固有素材ブロック（そのバイオームの地表にだけ生成される）
 // 氷=滑る / 黒曜石=超硬い+敵に壊されない(耐爆) / 水晶・サボテン・キノコ・粘土=クラフト素材
@@ -171,8 +171,8 @@ const ICE_BLOCK=19,OBSIDIAN_BLOCK=20,CRYSTAL_BLOCK=21,CACTUS_BLOCK=22,MUSHROOM_B
 // 建築ブロック: 🪟ガラス(半透明・かまどで砂を焼く) / 🧶ウールブロック(柔らかい建材)
 const GLASS_BLOCK=25,WOOL_BLOCK=26;
 // 🍃 葉ブロック: 木の傘に使う（以前は草ブロックの傘で側面が土に見えていた）
-const LEAF_BLOCK=27;
-const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK,GLASS_BLOCK,WOOL_BLOCK];
+const LEAF_BLOCK=27,TNT_BLOCK=28;
+const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK,GLASS_BLOCK,WOOL_BLOCK,TNT_BLOCK];
 // ─── PARTIAL BLOCKS (slabs & stairs) ───
 // Shapes are described as 1-2 sub-boxes in local cell coords [x0,y0,z0,x1,y1,z1].
 // meta — slab: 0 bottom half / 1 top half; stair: 0-3 = which side the tall
@@ -268,7 +268,7 @@ function buildChunkMesh(rec){
   const buckets=new Map();
   for(const k of rec.keys){
     const v=voxels[k];if(!v)continue;
-    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK)continue;
+    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK||ti===TNT_BLOCK)continue;
     const p=k.split('|');const x=+p[0],y=+p[1],z=+p[2];
     const bm=blockMats[ti];
     if(isPartial(ti)){
@@ -429,6 +429,21 @@ function brickTex(base,seed){
   for(let y=0;y<TEX_SIZE;y+=4){const off=((y/4)%2)===0?0:4;for(let xx=off;xx<TEX_SIZE;xx+=8)x.fillRect(xx,y,1,4);}
   return _mkTex(c);
 }
+function tntSideTex(){
+  const[c,x]=_texCtx();
+  x.fillStyle='#d9331f';x.fillRect(0,0,16,16);
+  x.fillStyle='#f05a28';for(let i=1;i<16;i+=4)x.fillRect(i,0,2,16);
+  x.fillStyle='#f2dfb3';x.fillRect(0,5,16,6);
+  x.fillStyle='#1b1715';x.fillRect(0,5,16,1);x.fillRect(0,10,16,1);
+  x.fillStyle='#b71c1c';x.font='bold 6px monospace';x.textAlign='center';x.fillText('TNT',8,10);
+  return _mkTex(c);
+}
+function tntTopTex(){
+  const[c,x]=_texCtx();x.fillStyle='#e44925';x.fillRect(0,0,16,16);
+  x.fillStyle='#7d1b12';for(let i=-12;i<20;i+=6){x.save();x.translate(i,0);x.rotate(Math.PI/4);x.fillRect(0,-12,2,32);x.restore();}
+  x.fillStyle='#202020';x.fillRect(6,6,4,4);x.fillStyle='#ffb12b';x.fillRect(7,7,2,2);
+  return _mkTex(c);
+}
 // ore: stone body sprinkled with mineral blobs
 function oreTex(stoneCol,oreCol,seed){
   const[c,x]=_texCtx();const r=_rng(seed);
@@ -457,6 +472,7 @@ const _T={
   cactus:noisyTex(0x2e9e4f,64,.16), mushroom:oreTex(0xd0483e,0xffe9d0,65), clay:noisyTex(0xb0a08c,66,.1),
   woolBlk:noisyTex(0xf4f4ec,71,.05),
   leaf:naturalTex(0x477a3c,72,.15,11),
+  tntSide:tntSideTex(),tntTop:tntTopTex(),
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
@@ -491,6 +507,7 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case GLASS_BLOCK: return new THREE.MeshStandardMaterial({color:0xbfe6ff,roughness:.05,metalness:.15,transparent:true,opacity:.32,emissive:0x113344,emissiveIntensity:.06,vertexColors:true});
     case WOOL_BLOCK: return smat(_T.woolBlk,{roughness:1});
     case LEAF_BLOCK: return smat(_T.leaf,{roughness:1});
+    case TNT_BLOCK: return faceMats(_T.tntSide,_T.tntTop,_T.tntTop);
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
@@ -640,11 +657,11 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced,meta){
   // live placement (player build / world-edit replay): world-gen sets tint
   // itself via tintAt() for its own blend-cache reuse, this covers the rest
   if(addToScene&&(ti===0||ti===5))v.tint=computeGrassTint(x,z);
-  if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK){
-    const geo=ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:glassGeo;
+  if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK||ti===TNT_BLOCK){
+    const geo=ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:ti===GLASS_BLOCK?glassGeo:boxGeo;
     const m=new THREE.Mesh(geo,blockMats[ti]);
     m.position.set(x+.5,y+.5,z+.5);
-    m.castShadow=false;m.receiveShadow=ti!==TORCH_BLOCK;
+    m.castShadow=ti===TNT_BLOCK;m.receiveShadow=ti!==TORCH_BLOCK;
     m.userData={x,y,z,isBlock:true,ti};
     v.mesh=m;
   }
@@ -657,10 +674,12 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced,meta){
     markDirtyAround(x,y,z);
     flushDirtyChunks();
   }
+  if(ti===TNT_BLOCK&&typeof onTNTBlockAdded==='function')onTNTBlockAdded(k,v);
   return k;
 }
 function removeBlock(x,y,z){
   const k=vKey(x,y,z);const v=voxels[k];if(!v)return;
+  if(v.ti===TNT_BLOCK&&typeof onTNTBlockRemoved==='function')onTNTBlockRemoved(k,v);
   if(v.mesh){scene.remove(v.mesh);if(v.rec)v.rec.specials.delete(v.mesh);}
   if(v.rec)v.rec.keys.delete(k);
   lavaBlocks.delete(k);torchBlocks.delete(k);

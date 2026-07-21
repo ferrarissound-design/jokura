@@ -156,6 +156,7 @@ function applyModeUI(){
   if(typeof updateRegionEditUI==='function')updateRegionEditUI();
   updateFlyBtns();
   if(typeof applyMobileModeUI==='function')applyMobileModeUI();
+  if(typeof updateTNTModeButton==='function')updateTNTModeButton();
 }
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
@@ -278,6 +279,7 @@ function gameOver(){
 }
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
+  if(typeof resetTNTSystem==='function')resetTNTSystem();
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   if(typeof clearVillages==='function')clearVillages();else clearHumanoids();
@@ -369,6 +371,7 @@ async function continueGame(){
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
+  if(typeof tntLoadState==='function')tntLoadState(d.explosives);
   if(typeof villagesLoadState==='function')villagesLoadState(d.villages);
   // チェスト復元
   chestCount=d.chestCount||0;
@@ -504,7 +507,9 @@ function tick(now){
   const sprinting=_wantSprint&&P.food>20&&!P.flying; // too hungry to sprint / shift descends while flying
   const curSpeed=(mounted?(_wantSprint?MOUNT_GALLOP:MOUNT_SPEED):(P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED)))*(blizzard?0.72:1);
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
-  movePlayer((sr*cY+fw*sY)*curSpeed,(fw*cY-sr*sY)*curSpeed,dt);
+  const blastImpulse=tntPlayerImpulse(dt);
+  movePlayer((sr*cY+fw*sY)*curSpeed+blastImpulse.x,(fw*cY-sr*sY)*curSpeed+blastImpulse.z,dt);
+  updateExplosionSystem(dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
