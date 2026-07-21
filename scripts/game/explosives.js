@@ -19,6 +19,17 @@ const BlastResistance={
   get(ti){const v=this.values[ti];return v==null?3:v;},
   isProtected(ti){return !Number.isFinite(this.get(ti));},
 };
+// 地殻貫通爆弾など「obsidianBreak」フラグ付きの爆発だけ、爆心近くの黒曜石を有限耐性で扱う。
+// 通常TNTでは黒曜石(=Infinity)は無傷のまま。岩盤扱いの溶岩/水/火山岩は常に無傷。
+const CRUST_OBSIDIAN_RES=5;
+function _blastResFor(ev,ti,dist){
+  if(ev&&ev.obsidianBreak&&ti===OBSIDIAN_BLOCK&&dist<=ev.obsidianBreak)return CRUST_OBSIDIAN_RES;
+  return BlastResistance.get(ti);
+}
+function _blastCanDestroy(ev,ti,dist){
+  if(ev&&ev.obsidianBreak&&ti===OBSIDIAN_BLOCK&&dist<=ev.obsidianBreak)return true;
+  return !BlastResistance.isProtected(ti);
+}
 
 const _tntRecords=new Map();
 const _tntIgnitedKeys=new Set();
@@ -169,12 +180,12 @@ const ExplosionSystem={
     const i=t.scan++,s=t.size,dx=i%s-t.r,dy=Math.floor(i/s)%s-t.r,dz=Math.floor(i/(s*s))-t.r,dist=Math.hypot(dx,dy,dz);if(dist>t.ev.radius+.15)return;
     const x=Math.floor(t.ev.x)+dx,y=Math.floor(t.ev.y)+dy,z=Math.floor(t.ev.z)+dz,k=vKey(x,y,z),v=voxels[k];if(!v||!v.active)return;
     const attenuation=1-dist/(t.ev.radius+.25),random=.76+Math.random()*.48,trans=_tntTransmission(t.ev.x,t.ev.y,t.ev.z,x+.5,y+.5,z+.5);this.lastOcclusion=trans;
-    const force=ExplosionConfig.power*attenuation*random*trans,res=BlastResistance.get(v.ti);
+    const force=ExplosionConfig.power*(t.ev.powerMul||1)*attenuation*random*trans,res=_blastResFor(t.ev,v.ti,dist);
     if(v.ti===TNT_BLOCK){if(settings.tntChain!==false&&force>.35)igniteTNT(k,'chain',ExplosionConfig.chainFuseMin+Math.random()*(ExplosionConfig.chainFuseMax-ExplosionConfig.chainFuseMin));return;}
-    if(force>res)t.blocks.push({x,y,z,k,ti:v.ti});
+    if(force>res)t.blocks.push({x,y,z,k,ti:v.ti,dist});
   },
   _destroyOne(t){
-    const b=t.blocks[t.destroy++],v=voxels[b.k];if(!v||!v.active||v.ti!==b.ti||BlastResistance.isProtected(v.ti))return;
+    const b=t.blocks[t.destroy++],v=voxels[b.k];if(!v||!v.active||v.ti!==b.ti||!_blastCanDestroy(t.ev,v.ti,b.dist))return;
     if(typeof ftvOnBlockBroken==='function')ftvOnBlockBroken(b.k);if(typeof sucOnBlockBroken==='function')sucOnBlockBroken(b.k);if(typeof sccOnBlockBroken==='function')sccOnBlockBroken(b.k);
     if(t.debris<ExplosionConfig.maxDebrisPerExplosion&&Math.hypot(b.x-P.x,b.z-P.z)<28){spawnBlockDebris(b.x+.5,b.y+.5,b.z+.5,v.ti);t.debris++;}
     if(settings.tntItemDrops&&!isCreative()&&t.drops.length<ExplosionConfig.maxBlockDrops){const mat=BLOCK_MAT_MAP[v.ti];if(mat)t.drops.push({mat,ti:v.ti,x:b.x+.5,y:b.y+.5,z:b.z+.5});}

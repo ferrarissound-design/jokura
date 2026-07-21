@@ -60,6 +60,7 @@ document.addEventListener('keydown',(e)=>{
     if(!gs.running)return;
     if(_bedNearby())sleepBed();else placeBed();
   }
+  if(e.code==='KeyN'){if(gs.running&&typeof deployCrustBomb==='function')deployCrustBomb();}
   if(e.code==='KeyV'){if(typeof _onRegionEditBtnTap==='function')_onRegionEditBtnTap();}
   if(e.code==='Escape'||e.code==='KeyP'){if(gs.running)togglePause();}
 });

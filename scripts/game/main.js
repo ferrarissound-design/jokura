@@ -45,10 +45,13 @@ function _bindHold(el,set){
 _bindHold(jumpBtn,v=>{jumpBtnHeld=v;});
 _bindHold($flyDownBtn,v=>{flyDownHeld=v;});
 if($flyBtn)bindTapSafe($flyBtn,toggleFly);
+const $crustBombBtn=document.getElementById('crustBombBtn');
+if($crustBombBtn)bindTapSafe($crustBombBtn,()=>{if(typeof deployCrustBomb==='function')deployCrustBomb();});
 function updateFlyBtns(){
   const show=isCreative()&&!isDesktop&&gs.running;
   if($flyBtn){$flyBtn.style.display=show?'':'none';$flyBtn.textContent=P.flying?'🛬 LAND':'🕊 FLY';}
   if($flyDownBtn)$flyDownBtn.style.display=show&&P.flying?'':'none';
+  if(typeof updateCrustBombBtn==='function')updateCrustBombBtn();
 }
 // ─── 🏗 特殊生成 PICKER (creative only) ───
 // ボタンは即座にメニューを開くだけ（クールダウン不要）。実際の一発生成（数千
@@ -280,6 +283,7 @@ function gameOver(){
 function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score*0.5);gs.running=true;$contDeathBtn.style.display='none';$contBtn.classList.remove('disabled');overlay.classList.add('hide');saveGame();showAlert('コンティニュー！ スコア半減');}
 function commonReset(){
   if(typeof resetTNTSystem==='function')resetTNTSystem();
+  if(typeof resetCrustBomb==='function')resetCrustBomb();
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   if(typeof clearVillages==='function')clearVillages();else clearHumanoids();
@@ -509,8 +513,11 @@ function tick(now){
   const curSpeed=(mounted?(_wantSprint?MOUNT_GALLOP:MOUNT_SPEED):(P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED)))*(blizzard?0.72:1);
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   const blastImpulse=tntPlayerImpulse(dt);
-  movePlayer((sr*cY+fw*sY)*curSpeed+blastImpulse.x,(fw*cY-sr*sY)*curSpeed+blastImpulse.z,dt);
+  const _mvX=(sr*cY+fw*sY)*curSpeed,_mvZ=(fw*cY-sr*sY)*curSpeed;
+  movePlayer(_mvX+blastImpulse.x,_mvZ+blastImpulse.z,dt);
+  if(typeof crustBombNoteMove==='function')crustBombNoteMove(_mvX,_mvZ);
   updateExplosionSystem(dt);
+  if(typeof updateCrustBomb==='function')updateCrustBomb(dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
