@@ -111,8 +111,11 @@ body.creative #goalLabel{display:none}
 #joyWrap{position:absolute;left:calc(10px + var(--safeL));bottom:calc(64px + var(--safeB));width:118px;height:118px;pointer-events:auto;touch-action:none;z-index:10}
 #joyBase{position:absolute;inset:0;border-radius:50%;border:var(--ui-bw) solid var(--ui-border);background:rgba(255,255,255,.04)}
 #joyKnob{position:absolute;left:34px;top:34px;width:50px;height:50px;border-radius:50%;border:var(--ui-bw) solid rgba(255,255,255,.28);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.22),rgba(255,255,255,.06));will-change:left,top}
-/* ── 右手操作: メイン(大)＋サブ＋JUMP＋FLY ── */
-#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(64px + var(--safeB));display:grid;grid-template-columns:64px 84px;grid-template-rows:auto auto;grid-template-areas:"fly fly" "sub jump" "sub main";column-gap:10px;row-gap:10px;align-items:end;pointer-events:auto;z-index:10}
+/* ── 右手操作: メイン(大)＋サブ＋JUMP＋FLY＋(BOMB/TSAR) ──
+   BOMB/TSAR は grid-area を明示して左列(1列目)に置く。エリア未指定だと
+   暗黙の最下行に自動配置され、下端基準のグリッド全体が上へ伸びて
+   FLY ボタンが #weaponBtn と重なる（iPhone縦画面で発生していた不具合）。 */
+#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(64px + var(--safeB));display:grid;grid-template-columns:auto 64px 84px;grid-template-rows:auto auto auto;grid-template-areas:". fly fly" "bomb sub jump" "tsar sub main";column-gap:10px;row-gap:10px;align-items:end;pointer-events:auto;z-index:10}
 .abtn{border-radius:var(--ui-radius);border:var(--ui-bw) solid var(--ui-border);color:var(--ui-text);font-weight:800;letter-spacing:.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;background:var(--ui-bg);transition:transform .1s,background .1s;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
 .abtn:active{transform:scale(.93);background:var(--ui-bg-active)}
 .abtn .aIcon{font-size:20px;line-height:1}
@@ -127,6 +130,8 @@ body.creative #goalLabel{display:none}
 #jumpBtn:active{background:rgba(45,120,200,.7)}
 #flyBtn{grid-area:fly;justify-self:end;width:84px;height:40px;flex-direction:row;gap:4px;font-size:11px}
 #flyDownBtn{grid-area:fly;justify-self:start;width:64px;height:40px;flex-direction:row;gap:3px;font-size:11px}
+#crustBombBtn{grid-area:bomb;width:64px;height:52px}
+#tsarBombBtn{grid-area:tsar;width:64px;height:52px}
 /* actionWrap の最上段(FLY)より上へ置く。旧 bottom:212px は FLY とほぼ同じ
    座標になり、iPhone 縦画面で両ボタンの押下領域が重なっていた。 */
 #weaponBtn{position:absolute;right:calc(14px + var(--safeR));bottom:calc(270px + var(--safeB));width:58px;height:50px;border-radius:var(--ui-radius);border:var(--ui-bw) solid rgba(255,216,74,.5);background:var(--ui-bg);color:var(--ui-highlight);font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
@@ -328,13 +333,14 @@ body.creative #bagCreative{display:block}
 
   /* iPhone 縦画面: 右側を占有しすぎない140px幅の操作群にする。
      48px以上の主要タップ領域は保ち、右端には16pxの指掛かりを確保。 */
-  #actionWrap{right:calc(16px + var(--safeR));bottom:calc(62px + var(--safeB));grid-template-columns:56px 76px;column-gap:8px;row-gap:8px}
+  #actionWrap{right:calc(16px + var(--safeR));bottom:calc(62px + var(--safeB));grid-template-columns:auto 56px 76px;column-gap:8px;row-gap:8px}
   #breakBtn{width:76px;height:76px}
   #breakBtn .aIcon{font-size:25px}
   #placeBtn{width:56px;height:56px}
   #jumpBtn{width:76px;height:48px}
   #flyBtn{width:76px;height:38px}
   #flyDownBtn{width:56px;height:38px}
+  #crustBombBtn,#tsarBombBtn{width:56px;height:48px}
   #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
   #weaponBtn{right:calc(18px + var(--safeR));bottom:calc(248px + var(--safeB));width:54px;height:46px}
   #cdBar{right:calc(18px + var(--safeR));bottom:calc(151px + var(--safeB));width:72px}
@@ -344,7 +350,8 @@ body.creative #bagCreative{display:block}
   .uiIcon svg{width:18px;height:18px}
   #menuBtns{gap:4px}
   #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
-  #actionWrap{grid-template-columns:58px 76px}
+  #actionWrap{grid-template-columns:auto 58px 76px}
+  #crustBombBtn,#tsarBombBtn{width:54px;height:46px}
   #breakBtn{width:76px;height:76px}
   #jumpBtn{width:76px;height:46px}
   #placeBtn{width:58px;height:58px}
