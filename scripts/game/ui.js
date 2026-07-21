@@ -23,6 +23,7 @@ async function loadSettings(){
   if(SKY_QUALITIES.indexOf(settings.skyQuality)<0)settings.skyQuality='auto';
   settings.tntRadius=Math.max(2,Math.min(isTouch?12:16,Number(settings.tntRadius)||5));
   if(!['auto','low','high'].includes(settings.tntEffectQuality))settings.tntEffectQuality='auto';
+  settings.tsarScale=Math.max(0.05,Math.min(TSAR_SCALE_VALS[TSAR_SCALE_VALS.length-1],Number(settings.tsarScale)||1));
   // LS initialises from settings.lookSens at its own declaration; don't touch it here (TDZ)
 }
 function applyAccessibility(){try{LS=LS_BASE*settings.lookSens;}catch(e){}}
@@ -79,7 +80,7 @@ function updateSettingsUI(){
   tntToggle($tntDestroyBtn,'ブロック破壊',settings.tntBlockDamage);tntToggle($tntEntityDamageBtn,'エンティティダメージ',settings.tntEntityDamage);tntToggle($tntPlayerDamageBtn,'プレイヤーダメージ',settings.tntPlayerDamage);tntToggle($tntDropsBtn,'アイテムドロップ',settings.tntItemDrops);tntToggle($tntShakeBtn,'画面揺れ',settings.tntScreenShake);tntToggle($tntChainBtn,'連鎖爆発',settings.tntChain);tntToggle($tntPreviewBtn,'爆破範囲表示',settings.tntPreview);
   if($tntQualityBtn){$tntQualityBtn.textContent='爆発演出: '+String(settings.tntEffectQuality||'auto').toUpperCase();$tntQualityBtn.classList.add('on');}
   if($tsarConfirmBtn){const on=settings.tsarConfirm!==false;$tsarConfirmBtn.textContent='使用前の確認: '+(on?'ON':'OFF');$tsarConfirmBtn.classList.toggle('on',on);$tsarConfirmBtn.classList.toggle('off',!on);}
-  if($tsarScaleBtn){$tsarScaleBtn.textContent='規模スケール: '+Math.round((Number(settings.tsarScale)||1)*100)+'%';$tsarScaleBtn.classList.add('on');}
+  if($tsarScaleBtn){$tsarScaleBtn.textContent='規模スケール: '+_tsarScaleLabel(Number(settings.tsarScale)||1);$tsarScaleBtn.classList.add('on');}
 }
 function toggleBgmMute(){
   settings.bgmMuted=!settings.bgmMuted;saveSettings();updateSettingsUI();
@@ -98,7 +99,11 @@ function _toggleTNTSetting(key){settings[key]=!settings[key];saveSettings();upda
 function cycleTNTRadius(){const vals=isTouch?[3,4,5,6,8,10,12]:[3,4,5,6,8,10,12,16],i=vals.indexOf(settings.tntRadius);settings.tntRadius=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();}
 function cycleTNTEffectQuality(){const vals=['auto','low','high'],i=vals.indexOf(settings.tntEffectQuality);settings.tntEffectQuality=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();}
 function toggleTsarConfirm(){settings.tsarConfirm=settings.tsarConfirm===false;saveSettings();updateSettingsUI();showSaveToast(settings.tsarConfirm!==false?'☢ 使用前の確認 ON':'☢ 使用前の確認 OFF');}
-function cycleTsarScale(){const vals=[0.2,0.5,1,1.5],cur=Number(settings.tsarScale)||1,i=vals.indexOf(cur);settings.tsarScale=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();showSaveToast('☢ 規模スケール: '+Math.round(settings.tsarScale*100)+'%');}
+// 最大10倍(1000%)まで。最大値ではロード済みワールド全域が破壊範囲に収まるため、
+// これ以上上げても破壊できるものが増えず衝撃波が間延びするだけになる。
+const TSAR_SCALE_VALS=[0.2,0.5,1,1.5,2,3,5,10];
+function _tsarScaleLabel(v){const pct=Math.round(v*100)+'%';return v>=TSAR_SCALE_VALS[TSAR_SCALE_VALS.length-1]?pct+' (MAX)':pct;}
+function cycleTsarScale(){const vals=TSAR_SCALE_VALS,cur=Number(settings.tsarScale)||1,i=vals.indexOf(cur);settings.tsarScale=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();showSaveToast('☢ 規模スケール: '+_tsarScaleLabel(settings.tsarScale));}
 function cycleSkyQuality(){
   const i=SKY_QUALITIES.indexOf(settings.skyQuality);
   settings.skyQuality=SKY_QUALITIES[(i+1)%SKY_QUALITIES.length];
