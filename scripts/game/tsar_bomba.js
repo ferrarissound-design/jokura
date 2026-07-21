@@ -80,12 +80,18 @@ const TsarBombaConfig={
 function _tsarScaledConfig(){
   const raw=(typeof settings!=='undefined'&&settings.tsarScale!=null)?settings.tsarScale:TSAR_BOMBA_DEBUG_SCALE;
   const s=Math.max(0.05,Number(raw)||1),c=TsarBombaConfig;
+  // 大規模スケール時は破壊対象が半径の2乗以上で増えるため、フレーム分散の
+  // 予算も引き上げる（上限つき。1フレームの負荷が壊れない範囲で処理を速める）
+  const budget=Math.min(4,Math.max(1,s));
   return{
     vaporizeR:c.vaporizeRadius*s,
     destroyR:c.destructionRadius*s,
     shockR:c.shockwaveRadius*s,
     craterDepth:c.craterDepth*s,
     deepR:c.deepBlastRadius*s,
+    scanPerFrame:Math.round(c.scanPerFrame*budget),
+    blocksPerFrame:Math.round(c.blocksPerFrame*budget),
+    maxGlassify:Math.round(c.maxGlassify*Math.min(6,Math.max(1,s))),
   };
 }
 
@@ -230,11 +236,11 @@ const TsarDestructionQueue={
     const t=this.active;if(!t||t.done)return;
     const prevDefer=_deferDirty;_deferDirty=true;
     // スキャン（破壊候補の収集）を分割
-    let sb=TsarBombaConfig.scanPerFrame;
+    let sb=t.S.scanPerFrame;
     while(t.scan<t.keys.length&&sb-->0)this._scanKey(t,t.keys[t.scan++]);
     // 破壊（近い順に見えるよう、収集済み分を距離ソートしてから消す）
     if(t.scan>=t.keys.length&&!t._sorted){t.blocks.sort((a,b)=>a.d-b.d);t._sorted=true;}
-    if(t._sorted){let db=TsarBombaConfig.blocksPerFrame;while(t.destroy<t.blocks.length&&db-->0)this._destroyOne(t);}
+    if(t._sorted){let db=t.S.blocksPerFrame;while(t.destroy<t.blocks.length&&db-->0)this._destroyOne(t);}
     _deferDirty=prevDefer;if(!prevDefer)flushDirtyChunks();
     if(t._sorted&&t.destroy>=t.blocks.length){this._glassify(t);t.done=true;}
   },
@@ -243,7 +249,7 @@ const TsarDestructionQueue={
     if(!TsarBombaConfig.glassifyRim)return;
     let n=0;const prevDefer=_deferDirty;_deferDirty=true;
     for(const[col,fy] of t.glassCols){
-      if(n++>=TsarBombaConfig.maxGlassify)break;
+      if(n++>=t.S.maxGlassify)break;
       const p=col.split('|'),x=+p[0],z=+p[1];
       const k=vKey(x,fy,z),v=voxels[k];
       if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK)continue;
