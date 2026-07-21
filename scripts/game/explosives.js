@@ -73,7 +73,10 @@ function toggleTNTPlacementMode(){setTNTPlacementMode(_tntPlacementMode==='norma
 function updateTNTModeButton(){
   const b=document.getElementById('tntModeBtn');if(!b)return;
   const selected=typeof curType!=='undefined'&&SLOT_TI[curType]===TNT_BLOCK;
-  b.style.display=gs.running&&selected?'':'none';b.textContent=_tntPlacementMode==='proximity'?'🔴 PROX 4':'💣 MANUAL';
+  const quickSelect=typeof isDesktop!=='undefined'&&!isDesktop;
+  b.style.display=gs.running&&(selected||quickSelect)?'':'none';
+  b.classList.toggle('quickSelect',quickSelect&&!selected);
+  b.textContent=!selected?'💣 TNT':_tntPlacementMode==='proximity'?'🔴 PROX 4':'💣 MANUAL';
 }
 
 function igniteTNT(key,source='manual',fuseOverride){
@@ -221,7 +224,7 @@ function _renderTNTControl(){const r=_tntRecords.get(_tntControlKey),st=document
 function _bindTNTControls(){
   const get=()=>_tntRecords.get(_tntControlKey),bind=(id,fn)=>{const el=document.getElementById(id);if(el)bindTapSafe(el,()=>{const r=get();if(r)fn(r);});};
   bind('tntIgniteBtn',r=>igniteTNT(r.key,'manual'));bind('tntModeControlBtn',r=>{if(r.state==='ignited')return;r.mode=r.mode==='proximity'?'normal':'proximity';r.state=r.mode==='proximity'?'armed':'inactive';const v=voxels[r.key];if(v){v.meta=r.mode==='proximity'?1:0;worldEdits.placed[r.key]=TNT_BLOCK|(v.meta<<5);}_tntUpdateSensorVisual(r);_renderTNTControl();});
-  bind('tntRangeBtn',r=>{_tntPreviewKey=r.key;_tntPreviewT=5;_tntPreviewMesh.visible=true;});bind('tntRecoverBtn',r=>recoverTNT(r.key));const c=document.getElementById('tntCancelBtn');if(c)bindTapSafe(c,closeTNTControl);const p=document.getElementById('tntModeBtn');if(p)bindTapSafe(p,toggleTNTPlacementMode);
+  bind('tntRangeBtn',r=>{_tntPreviewKey=r.key;_tntPreviewT=5;_tntPreviewMesh.visible=true;});bind('tntRecoverBtn',r=>recoverTNT(r.key));const c=document.getElementById('tntCancelBtn');if(c)bindTapSafe(c,closeTNTControl);const p=document.getElementById('tntModeBtn');if(p)bindTapSafe(p,()=>{const ti=SLOT_TI.indexOf(TNT_BLOCK);if(curType!==ti){setType(ti);showBonus('💣 TNTを選択');return;}toggleTNTPlacementMode();});
 }
 
 function tntSaveState(){return[..._tntRecords.values()].filter(r=>r.state!=='exploded').map(r=>({x:r.x,y:r.y,z:r.z,type:r.type,mode:r.mode,state:r.state,detectRange:r.detectRange,owner:r.owner,remaining:r.state==='ignited'?Math.max(.35,r.fuse):null}));}
