@@ -47,11 +47,14 @@ _bindHold($flyDownBtn,v=>{flyDownHeld=v;});
 if($flyBtn)bindTapSafe($flyBtn,toggleFly);
 const $crustBombBtn=document.getElementById('crustBombBtn');
 if($crustBombBtn)bindTapSafe($crustBombBtn,()=>{if(typeof deployCrustBomb==='function')deployCrustBomb();});
+const $tsarBombBtn=document.getElementById('tsarBombBtn');
+if($tsarBombBtn)bindTapSafe($tsarBombBtn,()=>{if(typeof deployTsarBomba==='function')deployTsarBomba();});
 function updateFlyBtns(){
   const show=isCreative()&&!isDesktop&&gs.running;
   if($flyBtn){$flyBtn.style.display=show?'':'none';$flyBtn.textContent=P.flying?'🛬 LAND':'🕊 FLY';}
   if($flyDownBtn)$flyDownBtn.style.display=show&&P.flying?'':'none';
   if(typeof updateCrustBombBtn==='function')updateCrustBombBtn();
+  if(typeof updateTsarBombBtn==='function')updateTsarBombBtn();
 }
 // ─── 🏗 特殊生成 PICKER (creative only) ───
 // ボタンは即座にメニューを開くだけ（クールダウン不要）。実際の一発生成（数千
@@ -284,6 +287,7 @@ function continueAfterDeath(){P.hp=P.maxHp;P.invT=3;gs.score=Math.floor(gs.score
 function commonReset(){
   if(typeof resetTNTSystem==='function')resetTNTSystem();
   if(typeof resetCrustBomb==='function')resetCrustBomb();
+  if(typeof resetTsarBomba==='function')resetTsarBomba();
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   if(typeof clearVillages==='function')clearVillages();else clearHumanoids();
@@ -376,6 +380,7 @@ async function continueGame(){
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
   applyWorldEdits();
   if(typeof tntLoadState==='function')tntLoadState(d.explosives);
+  if(typeof tsarBombaLoadState==='function')tsarBombaLoadState(d.tsarBombs);
   if(typeof villagesLoadState==='function')villagesLoadState(d.villages);
   // チェスト復元
   chestCount=d.chestCount||0;
@@ -513,11 +518,14 @@ function tick(now){
   const curSpeed=(mounted?(_wantSprint?MOUNT_GALLOP:MOUNT_SPEED):(P.flying?FLY_SPEED:(sprinting?SPRINT_SPEED:SPEED)))*(blizzard?0.72:1);
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   const blastImpulse=tntPlayerImpulse(dt);
+  const tsarImpulse=(typeof tsarPlayerImpulse==='function')?tsarPlayerImpulse(dt):{x:0,z:0};
   const _mvX=(sr*cY+fw*sY)*curSpeed,_mvZ=(fw*cY-sr*sY)*curSpeed;
-  movePlayer(_mvX+blastImpulse.x,_mvZ+blastImpulse.z,dt);
+  movePlayer(_mvX+blastImpulse.x+tsarImpulse.x,_mvZ+blastImpulse.z+tsarImpulse.z,dt);
   if(typeof crustBombNoteMove==='function')crustBombNoteMove(_mvX,_mvZ);
+  if(typeof tsarBombNoteMove==='function')tsarBombNoteMove(_mvX,_mvZ);
   updateExplosionSystem(dt);
   if(typeof updateCrustBomb==='function')updateCrustBomb(dt);
+  if(typeof updateTsarBomba==='function')updateTsarBomba(dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）

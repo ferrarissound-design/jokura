@@ -10,7 +10,7 @@
 // ═══ HELP / SETTINGS ═══
 const SETTINGS_KEY='jokura-settings-v1';
 // difficulty: player-damage multiplier; lookSens: touch look multiplier; flash: hit/lava screen flashes; autoSave: periodic save
-const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival',skyQuality:'auto',showCoords:false,tntRadius:5,tntBlockDamage:true,tntEntityDamage:true,tntPlayerDamage:true,tntPlayerKnockback:true,tntItemDrops:false,tntScreenShake:true,tntChain:true,tntPreview:true,tntFriendlyFire:false,tntEffectQuality:'auto'};
+const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival',skyQuality:'auto',showCoords:false,tntRadius:5,tntBlockDamage:true,tntEntityDamage:true,tntPlayerDamage:true,tntPlayerKnockback:true,tntItemDrops:false,tntScreenShake:true,tntChain:true,tntPreview:true,tntFriendlyFire:false,tntEffectQuality:'auto',tsarConfirm:true,tsarScale:1};
 const SKY_QUALITIES=['auto','low','medium','high'];
 const DIFF_MULT={easy:.6,normal:1,hard:1.5};
 function difficultyMult(){return DIFF_MULT[settings.difficulty]||1;}
@@ -58,6 +58,7 @@ const $flashToggleBtn=document.getElementById('flashToggleBtn'),$autoSaveToggleB
 const $skyQualityBtn=document.getElementById('skyQualityBtn');
 const $coordsToggleBtn=document.getElementById('coordsToggleBtn');
 const $tntRadiusBtn=document.getElementById('tntRadiusBtn'),$tntDestroyBtn=document.getElementById('tntDestroyBtn'),$tntEntityDamageBtn=document.getElementById('tntEntityDamageBtn'),$tntPlayerDamageBtn=document.getElementById('tntPlayerDamageBtn'),$tntDropsBtn=document.getElementById('tntDropsBtn'),$tntShakeBtn=document.getElementById('tntShakeBtn'),$tntChainBtn=document.getElementById('tntChainBtn'),$tntPreviewBtn=document.getElementById('tntPreviewBtn'),$tntQualityBtn=document.getElementById('tntQualityBtn');
+const $tsarConfirmBtn=document.getElementById('tsarConfirmBtn'),$tsarScaleBtn=document.getElementById('tsarScaleBtn');
 function applyCoordsSetting(){const el=document.getElementById('coordsDisplay');if(el)el.style.display=settings.showCoords?'':'none';}
 function toggleCoords(){settings.showCoords=!settings.showCoords;saveSettings();updateSettingsUI();applyCoordsSetting();showSaveToast(settings.showCoords?'座標表示 ON':'座標表示 OFF');}
 const SKY_QUALITY_LABEL={auto:'AUTO',low:'LOW',medium:'MID',high:'HIGH'};
@@ -77,6 +78,8 @@ function updateSettingsUI(){
   if($tntRadiusBtn){$tntRadiusBtn.textContent='爆発半径: '+settings.tntRadius;$tntRadiusBtn.classList.add('on');}
   tntToggle($tntDestroyBtn,'ブロック破壊',settings.tntBlockDamage);tntToggle($tntEntityDamageBtn,'エンティティダメージ',settings.tntEntityDamage);tntToggle($tntPlayerDamageBtn,'プレイヤーダメージ',settings.tntPlayerDamage);tntToggle($tntDropsBtn,'アイテムドロップ',settings.tntItemDrops);tntToggle($tntShakeBtn,'画面揺れ',settings.tntScreenShake);tntToggle($tntChainBtn,'連鎖爆発',settings.tntChain);tntToggle($tntPreviewBtn,'爆破範囲表示',settings.tntPreview);
   if($tntQualityBtn){$tntQualityBtn.textContent='爆発演出: '+String(settings.tntEffectQuality||'auto').toUpperCase();$tntQualityBtn.classList.add('on');}
+  if($tsarConfirmBtn){const on=settings.tsarConfirm!==false;$tsarConfirmBtn.textContent='使用前の確認: '+(on?'ON':'OFF');$tsarConfirmBtn.classList.toggle('on',on);$tsarConfirmBtn.classList.toggle('off',!on);}
+  if($tsarScaleBtn){$tsarScaleBtn.textContent='規模スケール: '+Math.round((Number(settings.tsarScale)||1)*100)+'%';$tsarScaleBtn.classList.add('on');}
 }
 function toggleBgmMute(){
   settings.bgmMuted=!settings.bgmMuted;saveSettings();updateSettingsUI();
@@ -94,6 +97,8 @@ function toggleBob(){settings.bob=!settings.bob;saveSettings();updateSettingsUI(
 function _toggleTNTSetting(key){settings[key]=!settings[key];saveSettings();updateSettingsUI();}
 function cycleTNTRadius(){const vals=isTouch?[3,4,5,6,8,10,12]:[3,4,5,6,8,10,12,16],i=vals.indexOf(settings.tntRadius);settings.tntRadius=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();}
 function cycleTNTEffectQuality(){const vals=['auto','low','high'],i=vals.indexOf(settings.tntEffectQuality);settings.tntEffectQuality=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();}
+function toggleTsarConfirm(){settings.tsarConfirm=settings.tsarConfirm===false;saveSettings();updateSettingsUI();showSaveToast(settings.tsarConfirm!==false?'☢ 使用前の確認 ON':'☢ 使用前の確認 OFF');}
+function cycleTsarScale(){const vals=[0.2,0.5,1,1.5],cur=Number(settings.tsarScale)||1,i=vals.indexOf(cur);settings.tsarScale=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();showSaveToast('☢ 規模スケール: '+Math.round(settings.tsarScale*100)+'%');}
 function cycleSkyQuality(){
   const i=SKY_QUALITIES.indexOf(settings.skyQuality);
   settings.skyQuality=SKY_QUALITIES[(i+1)%SKY_QUALITIES.length];
@@ -141,6 +146,8 @@ if($tntShakeBtn)bindTapSafe($tntShakeBtn,()=>_toggleTNTSetting('tntScreenShake')
 if($tntChainBtn)bindTapSafe($tntChainBtn,()=>_toggleTNTSetting('tntChain'));
 if($tntPreviewBtn)bindTapSafe($tntPreviewBtn,()=>_toggleTNTSetting('tntPreview'));
 if($tntQualityBtn)bindTapSafe($tntQualityBtn,cycleTNTEffectQuality);
+if($tsarConfirmBtn)bindTapSafe($tsarConfirmBtn,toggleTsarConfirm);
+if($tsarScaleBtn)bindTapSafe($tsarScaleBtn,cycleTsarScale);
 // ─── ROBUST MENU CLOSE ───
 // On small phones a tall panel can push the bottom CLOSE button past the visible
 // viewport. Give every .menuPanel an always-visible corner ✕ (pinned to the
