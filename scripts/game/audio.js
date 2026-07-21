@@ -51,6 +51,9 @@ function startBgm(m){
   else if(m===3){bgmOsc(49,'sine',.018);bgmOsc(98,'triangle',.01);bgmSeq([98,0,0,73,0,98,0,0],270,.032,'triangle');}
   else if(m===4){bgmOsc(36,'sine',.02);bgmOsc(54,'triangle',.012);bgmSeq([55,0,55,0,41,0,55,0,0,55,0,41,55,0,0,0],210,.035,'triangle');}
   else if(m===5){bgmOsc(65,'sine',.016);bgmOsc(130,'sine',.01);bgmSeq([261,0,311,0,261,0,233,0,261,0,294,0,261,0,0,0],650,.022,'sine');}
+  else if(m===6){bgmOsc(48,'sine',.014);bgmOsc(96,'triangle',.008);bgmSeq([196,0,220,0,247,0,220,0],720,.018,'sine');}
+  else if(m===7){bgmOsc(39,'sine',.016);bgmOsc(78,'sine',.008);bgmSeq([147,0,165,0,139,0,0,123],820,.018,'triangle');}
+  else if(m===8){bgmOsc(52,'sine',.014);bgmOsc(104,'sine',.008);bgmSeq([262,330,392,494,392,330,294,0],610,.02,'sine');}
   else if(m==='under'){bgmOsc(29,'sine',.028);bgmOsc(43,'sine',.014);bgmOsc(58,'sine',.007);bgmSeq([55,0,0,0,0,49,0,0,0,0,55,0,0,41,0,0],750,.018,'sine');}
   else if(m==='under_dragon'){bgmOsc(24,'sine',.032);bgmOsc(36,'sawtooth',.01);bgmOsc(48,'triangle',.008);bgmSeq([36,0,36,0,33,0,36,0,29,0,0,0,36,0,33,29],220,.028,'sawtooth');}
 }

@@ -583,27 +583,65 @@ function isTorchSpawnProtected(x,y,z){
   return false;
 }
 
-const BIOMES={PLAINS:0,DESERT:1,FOREST:2,MOUNTAIN:3,VOLCANO:4,SNOW:5};
+const BIOMES={PLAINS:0,DESERT:1,FOREST:2,MOUNTAIN:3,VOLCANO:4,SNOW:5,OCEAN:6,SWAMP:7,MUSHROOM_ISLAND:8};
+const SEA_LEVEL=1,SWAMP_WATER_LEVEL=1;
+// 新バイオームはIDを末尾へ追加し、既存セーブの数値IDをずらさない。
+// ブロックIDは保存形式(5bit)互換のため既存ブロックを組み合わせ、将来の専用ID追加に備えて定義へ集約する。
+const BIOME_DEFS={
+  [BIOMES.PLAINS]:{id:BIOMES.PLAINS,key:'plains',name:'🌿 PLAINS',surface:0,subsurface:1,baseHeight:1,relief:1.2,waterLevel:null,vegetation:['oakTree','clay'],structures:['village'],spawns:['pig','cow','zombie'],colors:{water:0x2f79ad,sky:0xcbecff,fog:0xcbecff,ambient:1},bgmKey:'plains',fishingKey:'default'},
+  [BIOMES.DESERT]:{id:BIOMES.DESERT,key:'desert',name:'🏜 DESERT',surface:2,subsurface:2,baseHeight:1,relief:.8,waterLevel:null,vegetation:['cactus','shrub'],structures:['pyramid'],spawns:['husk'],colors:{water:0x2f79ad,sky:0xf3d59a,fog:0xe7c486,ambient:1},bgmKey:'desert',fishingKey:'default'},
+  [BIOMES.FOREST]:{id:BIOMES.FOREST,key:'forest',name:'🌲 FOREST',surface:5,subsurface:1,baseHeight:1.3,relief:1.5,waterLevel:null,vegetation:['forestTree','mushroom'],structures:['worldTree'],spawns:['wolf','zombie'],colors:{water:0x2f79ad,sky:0xbfe4d0,fog:0xbfe4d0,ambient:.95},bgmKey:'forest',fishingKey:'default'},
+  [BIOMES.MOUNTAIN]:{id:BIOMES.MOUNTAIN,key:'mountain',name:'🪨 MOUNTAIN',surface:1,subsurface:1,baseHeight:3,relief:4,waterLevel:null,vegetation:['rocks','crystal'],structures:['watchtower'],spawns:['golem'],colors:{water:0x2f79ad,sky:0xd5e7ff,fog:0xd5e7ff,ambient:1},bgmKey:'mountain',fishingKey:'default'},
+  [BIOMES.VOLCANO]:{id:BIOMES.VOLCANO,key:'volcano',name:'🌋 VOLCANO',surface:7,subsurface:7,baseHeight:2.5,relief:3.5,waterLevel:null,vegetation:['obsidian'],structures:['stoneGod'],spawns:['lavaSlime'],colors:{water:0x2f79ad,sky:0x7a210d,fog:0x6a1508,ambient:.8},bgmKey:'volcano',fishingKey:'default'},
+  [BIOMES.SNOW]:{id:BIOMES.SNOW,key:'snow',name:'❄ SNOW',surface:SNOW_BLOCK,subsurface:SNOW_BLOCK,baseHeight:1.5,relief:2.5,waterLevel:null,vegetation:['spruce','ice'],structures:['igloo'],spawns:['stray'],colors:{water:0x9bdfff,sky:0xeaf6ff,fog:0xeaf6ff,ambient:1},bgmKey:'snow',fishingKey:'default'},
+  [BIOMES.OCEAN]:{id:BIOMES.OCEAN,key:'ocean',name:'🌊 OCEAN',surface:2,subsurface:1,baseHeight:-4,relief:2.2,waterLevel:SEA_LEVEL,vegetation:['kelp','coral','seabedRock'],structures:['sandbar','reef','shipwreckHook','underwaterRuinHook'],spawns:['fish'],colors:{water:0x1b6ca8,sky:0x8fcfff,fog:0x1b6ca8,ambient:.95},bgmKey:'ocean',fishingKey:'ocean'},
+  [BIOMES.SWAMP]:{id:BIOMES.SWAMP,key:'swamp',name:'🐊 SWAMP',surface:CLAY_BLOCK,subsurface:CAVE_DIRT,baseHeight:0,relief:.6,waterLevel:SWAMP_WATER_LEVEL,vegetation:['swampTree','vine','mushroom','deadTree','lily'],structures:['swampHutHook'],spawns:['slime','frog'],colors:{water:0x375f35,sky:0x81976f,fog:0x46583a,ambient:.78},bgmKey:'swamp',fishingKey:'swamp'},
+  [BIOMES.MUSHROOM_ISLAND]:{id:BIOMES.MUSHROOM_ISLAND,key:'mushroomIsland',name:'🍄 MUSHROOM ISLAND',surface:MUSHROOM_BLOCK,subsurface:CAVE_DIRT,baseHeight:3,relief:1.2,waterLevel:null,vegetation:['giantMushroom','smallMushroom','glowMushroom','mushroomRocks'],structures:['mushroomCreatureHook'],spawns:['mooshroomHook'],colors:{water:0x516bb0,sky:0xd0b6ff,fog:0x8f76b8,ambient:.9},bgmKey:'mushroomIsland',fishingKey:'mushroomIsland'}
+};
+const FISHING_LOOT_TABLES={ocean:[],swamp:[],mushroomIsland:[],default:[]};
+function _biomeFields(wx,wz){return{b1:noiseB(wx*0.008,wz*0.008),b2:noiseB(wx*0.012+100,wz*0.012+100),bv:noiseV(wx*0.012+50,wz*0.012-50),bs:noiseV(wx*0.009-80,wz*0.009+80),o:noiseB(wx*0.0032-410,wz*0.0032+410),s:noiseV(wx*0.0048+730,wz*0.0048-730),m:noiseV(wx*0.0022+1700,wz*0.0022-1700)};}
+function _mushroomIslandMask(wx,wz){const f=_biomeFields(wx,wz);return f.o>0.18&&f.m>0.47&&noiseB(wx*0.018+900,wz*0.018-900)>-0.1;}
 function getBiome(wx,wz){
-  const b1=noiseB(wx*0.008,wz*0.008),b2=noiseB(wx*0.012+100,wz*0.012+100);
-  const bv=noiseV(wx*0.012+50,wz*0.012-50),bs=noiseV(wx*0.009-80,wz*0.009+80);
-  if(bv>0.15)return BIOMES.VOLCANO;if(bs>0.22)return BIOMES.SNOW;
-  if(b1>0.25)return BIOMES.MOUNTAIN;if(b2<-0.2)return BIOMES.DESERT;
-  if(b1<-0.15&&b2>0)return BIOMES.FOREST;return BIOMES.PLAINS;
+  const f=_biomeFields(wx,wz);
+  if(_mushroomIslandMask(wx,wz))return BIOMES.MUSHROOM_ISLAND;
+  if(f.o>0.10)return BIOMES.OCEAN; // 低周波ノイズで広い入り組んだ水域を作る
+  if(f.s>0.30&&f.o>-0.18)return BIOMES.SWAMP;
+  if(f.bv>0.15)return BIOMES.VOLCANO;if(f.bs>0.22)return BIOMES.SNOW;
+  if(f.b1>0.25)return BIOMES.MOUNTAIN;if(f.b2<-0.2)return BIOMES.DESERT;
+  if(f.b1<-0.15&&f.b2>0)return BIOMES.FOREST;return BIOMES.PLAINS;
 }
-function getBiomeName(b){return['🌿 PLAINS','🏜 DESERT','🌲 FOREST','🪨 MOUNTAIN','🌋 VOLCANO','❄ SNOW'][b];}
-function getGroundType(biome){return[0,2,5,1,7,SNOW_BLOCK][biome];}
+function getBiomeName(b){return(BIOME_DEFS[b]||BIOME_DEFS[BIOMES.PLAINS]).name;}
+function getGroundType(biome){return(BIOME_DEFS[biome]||BIOME_DEFS[BIOMES.PLAINS]).surface;}
+function getWaterSurfaceY(wx,wz){const b=getBiome(Math.floor(wx),Math.floor(wz));return BIOME_DEFS[b].waterLevel;}
+function getWaterDepth(wx,wz){const wy=getWaterSurfaceY(wx,wz);return wy==null?0:Math.max(0,wy-surfaceHeightAt(Math.floor(wx),Math.floor(wz)));}
+function isBoatNavigableBlock(ti){return ti===WATER_BLOCK;}
+function getAquaticState(wx,wz){const depth=getWaterDepth(wx,wz);return{biome:getBiome(Math.floor(wx),Math.floor(wz)),surfaceY:getWaterSurfaceY(wx,wz),depth,kind:depth<=0?'land':depth<2?'shallow':'water'};}
+function isPlayerOnWater(){const st=getAquaticState(P.x,P.z);return st.depth>0&&Math.abs(P.y-(st.surfaceY+1.6))<2.2;}
+function getFishingContext(wx,wz){const b=getBiome(Math.floor(wx),Math.floor(wz)),def=BIOME_DEFS[b]||BIOME_DEFS[BIOMES.PLAINS];return{biome:b,biomeKey:def.key,waterSurfaceY:getWaterSurfaceY(wx,wz),waterDepth:getWaterDepth(wx,wz),table:FISHING_LOOT_TABLES[def.fishingKey]||FISHING_LOOT_TABLES.default};}
+function updateBiomeAtmosphere(biome){
+  const def=BIOME_DEFS[biome]||BIOME_DEFS[BIOMES.PLAINS];
+  if(!def.colors)return;
+  if(biome===BIOMES.OCEAN&&getWaterSurfaceY(P.x,P.z)!=null&&P.y<getWaterSurfaceY(P.x,P.z)+1.1){
+    const depth=Math.min(1,Math.max(0,(getWaterSurfaceY(P.x,P.z)-P.y)/5));
+    scene.fog.color.setHex(def.colors.fog);scene.fog.near=5;scene.fog.far=38-12*depth;renderer.setClearColor(scene.fog.color);
+    hemLight.intensity=.42;return;
+  }
+  if(biome===BIOMES.SWAMP){scene.fog.color.setHex(def.colors.fog);scene.fog.near=Math.min(scene.fog.near,18);scene.fog.far=Math.min(scene.fog.far,52);renderer.setClearColor(scene.fog.color);hemLight.intensity=Math.min(hemLight.intensity,.62);}
+  else if(biome===BIOMES.OCEAN){scene.fog.color.lerp(new THREE.Color(def.colors.fog),.18);renderer.setClearColor(scene.fog.color);}
+  else if(biome===BIOMES.MUSHROOM_ISLAND){scene.fog.color.lerp(new THREE.Color(def.colors.fog),.14);renderer.setClearColor(scene.fog.color);}
+}
+
 // ─── BIOME GRASS COLOR BLENDING (Minecraft-style) ───
 // Grass tops (ti 0 plains / ti 5 forest) render with a shared neutral texture
 // and get their green from this per-column tint instead, so the color fades
 // smoothly across a biome border rather than snapping at the tile edge.
 function _linearGrassTint(hex){const c=new THREE.Color(hex).convertSRGBToLinear();return[c.r,c.g,c.b];}
-const PLAINS_GRASS_RGB=_linearGrassTint(0x689443),FOREST_GRASS_RGB=_linearGrassTint(0x487d3e);
+const PLAINS_GRASS_RGB=_linearGrassTint(0x689443),FOREST_GRASS_RGB=_linearGrassTint(0x487d3e),SWAMP_GRASS_RGB=_linearGrassTint(0x5f7040),MUSHROOM_GRASS_RGB=_linearGrassTint(0x8a5aa0);
 function computeGrassTint(wx,wz,biomeAt){
   biomeAt=biomeAt||getBiome;
   let r=0,g=0,b=0,n=0;
   for(let dz=-2;dz<=2;dz+=2)for(let dx=-2;dx<=2;dx+=2){
-    const c=biomeAt(wx+dx,wz+dz)===BIOMES.FOREST?FOREST_GRASS_RGB:PLAINS_GRASS_RGB;
+    const bb=biomeAt(wx+dx,wz+dz);const c=bb===BIOMES.FOREST?FOREST_GRASS_RGB:bb===BIOMES.SWAMP?SWAMP_GRASS_RGB:bb===BIOMES.MUSHROOM_ISLAND?MUSHROOM_GRASS_RGB:PLAINS_GRASS_RGB;
     r+=c[0];g+=c[1];b+=c[2];n++;
   }
   return[r/n,g/n,b/n];
@@ -616,24 +654,28 @@ function computeGrassTint(wx,wz,biomeAt){
 const _BIOME_BLEND_W=0.12; // ブレンド幅（ノイズ値単位）: 大きいほど裾野が広い
 function _biomeW(v){const t=v/(2*_BIOME_BLEND_W)+.5;return t<=0?0:t>=1?1:t*t*(3-2*t);}
 function getHeight(wx,wz){
-  const b1=noiseB(wx*0.008,wz*0.008),b2=noiseB(wx*0.012+100,wz*0.012+100);
-  const bv=noiseV(wx*0.012+50,wz*0.012-50),bs=noiseV(wx*0.009-80,wz*0.009+80);
+  const f=_biomeFields(wx,wz);
   const n=fbm(wx*0.03,wz*0.03,4);
-  // 大きな緩いうねり: 真っ平らだった平原にもゆるやかな丘と窪地を作る
   const roll=fbm(wx*0.006+321,wz*0.006-321,2)*1.6;
-  // [振幅, 底上げ] を優先度の低い順にブレンド（後のブレンドほど優先 = getBiome の判定順）
   let amp=1.2,off=0;                                            // PLAINS
-  const wF=Math.min(_biomeW(-0.15-b1),_biomeW(b2));             // FOREST: b1<-0.15 && b2>0
+  const wF=Math.min(_biomeW(-0.15-f.b1),_biomeW(f.b2));
   amp+=(1.5-amp)*wF;off+=(0.3-off)*wF;
-  const wD=_biomeW(-0.2-b2);                                    // DESERT: b2<-0.2
+  const wD=_biomeW(-0.2-f.b2);
   amp+=(0.8-amp)*wD;off+=(0-off)*wD;
-  const wM=_biomeW(b1-0.25);                                    // MOUNTAIN: b1>0.25
+  const wM=_biomeW(f.b1-0.25);
   amp+=(4-amp)*wM;off+=(2-off)*wM;
-  const wS=_biomeW(bs-0.22);                                    // SNOW: bs>0.22
+  const wS=_biomeW(f.bs-0.22);
   amp+=(2.5-amp)*wS;off+=(0.5-off)*wS;
-  const wV=_biomeW(bv-0.15);                                    // VOLCANO: bv>0.15
+  const wV=_biomeW(f.bv-0.15);
   amp+=(3.5-amp)*wV;off+=(1.5-off)*wV;
-  return Math.max(0,Math.floor(n*amp+off+roll+1));
+  const wSw=_biomeW(Math.min(f.s-0.30,f.o+0.18));                 // SWAMP: 陸から湿地へ浅く遷移
+  amp+=(.6-amp)*wSw;off+=(0-off)*wSw;
+  const wO=_biomeW(f.o-0.10);                                     // OCEAN: 海岸はブレンド、沖は深く
+  const trench=fbm(wx*.018-1200,wz*.018+1200,3)*1.8;
+  amp+=(2.2-amp)*wO;off+=(-4+trench-off)*wO;
+  const wMi=_mushroomIslandMask(wx,wz)?1:0;                        // 島単位で明確に分離
+  if(wMi){const dome=Math.max(0,1-Math.abs(noiseV(wx*.01+1700,wz*.01-1700)))*1.4; amp=1.2;off=2.5+dome;}
+  return Math.floor(n*amp+off+roll+1);
 }
 // getHeight()は決定的な生成時の高さで、cave mouth等の3D彫り込みやプレイヤーの
 // 採掘・建築による改変を反映しない。落雷・隕石の着弾位置など「今その場に実際に
@@ -698,6 +740,29 @@ function _cliffCarve(x,y,z){return noiseB(x*0.07,z*0.07+y*0.11)>0.34;}
 // 🌳 植樹: 原木の幹(高さth) + 🍃葉ブロックの傘。傘は幹の頭を3x3で囲み、
 // その上に十字の1層を載せる。（以前は草ブロックの傘で、側面が土に見えて
 // キノコのような柱になっていた）
+
+function _growSwampTree(wx,h,wz,meshes){
+  _growTree(wx,h,wz,3+Math.floor(rand2(wx,wz,160)*2),meshes);
+  // ツタは葉の下に葉ブロックを垂らす軽量表現。個数は乱数で抑制する。
+  for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]])if(rand2(wx+dx,wz+dz,161)<.45){const m=addBlock(wx+dx,h+2,wz+dz,LEAF_BLOCK,false);if(m)meshes.add(m);}
+}
+function _growGiantMushroom(wx,h,wz,meshes){
+  const stem=3+Math.floor(rand2(wx,wz,170)*3),r=1+Math.floor(rand2(wx,wz,171)*2);
+  for(let y=1;y<=stem;y++){const m=addBlock(wx,h+y,wz,CAVE_DIRT,false);if(m)meshes.add(m);}
+  for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++)if(Math.abs(dx)+Math.abs(dz)<=r+1){const m=addBlock(wx+dx,h+stem,wz+dz,MUSHROOM_BLOCK,false);if(m)meshes.add(m);}
+  const top=addBlock(wx,h+stem+1,wz,MUSHROOM_BLOCK,false);if(top)meshes.add(top);
+}
+function _seabedType(wx,wz,h){const r=rand2(wx,wz,180);if(r<.45)return 2;if(r<.62)return CLAY_BLOCK;if(r<.82)return CAVE_DIRT;return h<-3?1:6;}
+function _placeAquaticDecor(wx,h,wz,biome,meshes){
+  if(biome===BIOMES.OCEAN){
+    if(rand2(wx,wz,181)<.018){const mh=addBlock(wx,h+1,wz,LEAF_BLOCK,false);if(mh)meshes.add(mh);} // 海藻
+    if(rand2(wx,wz,182)<.008){const mc=addBlock(wx,h+1,wz,CRYSTAL_BLOCK,false);if(mc)meshes.add(mc);} // サンゴ風
+    if(rand2(wx,wz,183)<.010){const mr=addBlock(wx,h+1,wz,6,false);if(mr)meshes.add(mr);} // 海底岩
+    // shipwreckHook / underwaterRuinHook は BIOME_DEFS.structures に登録済み。重い構造生成は次段階で接続する。
+  }else if(biome===BIOMES.SWAMP){
+    if(rand2(wx,wz,184)<.030){const ml=addBlock(wx,SWAMP_WATER_LEVEL+1,wz,LEAF_BLOCK,false);if(ml)meshes.add(ml);} // 蓮・水草
+  }
+}
 function _growTree(wx,h,wz,th,meshes){
   if(wx*wx+wz*wz<=16)return; // keep the first view around world spawn open
   for(let t=1;t<=th;t++){const m=addBlock(wx,h+t,wz,3,false);if(m)meshes.add(m);}
@@ -717,8 +782,10 @@ function generateChunk(cx,cz){
     if(!c){
       const h=getHeight(x,z),biome=getBiome(x,z);
       const lakeN=noise(x*.05+777,z*.05+777);
-      const lake=(biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45);
-      c={h,biome,lake,tint:null};colCache.set(k,c);
+      const wet=biome===BIOMES.OCEAN||biome===BIOMES.SWAMP;
+      const lake=!wet&&((biome===BIOMES.PLAINS&&h===0&&lakeN>0.25)||(biome===BIOMES.FOREST&&h===0&&lakeN>0.45));
+      const waterY=BIOME_DEFS[biome].waterLevel;
+      c={h,biome,lake,waterY,tint:null};colCache.set(k,c);
     }
     return c;
   };
@@ -732,6 +799,7 @@ function generateChunk(cx,cz){
     if(hit!==undefined)return hit;
     const c=colAt(x,z);let s;
     if(c.lake)s=y<=c.h-1;
+    else if(c.biome===BIOMES.OCEAN||c.biome===BIOMES.SWAMP)s=y<=c.h;
     else if(y>c.h)s=false;
     else if(_caveMouth(x,y,z))s=false;
     else if((c.biome===BIOMES.MOUNTAIN||c.biome===BIOMES.VOLCANO)&&y>=1&&y<c.h&&_cliffCarve(x,y,z))s=false;
@@ -748,11 +816,19 @@ function generateChunk(cx,cz){
       const mw=addBlock(wx,h,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);
       continue;
     }
-    const sub=biome===BIOMES.VOLCANO?7:biome===BIOMES.SNOW?SNOW_BLOCK:1;
+    if((biome===BIOMES.OCEAN||biome===BIOMES.SWAMP)&&ci.waterY!=null){
+      const bedTi=biome===BIOMES.OCEAN?_seabedType(wx,wz,h):(rand2(wx,wz,185)<.45?CLAY_BLOCK:rand2(wx,wz,186)<.72?CAVE_DIRT:0);
+      const mb=addBlock(wx,h,wz,bedTi,false);if(mb)meshes.add(mb);
+      for(let wy=h+1;wy<=ci.waterY;wy++){const mw=addBlock(wx,wy,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);}
+      _placeAquaticDecor(wx,h,wz,biome,meshes);
+      if(biome===BIOMES.SWAMP&&h>=ci.waterY&&rand2(wx,wz,187)<.035)_growSwampTree(wx,h,wz,meshes);
+      continue;
+    }
+    const sub=biome===BIOMES.VOLCANO?7:biome===BIOMES.SNOW?SNOW_BLOCK:biome===BIOMES.MUSHROOM_ISLAND?CAVE_DIRT:1;
     const deepTi=biome===BIOMES.MOUNTAIN?6:biome===BIOMES.VOLCANO?7:1;
     // full-column pass: only exposed solid cells become meshes, so cliff
     // faces, overhang undersides and cave-mouth walls all get real blocks
-    for(let y=0;y<=h;y++){
+    for(let y=Math.min(0,h);y<=h;y++){
       if(!solidAt(wx,y,wz))continue;
       const exposed=
         !solidAt(wx+1,y,wz)||!solidAt(wx-1,y,wz)||
@@ -760,7 +836,7 @@ function generateChunk(cx,cz){
         !solidAt(wx,y+1,wz)||!solidAt(wx,y-1,wz);
       if(!exposed)continue;
       const ti=y===h?getGroundType(biome):y===h-1?sub:deepTi;
-      const m=addBlock(wx,y,wz,ti,false);if(m){meshes.add(m);if(ti===0||ti===5)voxels[m].tint=tintAt(wx,wz);}
+      const m=addBlock(wx,y,wz,ti,false);if(m){meshes.add(m);if(ti===0||ti===5||biome===BIOMES.SWAMP||biome===BIOMES.MUSHROOM_ISLAND)voxels[m].tint=tintAt(wx,wz);}
     }
     if(!solidAt(wx,h,wz))continue; // top carved away: no features over the hole
     if(biome===BIOMES.VOLCANO){
@@ -788,6 +864,8 @@ function generateChunk(cx,cz){
     if(biome===BIOMES.DESERT&&rand2(wx,wz,13)<0.01){const ms=addBlock(wx,h+1,wz,LEAF_BLOCK,false);if(ms)meshes.add(ms);} // 低木
     // 砂漠限定: サボテン（1〜3段の柱）
     if(biome===BIOMES.DESERT&&rand2(wx,wz,48)<0.02){const ch=1+Math.floor(rand2(wx,wz,49)*3);for(let cy=1;cy<=ch;cy++){const mc=addBlock(wx,h+cy,wz,CACTUS_BLOCK,false);if(mc)meshes.add(mc);}}
+    if(biome===BIOMES.SWAMP){if(rand2(wx,wz,60)<0.05)_growSwampTree(wx,h,wz,meshes);if(rand2(wx,wz,61)<0.03){const mm=addBlock(wx,h+1,wz,MUSHROOM_BLOCK,false);if(mm)meshes.add(mm);}if(rand2(wx,wz,62)<0.018){const md=addBlock(wx,h+1,wz,3,false);if(md)meshes.add(md);}}
+    if(biome===BIOMES.MUSHROOM_ISLAND){if(rand2(wx,wz,70)<0.035)_growGiantMushroom(wx,h,wz,meshes);if(rand2(wx,wz,71)<0.08){const mm=addBlock(wx,h+1,wz,MUSHROOM_BLOCK,false);if(mm)meshes.add(mm);}if(rand2(wx,wz,72)<0.018){const mq=addBlock(wx,h+1,wz,CRYSTAL_BLOCK,false);if(mq)meshes.add(mq);}}
   }
   _spawnSurfaceStructures(cx,cz,meshes);
   if(typeof maybeGenerateVillageForChunk==='function')maybeGenerateVillageForChunk(cx,cz,meshes);
