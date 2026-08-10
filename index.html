@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260810tsar3000a">
+<link rel="stylesheet" href="styles/main.css?v=20260810hudredesign1">
 
 </head>
 <body>
@@ -20,8 +20,7 @@
     </div>
     <div class="tbCenter">
       <div id="dayCluster"><div id="dayIcon">☀️</div><div class="pval" id="dayVal">DAY 1</div></div>
-      <div id="biomeLabel">🌿 PLAINS</div>
-      <div id="creativeBadge">∞ CREATIVE</div>
+      <div class="tbRow2"><div id="biomeLabel">🌿 PLAINS</div><div id="creativeBadge">∞ CREATIVE</div></div>
     </div>
     <div class="tbSide tbRight">
       <div class="pi"><div class="plabel">KILLS</div><div class="pval" id="killVal">0</div></div>
@@ -31,7 +30,31 @@
         <button id="craftBtn" class="uiIcon" aria-label="クラフト"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.2l-6 6 2.1 2.1 6-6a4 4 0 0 0 5.6-4.6l-2.3 2.3-2.1-.6-.6-2.1 2.3-2.3a4 4 0 0 0-1.9.9zM3.5 3l3.4 3.4-1 1L2.5 4l1-1z"/></svg></button>
         <button id="pauseBtn" class="uiIcon" aria-label="メニュー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="6" width="3" height="12" rx="1"/><rect x="14" y="6" width="3" height="12" rx="1"/></svg></button>
       </div>
+      <!-- クリエイティブ専用: 上部アイコン群(バッグ/クエスト/クラフト/メニュー)を1つに集約する「…」ボタン。
+           展開先(#hudMenuPopover)から既存の各機能をそのまま呼び出す(機能の重複実装はしない)。 -->
+      <button id="hudMenuBtn" class="uiIcon" aria-label="メニューを開く">⋯</button>
     </div>
+  </div>
+  <div id="hudMenuPopover" class="hudPopover" aria-hidden="true">
+    <button class="popItem" id="hmBagBtn"><span class="aIcon">🎒</span><span class="aLabel">バッグ</span></button>
+    <button class="popItem" id="hmQuestBtn"><span class="aIcon">📋</span><span class="aLabel">ガイド</span></button>
+    <button class="popItem" id="hmCraftBtn"><span class="aIcon">🔨</span><span class="aLabel">クラフト</span></button>
+    <button class="popItem" id="hmSaveBtn"><span class="aIcon">💾</span><span class="aLabel">セーブ</span></button>
+    <button class="popItem" id="hmSettingsBtn"><span class="aIcon">⚙</span><span class="aLabel">設定</span></button>
+    <button class="popItem" id="hmPauseBtn"><span class="aIcon">⏸</span><span class="aLabel">一時停止</span></button>
+  </div>
+  <!-- クリエイティブ専用: 画面右端に小さく常設する BUILD / BOMB の入口。中身は既存の
+       特殊生成(#structBtn)・範囲編集(#regionEditBtn)・地殻貫通爆弾(#crustBombBtn)・
+       ツァーリボンバ(#tsarBombBtn)を mobileui.js が実行時にそのままポップオーバーへ
+       移動して使う(ロジック・イベントバインドは変更しない)。将来の追加機能は
+       ここへ popItem を1つ足すだけで済む。 -->
+  <div id="hudEdgeMenu">
+    <button id="buildMenuBtn" class="edgeIcon" title="建築メニュー" aria-label="建築メニュー">🔨</button>
+    <button id="bombMenuBtn" class="edgeIcon" title="特殊破壊メニュー" aria-label="特殊破壊メニュー">💣</button>
+  </div>
+  <div id="buildMenuPopover" class="hudPopover" aria-hidden="true"></div>
+  <div id="bombMenuPopover" class="hudPopover" aria-hidden="true">
+    <button class="popItem" id="bombTntSelectBtn"><span class="aIcon">💣</span><span class="aLabel">TNT を選択</span></button>
   </div>
   <div id="leftStatus">
     <div id="hpArea"><div id="hpLabel">HP ❤️</div><div id="hpBar"><div id="hpFill"></div></div></div>
@@ -77,8 +100,8 @@
     <div class="invRow" id="invEnchantTable">⚒ ENCHANT TABLE: 0</div>
     <div class="invRow" id="invTrophy">🏆 DRAGON STATUE: 0</div>
   </div>
-  <button id="structBtn" style="display:none" title="特殊生成メニュー">🏗</button>
-  <button id="regionEditBtn" style="display:none" title="範囲編集ツール">▣</button>
+  <button id="structBtn" class="popItem" style="display:none" title="特殊生成メニュー"><span class="aIcon">🏗</span><span class="aLabel">特殊生成</span></button>
+  <button id="regionEditBtn" class="popItem" style="display:none" title="範囲編集ツール"><span class="aIcon">▣</span><span class="aLabel">範囲編集</span></button>
   <div id="regionEditHud" style="display:none">
     <div id="regionEditStatus">範囲編集：点Aを選択</div>
     <div id="regionEditBlockRow">🧱 設置ブロック: <span id="regionEditBlockName">Grass</span>（ホットバーで変更）</div>
@@ -172,12 +195,12 @@
   <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / メインアクションで攻撃・採掘 / サブで設置(長押し=家具)</div>
   <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-0:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト / I:インベントリ / N:地殻貫通爆弾(飛行中) / M:ツァーリ・ボンバ(設置/投下) / V:範囲編集(クリエイティブ)</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
-  <button id="weaponBtn"><span class="wIcon" id="weaponBtnIcon">👊</span><span class="wLabel">武器</span></button>
+  <button id="weaponBtn" title="武器を切り替え"><span class="wIcon" id="weaponBtnIcon">🔁</span><span class="wLabel" id="weaponBtnLabel">武器</span></button>
   <div id="actionWrap">
     <button class="abtn" id="flyBtn" style="display:none">🕊 FLY</button>
     <button class="abtn" id="flyDownBtn" style="display:none">⬇ DOWN</button>
-    <button class="abtn" id="crustBombBtn" style="display:none"><span class="aIcon">🌋</span><span class="aLabel">BOMB</span></button>
-    <button class="abtn" id="tsarBombBtn" style="display:none"><span class="aIcon">☢</span><span class="aLabel">TSAR</span></button>
+    <button class="abtn popItem" id="crustBombBtn" style="display:none"><span class="aIcon">🌋</span><span class="aLabel">地殻貫通爆弾</span></button>
+    <button class="abtn popItem" id="tsarBombBtn" style="display:none"><span class="aIcon">☢</span><span class="aLabel">ツァーリ・ボンバ</span></button>
     <button class="abtn" id="jumpBtn"><span class="aIcon">↑</span><span class="aLabel">JUMP</span></button>
     <button class="abtn subAct" id="placeBtn"><span class="aIcon" id="subActIcon">🧱</span><span class="aLabel" id="subActLabel">PLACE</span></button>
     <button class="abtn mainAct" id="breakBtn"><span class="aIcon" id="mainActIcon">⚔</span><span class="aLabel" id="mainActLabel">ATTACK</span></button>
@@ -351,7 +374,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260810tsar3000a';
+  var V='20260810hudredesign1';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
   var PARTS=['state','achievements','crafting','save','ui','audio',

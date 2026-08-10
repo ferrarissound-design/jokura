@@ -38,6 +38,7 @@ function _weaponVerb(){
   return 'ATTACK';
 }
 let _muiLastActKey='';
+const _weaponBtnLabel=document.getElementById('weaponBtnLabel');
 function updateActionBtns(){
   if(isDesktop)return; // PCは actionWrap 非表示
   const glyph=_weaponGlyph(),verb=_weaponVerb();
@@ -49,7 +50,11 @@ function updateActionBtns(){
     if(_mainActLabel)_mainActLabel.textContent=verb;
     if(_subActIcon)_subActIcon.textContent=bi;
     if(_subActLabel)_subActLabel.textContent='PLACE';
-    if(_weaponBtnIcon)_weaponBtnIcon.textContent=glyph;
+    // ATTACKボタン(大)と武器切替ボタン(小)が同じ武器アイコンを表示すると「同じ拳なのに
+    // 役割が違う」ように見えて紛らわしいため、武器切替側は固定の🔁アイコン+現在武器の
+    // 絵文字を小さく添える見た目に分け、役割の違いを一目でわかるようにする。
+    if(_weaponBtnIcon)_weaponBtnIcon.textContent='🔁';
+    if(_weaponBtnLabel)_weaponBtnLabel.textContent=glyph;
   }
   if(_miniCoords)_miniCoords.textContent='X:'+Math.floor(P.x)+' Z:'+Math.floor(P.z);
 }
@@ -191,6 +196,81 @@ const _minimapEl=document.getElementById('minimap');
 if(_minimapEl){
   bindTapSafe(_minimapEl,()=>{_minimapEl.classList.toggle('big');});
 }
+
+// ============================================================================
+// クリエイティブHUD: 「…」メニュー / BUILDメニュー / BOMBメニュー
+// ----------------------------------------------------------------------------
+// 方針: 新しいボタンを増やして機能を実装し直すのではなく、既存の要素
+// (#structBtn, #regionEditBtn, #crustBombBtn, #tsarBombBtn とその背後の関数)
+// をポップオーバーの中へそのまま移動して再利用する。イベントバインドは各機能の
+// スクリプト(main.js/aerial_bomb.js/tsar_bomba.js)側で既に済んでいるため、DOM上の
+// 親要素を変えるだけで見た目だけを「常時フロート」から「メニューを開いた時だけ
+// 表示される行」に変えられる。将来ボムや建築物を追加する場合も、対応する既存
+// ボタンに .popItem クラスを付けてこのポップオーバーへ appendChild するだけで
+// HUDにボタンが増殖しない。
+// ============================================================================
+const $hudMenuBtn=document.getElementById('hudMenuBtn');
+const $hudMenuPopover=document.getElementById('hudMenuPopover');
+const $buildMenuBtn=document.getElementById('buildMenuBtn');
+const $buildMenuPopover=document.getElementById('buildMenuPopover');
+const $bombMenuBtn=document.getElementById('bombMenuBtn');
+const $bombMenuPopover=document.getElementById('bombMenuPopover');
+const _hudPopovers=[$hudMenuPopover,$buildMenuPopover,$bombMenuPopover].filter(Boolean);
+
+// 既存の特殊生成/範囲編集/地殻貫通爆弾/ツァーリ・ボンバボタンをポップオーバーへ移設。
+// (getElementByIdで取得済みの各スクリプト側の参照は、DOM上の親を変えても失われない)
+// 移設先でタップされたら(各機能自身のハンドラは stopPropagation するため document 側の
+// 監視には頼れない)、ポップオーバー自体は閉じておく。元のタップ処理は別リスナーとして
+// そのまま生き続けるので、ここで追加するのは「閉じる」だけの副作用。
+if($buildMenuPopover){
+  const sb=document.getElementById('structBtn'),rb=document.getElementById('regionEditBtn');
+  if(sb){$buildMenuPopover.appendChild(sb);sb.addEventListener('pointerdown',()=>closeHudPopovers());}
+  if(rb){$buildMenuPopover.appendChild(rb);rb.addEventListener('pointerdown',()=>closeHudPopovers());}
+}
+if($bombMenuPopover){
+  const cb=document.getElementById('crustBombBtn'),tb=document.getElementById('tsarBombBtn');
+  if(cb){$bombMenuPopover.appendChild(cb);cb.addEventListener('pointerdown',()=>closeHudPopovers());}
+  if(tb){$bombMenuPopover.appendChild(tb);tb.addEventListener('pointerdown',()=>closeHudPopovers());}
+}
+
+function closeHudPopovers(){for(const p of _hudPopovers)p.classList.remove('show');}
+function toggleHudPopover(el){
+  if(!el)return;
+  const willOpen=!el.classList.contains('show');
+  closeHudPopovers();
+  if(willOpen){el.classList.add('show');initAudio();}
+}
+if($hudMenuBtn)bindTapSafe($hudMenuBtn,()=>toggleHudPopover($hudMenuPopover));
+if($buildMenuBtn)bindTapSafe($buildMenuBtn,()=>{if(!gs.running||!isCreative())return;toggleHudPopover($buildMenuPopover);});
+if($bombMenuBtn)bindTapSafe($bombMenuBtn,()=>{if(!gs.running||!isCreative())return;toggleHudPopover($bombMenuPopover);});
+// ポップオーバー外をタップしたら閉じる（メニューボタン自身とポップオーバー本体は除く）
+document.addEventListener('pointerdown',(e)=>{
+  if(e.target.closest('.hudPopover,#hudMenuBtn,#buildMenuBtn,#bombMenuBtn'))return;
+  closeHudPopovers();
+});
+
+// ─── 「…」メニューの中身: 既存機能をそのまま呼び出すだけ ───
+function _bindPopAction(id,fn){
+  const el=document.getElementById(id);
+  if(!el)return;
+  bindTapSafe(el,()=>{fn();closeHudPopovers();});
+}
+_bindPopAction('hmBagBtn',()=>{if(typeof openBag==='function')openBag();});
+_bindPopAction('hmQuestBtn',()=>{if(typeof openQuest==='function')openQuest();});
+_bindPopAction('hmCraftBtn',()=>{if(typeof toggleCraftPanel==='function')toggleCraftPanel();});
+_bindPopAction('hmSaveBtn',()=>{if(gs.running&&typeof saveGame==='function')saveGame();});
+_bindPopAction('hmSettingsBtn',()=>{if(typeof openSettings==='function')openSettings();});
+_bindPopAction('hmPauseBtn',()=>{if(typeof togglePause==='function')togglePause();});
+
+// ─── BOMBメニュー: TNTはホットバーの通常ブロックなので、ここではワンタップで
+// ホットバー選択を切り替えるショートカットだけを提供する（設置・起爆は既存のPLACE/
+// TNT操作パネルをそのまま使う）。 ───
+_bindPopAction('bombTntSelectBtn',()=>{
+  if(!gs.running)return;
+  const i=(typeof SLOT_MAT!=='undefined')?SLOT_MAT.indexOf('tnt'):-1;
+  if(i<0)return;
+  setType(i);showBonus('▶ 💣 TNT を選択（PLACEで設置）');
+});
 
 // 初期反映（タイトル表示中も body クラスを整合させておく）
 applyMobileModeUI();
