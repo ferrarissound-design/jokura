@@ -26,7 +26,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,tnt:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0,crustBomb:0,tsarBomba:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,tnt:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0,crustBomb:0,tsarBomba:0,longinus:0,judgmentCore:0};
 // 弓に装填する矢の種類: 'normal' | 'fire'(炎上) | 'ice'(鈍足)
 let arrowMode='normal';
 
@@ -81,7 +81,9 @@ let hasDiamondSword=false,hasDiamondBow=false,hasDiamondStaff=false,hasDiamondHa
 let hasIronSword=false; // 鉄の剣: 石とダイヤの中間ティア（ダイヤ剣を作ると上書きされる）
 const unlockedWeapons=[true,false,false,false,false,false];
 // 末尾の'grass'は🍃葉ブロック: 旧仕様（草ブロックの木の傘）と同じ素材を落とす
-const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay','glass','woolBlock','grass','tnt'];
+// 末尾4件(29-32)は🔱LONGINUSの「神罰汚染地帯」専用ブロック。審判石/神晶/焦土は
+// 世界に刻まれた傷跡として掘っても素材を落とさず、神罰核だけが採掘可能なレア素材になる。
+const BLOCK_MAT_MAP=['grass','stone','sand','wood','brick','grass','stone',null,null,null,null,'grass','stone','stone','ironOre','diamond',null,'slab','stair','ice','obsidian','crystal','cactus','mushroom','clay','glass','woolBlock','grass','tnt',null,null,null,'judgmentCore'];
 const SLOT_MAT=['grass','stone','sand','wood','brick','torch','slab','stair','glass','woolBlock','tnt'];
 
 const CRAFT_RECIPES=[
@@ -122,6 +124,8 @@ const CRAFT_RECIPES=[
   {name:'🌋 地殻貫通爆弾',wi:-30,needs:{tnt:4,ironIngot:3,obsidian:2},desc:'💣×4 + 🔩×3 + ⬛×2', req:2},
   // ☢ ツァーリ・ボンバ: ゲームバランス無視の最終兵器。ワールド破壊級の大規模災害。
   {name:'☢ ツァーリ・ボンバ',wi:-31,needs:{crustBomb:2,diamond:6,obsidian:8,dragonCore:1},desc:'🌋×2 + 💎×6 + ⬛×8 + 💠×1', req:2},
+  // 🔱 LONGINUS: 横方向の爆発力ではなく縦方向の貫通と永久の傷跡を刻む軌道兵器。
+  {name:'🔱 LONGINUS',wi:-32,needs:{crystal:12,diamond:10,obsidian:10,dragonCore:2},desc:'🔮×12 + 💎×10 + ⬛×10 + 💠×2', req:2},
 ];
 
 // ═══ 武器強化（エンチャント） ═══

@@ -161,9 +161,9 @@ const DRAW_RY=isTouch?1:2;
 // memory stays bounded no matter how far the player wanders (Minecraft-style
 // chunk loading/unloading rather than a hard world border)
 const UNLOAD_R=DRAW_R+4;
-const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec,0x3f9e3f,0xe53920];
-// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block,leaf,tnt]
-const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1,1,1];
+const BLOCK_COLORS=[0x4caf50,0x8a8f98,0xd9c27a,0x5d4037,0xef9a9a,0x2e7d32,0x78909c,0x1a0a00,0xff4500,0xddeeff,0x1565c0,0x6b4226,0x1e1e1e,0x2a2e3d,0x8b4513,0x00e5ff,0xffa030,0x8a8f98,0x8a8f98,0xaadfff,0x1b0b2e,0xcc66ff,0x2e9e4f,0xd0483e,0xb0a08c,0xbfe6ff,0xf4f4ec,0x3f9e3f,0xe53920,0x2b2b33,0xdcefff,0x1c1512,0xfff0c4];
+// [grass,stone,sand,wood,brick,forest-grass,grey-stone,volcano-rock,lava,snow,water,cave-dirt,coal-ore,deep-stone,iron-ore,diamond-ore,torch,slab,stair,ice,obsidian,crystal,cactus,mushroom,clay,glass,wool-block,leaf,tnt,judgment-stone,divine-glass,scorched-earth,judgment-core]
+const BLOCK_HARDNESS=[1,3,1,2,4,1,3,99,99,1,99,1,2,4,5,6,1,2,2,1,6,4,1,1,1,1,1,1,1,6,4,2,7];
 const LAVA_BLOCK=8,SNOW_BLOCK=9,WATER_BLOCK=10,CAVE_DIRT=11,COAL_ORE=12,DEEP_STONE=13,IRON_ORE=14,DIAMOND_ORE=15,TORCH_BLOCK=16,SLAB_BLOCK=17,STAIR_BLOCK=18;
 // バイオーム固有素材ブロック（そのバイオームの地表にだけ生成される）
 // 氷=滑る / 黒曜石=超硬い+敵に壊されない(耐爆) / 水晶・サボテン・キノコ・粘土=クラフト素材
@@ -172,6 +172,10 @@ const ICE_BLOCK=19,OBSIDIAN_BLOCK=20,CRYSTAL_BLOCK=21,CACTUS_BLOCK=22,MUSHROOM_B
 const GLASS_BLOCK=25,WOOL_BLOCK=26;
 // 🍃 葉ブロック: 木の傘に使う（以前は草ブロックの傘で側面が土に見えていた）
 const LEAF_BLOCK=27,TNT_BLOCK=28;
+// 🔱 LONGINUS（軌道貫通兵器）が刻む「神罰汚染地帯」専用ブロック。通常の爆発跡とは
+// 別物として扱う: 審判石(壁面の亀裂)・神晶(半透明・着弾熱で結晶化)・焦土(表層)・
+// 神罰核(最深部にごく少量・採掘可能なレアブロック)。詳細は longinus.js を参照。
+const JUDGMENT_STONE=29,DIVINE_GLASS=30,SCORCHED_EARTH=31,JUDGMENT_CORE=32;
 const SLOT_TI=[0,1,2,3,4,TORCH_BLOCK,SLAB_BLOCK,STAIR_BLOCK,GLASS_BLOCK,WOOL_BLOCK,TNT_BLOCK];
 // ─── PARTIAL BLOCKS (slabs & stairs) ───
 // Shapes are described as 1-2 sub-boxes in local cell coords [x0,y0,z0,x1,y1,z1].
@@ -207,7 +211,7 @@ const boxGeo=new THREE.BoxGeometry(1,1,1);
 // (custom geometry/shader). Editing a block rebuilds only the touched chunks.
 const AO_LEVEL=[1,.76,.58,.45];
 boxGeo.computeBoundingSphere();boxGeo.computeBoundingBox();
-function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK&&v.ti!==GLASS_BLOCK&&!isPartial(v.ti))?1:0;}
+function _aoOccluder(x,y,z){const v=voxels[vKey(x,y,z)];return(v&&v.ti!==WATER_BLOCK&&v.ti!==TORCH_BLOCK&&v.ti!==GLASS_BLOCK&&v.ti!==DIVINE_GLASS&&!isPartial(v.ti))?1:0;}
 const _FACE_UV=[[0,0],[1,0],[1,1],[0,1]];
 // face order matches blockMats material arrays: +x,-x,+y(top),-y(bottom),+z,-z
 const FACE_DEF=(()=>{
@@ -268,7 +272,7 @@ function buildChunkMesh(rec){
   const buckets=new Map();
   for(const k of rec.keys){
     const v=voxels[k];if(!v)continue;
-    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK||ti===TNT_BLOCK)continue;
+    const ti=v.ti;if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK||ti===TNT_BLOCK||ti===DIVINE_GLASS)continue;
     const p=k.split('|');const x=+p[0],y=+p[1],z=+p[2];
     const bm=blockMats[ti];
     if(isPartial(ti)){
@@ -455,6 +459,31 @@ function oreTex(stoneCol,oreCol,seed){
   }
   return _mkTex(c);
 }
+// 🔱 LONGINUS「審判石」: 暗い岩肌に白金色の亀裂が数本走る（発光は material 側の emissive で付与）
+function crackedTex(base,crackCol,seed){
+  const[c,x]=_texCtx();const r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){const v=r();x.fillStyle=_shade(base,v<.25?.07:v<.5?-.1:0);x.fillRect(i,j,1,1);}
+  x.strokeStyle=_shade(crackCol,0);x.lineWidth=1;x.lineCap='round';
+  for(let n=0;n<3;n++){
+    let px=1+r()*(TEX_SIZE-2),py=1+r()*(TEX_SIZE-2),ang=r()*Math.PI*2;
+    x.beginPath();x.moveTo(px,py);
+    const segN=3+Math.floor(r()*3);
+    for(let s=0;s<segN;s++){ang+=r()*1.6-.8;px+=Math.cos(ang)*(2+r()*3);py+=Math.sin(ang)*(2+r()*3);x.lineTo(px,py);}
+    x.stroke();
+  }
+  return _mkTex(c);
+}
+// 🔱 LONGINUS「神罰核」: 暗い母岩に強く光る筋（oreTexと同じ手法で密度高め）
+function coreTex(base,glowCol,seed){
+  const[c,x]=_texCtx();const r=_rng(seed);
+  for(let j=0;j<TEX_SIZE;j++)for(let i=0;i<TEX_SIZE;i++){const v=r();x.fillStyle=_shade(base,v<.3?.08:v<.55?-.1:0);x.fillRect(i,j,1,1);}
+  const pts=[[0,0],[1,0],[0,1],[1,1],[2,1],[1,2],[2,0],[0,2]];
+  for(let b=0;b<9;b++){
+    const bx=1+Math.floor(r()*(TEX_SIZE-3)),by=1+Math.floor(r()*(TEX_SIZE-3)),n=3+Math.floor(r()*5);
+    for(let p=0;p<n;p++){const o=pts[Math.floor(r()*pts.length)];x.fillStyle=_shade(glowCol,r()<.4?.1:.3);x.fillRect(bx+o[0],by+o[1],1,1);}
+  }
+  return _mkTex(c);
+}
 // vertexColors picks up the face shading baked into boxGeo
 function smat(map,extra){return new THREE.MeshStandardMaterial(Object.assign({map,roughness:.9,metalness:.05,vertexColors:true},extra||{}));}
 const _T={
@@ -473,6 +502,10 @@ const _T={
   woolBlk:noisyTex(0xf4f4ec,71,.05),
   leaf:naturalTex(0x477a3c,72,.15,11),
   tntSide:tntSideTex(),tntTop:tntTopTex(),
+  judgmentStone:crackedTex(0x232228,0xd8e8ff,81),
+  divineGlass:noisyTex(0xdcefff,82,.06),
+  scorchedEarth:naturalTex(0x1c1512,83,.16,9),
+  judgmentCore:coreTex(0x2a241c,0xffe9a0,84),
 };
 // BoxGeometry group order: +x,-x,+y(top),-y(bottom),+z,-z
 function faceMats(side,top,bottom){const s=smat(side);return[s,s,smat(top),smat(bottom),s,s];}
@@ -508,6 +541,11 @@ const blockMats=BLOCK_COLORS.map((c,i)=>{
     case WOOL_BLOCK: return smat(_T.woolBlk,{roughness:1});
     case LEAF_BLOCK: return smat(_T.leaf,{roughness:1});
     case TNT_BLOCK: return faceMats(_T.tntSide,_T.tntTop,_T.tntTop);
+    // 🔱 LONGINUS「神罰汚染地帯」専用ブロック（詳細: longinus.js）
+    case JUDGMENT_STONE: return smat(_T.judgmentStone,{roughness:.55,metalness:.25,emissive:0x9fc8ff,emissiveIntensity:.22});
+    case DIVINE_GLASS: return new THREE.MeshStandardMaterial({color:0xdcefff,map:_T.divineGlass,roughness:.08,metalness:.1,transparent:true,opacity:.55,emissive:0xaeefff,emissiveIntensity:.5,vertexColors:true});
+    case SCORCHED_EARTH: return smat(_T.scorchedEarth,{roughness:1,emissive:0x1a0800,emissiveIntensity:.05});
+    case JUDGMENT_CORE: return smat(_T.judgmentCore,{roughness:.35,metalness:.4,emissive:0xffdd88,emissiveIntensity:.85});
     default: return new THREE.MeshStandardMaterial({color:c,roughness:.9,metalness:.05,vertexColors:true});
   }
 });
@@ -721,8 +759,8 @@ function addBlock(x,y,z,ti,addToScene,playerPlaced,meta){
   // live placement (player build / world-edit replay): world-gen sets tint
   // itself via tintAt() for its own blend-cache reuse, this covers the rest
   if(addToScene&&(ti===0||ti===5))v.tint=computeGrassTint(x,z);
-  if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK||ti===TNT_BLOCK){
-    const geo=ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:ti===GLASS_BLOCK?glassGeo:boxGeo;
+  if(ti===WATER_BLOCK||ti===TORCH_BLOCK||ti===GLASS_BLOCK||ti===TNT_BLOCK||ti===DIVINE_GLASS){
+    const geo=ti===WATER_BLOCK?waterGeo:ti===TORCH_BLOCK?torchGeo:(ti===GLASS_BLOCK||ti===DIVINE_GLASS)?glassGeo:boxGeo;
     const m=new THREE.Mesh(geo,blockMats[ti]);
     m.position.set(x+.5,y+.5,z+.5);
     m.castShadow=ti===TNT_BLOCK;m.receiveShadow=ti!==TORCH_BLOCK;

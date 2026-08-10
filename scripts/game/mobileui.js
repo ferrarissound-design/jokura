@@ -81,7 +81,7 @@ const BAG_TABS=[
     return out;
   }},
   {id:'mats',label:'素材',build(){
-    const keys=['wood','stone','sand','grass','clay','ironOre','ironIngot','wool','ice','obsidian','crystal','cactus','mushroom'];
+    const keys=['wood','stone','sand','grass','clay','ironOre','ironIngot','wool','ice','obsidian','crystal','cactus','mushroom','judgmentCore'];
     return _infoItems(keys);
   }},
   {id:'weapons',label:'武器',build(){
@@ -201,7 +201,7 @@ if(_minimapEl){
 // クリエイティブHUD: 「…」メニュー / BUILDメニュー / BOMBメニュー
 // ----------------------------------------------------------------------------
 // 方針: 新しいボタンを増やして機能を実装し直すのではなく、既存の要素
-// (#structBtn, #regionEditBtn, #crustBombBtn, #tsarBombBtn とその背後の関数)
+// (#structBtn, #regionEditBtn, #crustBombBtn, #tsarBombBtn, #longinusBtn とその背後の関数)
 // をポップオーバーの中へそのまま移動して再利用する。イベントバインドは各機能の
 // スクリプト(main.js/aerial_bomb.js/tsar_bomba.js)側で既に済んでいるため、DOM上の
 // 親要素を変えるだけで見た目だけを「常時フロート」から「メニューを開いた時だけ
@@ -228,9 +228,10 @@ if($buildMenuPopover){
   if(rb){$buildMenuPopover.appendChild(rb);rb.addEventListener('pointerdown',()=>closeHudPopovers());}
 }
 if($bombMenuPopover){
-  const cb=document.getElementById('crustBombBtn'),tb=document.getElementById('tsarBombBtn');
+  const cb=document.getElementById('crustBombBtn'),tb=document.getElementById('tsarBombBtn'),lb=document.getElementById('longinusBtn');
   if(cb){$bombMenuPopover.appendChild(cb);cb.addEventListener('pointerdown',()=>closeHudPopovers());}
   if(tb){$bombMenuPopover.appendChild(tb);tb.addEventListener('pointerdown',()=>closeHudPopovers());}
+  if(lb){$bombMenuPopover.appendChild(lb);lb.addEventListener('pointerdown',()=>closeHudPopovers());}
 }
 
 function closeHudPopovers(){for(const p of _hudPopovers)p.classList.remove('show');}
