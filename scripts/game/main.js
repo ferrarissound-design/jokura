@@ -475,7 +475,7 @@ bindTapSafe($pauseSaveBtn,_onPauseSaveBtnTap);
 let lavaParticleT=0,snowParticleT=0,lastT=0,minimapT=0,hudT=0,chunkT=0,autoSaveT=0;
 let _wasDayPhase=true,fullMoonSpawnT=0;
 const AUTOSAVE_INTERVAL=60;
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)lastT=performance.now();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastT=performance.now();if(typeof initAudio==='function')initAudio();}});
 function tick(now){
   requestAnimationFrame(tick);
   if(isTouch&&now-lastT<FRAME_MIN){return;}
