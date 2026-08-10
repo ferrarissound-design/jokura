@@ -261,23 +261,42 @@ function resetTsarZones(){TsarBlastZones.length=0;_tsarZoneGrid.clear();}
 
 // ══════════════════════════════════════════════════════════════════════════
 // 見た目（1度だけ生成し、以降クローン）
+//   実物のツァーリ・ボンバ（RDS-220）風: 白い円筒胴体＋黒い先端コーン＋
+//   黒い尾部フィンユニット＋先端から伸びる赤い信管アンテナ2本。
 // ══════════════════════════════════════════════════════════════════════════
-const _tsarBodyGeo=new THREE.BoxGeometry(1.5,2.0,1.5);
-const _tsarBodyMat=new THREE.MeshStandardMaterial({color:0x24160f,roughness:.5,metalness:.6,emissive:0x220000,emissiveIntensity:.3});
-const _tsarStripeMat=new THREE.MeshBasicMaterial({color:0xffcc00});
+const _tsarBodyGeo=new THREE.CylinderGeometry(0.52,0.52,1.15,16);
+const _tsarBodyMat=new THREE.MeshStandardMaterial({color:0xebe6da,roughness:.55,metalness:.08});
+const _tsarNoseConeGeo=new THREE.ConeGeometry(0.52,0.85,16);
+const _tsarTailConeGeo=new THREE.CylinderGeometry(0.4,0.56,0.55,16);
+const _tsarBlackMat=new THREE.MeshStandardMaterial({color:0x100d0b,roughness:.6,metalness:.35});
+const _tsarPanelMat=new THREE.MeshStandardMaterial({color:0xd6d0c2,roughness:.5,metalness:.1});
+const _tsarEmblemMat=new THREE.MeshBasicMaterial({color:0x8f887a,side:THREE.DoubleSide});
+const _tsarAntennaMat=new THREE.MeshBasicMaterial({color:0xff2a2a});
 const _tsarWarnMat=new THREE.MeshBasicMaterial({color:0xff2200});
 const _tsarFinMat=new THREE.MeshStandardMaterial({color:0x0d0a08,roughness:.7,metalness:.35});
 const _tsarNoseMat=new THREE.MeshBasicMaterial({color:0xff5522,transparent:true,opacity:.9});
 function _makeTsarBombMesh(){
   const root=new THREE.Object3D();
+  // 白い胴体（円筒）
   const body=new THREE.Mesh(_tsarBodyGeo,_tsarBodyMat.clone());
-  const s1=new THREE.Mesh(new THREE.BoxGeometry(1.56,0.3,1.56),_tsarStripeMat.clone());s1.position.y=0.55;
-  const s2=new THREE.Mesh(new THREE.BoxGeometry(1.56,0.3,1.56),_tsarStripeMat.clone());s2.position.y=-0.05;
-  const warn=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.5,1.6),_tsarWarnMat.clone());warn.position.y=-0.55;warn.visible=false;
-  const nose=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.6),_tsarNoseMat.clone());nose.position.y=-1.15;
+  // 黒い先端コーン（落下時は下向き＝地面に向く弾頭側）
+  const noseCone=new THREE.Mesh(_tsarNoseConeGeo,_tsarBlackMat.clone());noseCone.position.y=-1.0;
+  // 黒い尾部コーン（フィン取り付け部）
+  const tailCone=new THREE.Mesh(_tsarTailConeGeo,_tsarBlackMat.clone());tailCone.position.y=0.85;
+  // 胴体の縦パネルライン＋丸いエンブレム（装飾）
+  const panel=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.5,0.03),_tsarPanelMat.clone());panel.position.set(0,0.05,0.52);
+  const emblem=new THREE.Mesh(new THREE.CircleGeometry(0.13,16),_tsarEmblemMat.clone());emblem.position.set(0,-0.22,0.525);
+  // warn: 尾部の赤い警告リング（起爆前に点滅）
+  const warn=new THREE.Mesh(new THREE.CylinderGeometry(0.58,0.58,0.14,16),_tsarWarnMat.clone());warn.position.y=0.55;warn.visible=false;
+  // nose: 先端の点滅する起爆センサー（不透明度が脈動）
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),_tsarNoseMat.clone());nose.position.y=-1.43;
+  // 先端から伸びる2本の赤い信管アンテナ
+  const ant1=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.55,6),_tsarAntennaMat.clone());ant1.position.set(0.14,-1.62,0.05);ant1.rotation.z=0.5;
+  const ant2=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.55,6),_tsarAntennaMat.clone());ant2.position.set(-0.14,-1.62,-0.05);ant2.rotation.z=-0.5;
+  // 尾部の4枚フィン
   const fins=[];
-  for(let i=0;i<4;i++){const f=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.85,0.85),_tsarFinMat.clone());const a=i*Math.PI/2;f.position.set(Math.cos(a)*0.85,0.85,Math.sin(a)*0.85);f.rotation.y=-a;fins.push(f);}
-  root.add(body,s1,s2,warn,nose,...fins);
+  for(let i=0;i<4;i++){const f=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.85,0.85),_tsarFinMat.clone());const a=i*Math.PI/2;f.position.set(Math.cos(a)*0.78,0.78,Math.sin(a)*0.78);f.rotation.y=-a;fins.push(f);}
+  root.add(body,noseCone,tailCone,panel,emblem,warn,nose,ant1,ant2,...fins);
   markShadowCaster(root);
   return{root,warn,nose};
 }
