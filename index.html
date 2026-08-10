@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260721iphoneui2">
+<link rel="stylesheet" href="styles/main.css?v=20260810tsarcine1">
 
 </head>
 <body>
@@ -44,7 +44,7 @@
   <div id="weaponLabel" style="display:none">👊 Fist</div>
   <div id="craftPanel"></div>
   <div id="coordsDisplay" style="display:none">X:0 Z:0</div>
-  <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas><div id="miniCoords"></div></div>
+  <div id="minimap"><canvas id="miniCanvas" width="90" height="90"></canvas><div id="miniNoise" aria-hidden="true"><span>MINIMAP<br>OFFLINE</span></div><div id="miniCoords"></div></div>
   <button id="saveFloatBtn" style="display:none">💾</button>
   <!-- 旧・左側素材一覧は #invPanel（display:none）としてDOMに残し、既存の updateInvHUD /
        チェスト等HUD更新が参照するデータシンクとして使う。可視のインベントリは
@@ -117,6 +117,33 @@
   <div id="snowFlash"></div>
   <div id="lightning"></div>
   <div id="tsarFlash"></div>
+  <!-- ☢ 終末兵器 起動シーケンス（tsar_sequence.js が body のクラスで出し入れする）。
+       操作を奪わないよう pointer-events:none、かつ z-index は操作ボタン群より下に
+       置いてあるので、シネスコ帯の上にホットバー/操作ボタンが残って見える。 -->
+  <div id="tsarCine" aria-hidden="true">
+    <div class="tcBar tcBarTop"></div>
+    <div class="tcBar tcBarBottom"></div>
+    <div class="tcEdge"></div>
+    <div class="tcScan"></div>
+    <div class="tcPanel">
+      <div class="tcStripe"></div>
+      <div class="tcTitle">☢ 終末兵器 起動</div>
+      <div class="tcName">TSAR BOMBA</div>
+      <div class="tcSub">WORLD ALTERATION WEAPON</div>
+      <div class="tcRows">
+        <div class="tcRow"><span class="tcKey">YIELD</span><span class="tcVal" id="tsarYield">100%</span></div>
+        <div class="tcRow"><span class="tcKey">IMPACT</span><span class="tcVal tcImpact" id="tsarImpact">--.--</span></div>
+      </div>
+      <div class="tcNote">この座標を地図から削除します</div>
+      <div class="tcStripe"></div>
+    </div>
+    <div class="tcLost">SIGNAL LOST</div>
+    <div class="tcRestored">WORLD DATA UPDATED</div>
+    <div class="tcHazard">ENVIRONMENTAL HAZARD</div>
+  </div>
+  <div id="tsarTint" aria-hidden="true"></div>
+  <div id="tsarBurst" aria-hidden="true"></div>
+  <div id="tsarWarp" aria-hidden="true"></div>
   <div id="cdBar"><div id="cdFill"></div></div>
   <div id="bossHpWrap">
     <div id="bossName">💀 BOSS</div>
@@ -324,7 +351,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260721spawnfix1';
+  var V='20260810tsarcine1';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
   var PARTS=['state','achievements','crafting','save','ui','audio',
@@ -334,7 +361,7 @@
              'structures_inverted_castle','structures_frozen_village',
              'structures_underground_city','structures_sky_city','structures_sunken_city',
              'structures_walking_fortress','structures_registry',
-             'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','hud','region_editor','input','main','cheats','mobileui'];
+             'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）

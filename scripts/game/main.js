@@ -218,6 +218,7 @@ bindTapSafe($contDeathBtn,_onContDeathTap);
 let undergroundSnapshot=null,prevPlayerUnderground=false;
 function undergroundDeath(){
   P.hp=0;P.invT=99;gs.running=false;updateHUD();
+  if(typeof tsarSeqAbort==='function')tsarSeqAbort(); // ☢演出の途中で死んでも残さない
   if(undergroundSnapshot){
     for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}
     unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
@@ -252,6 +253,7 @@ function undergroundDeath(){
 }
 function gameComplete(){
   gs.running=false;
+  if(typeof tsarSeqAbort==='function')tsarSeqAbort(); // ☢でボスを倒した場合の演出残留を防ぐ
   unlockAchievement('dragonSlayer');
   saveScore(true);
   ovTitle.style.color='#00e5ff';ovTitle.style.textShadow='3px 3px 0 #006688,6px 6px 0 #003344,0 0 30px #00e5ffaa';
@@ -279,6 +281,7 @@ function startEndless(){
 }
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
+  if(typeof tsarSeqAbort==='function')tsarSeqAbort(); // ☢演出の途中で死んでも残さない
   saveScore(endlessMode); // エンドレス中の死亡は「クリア済みラン」としてランキングに残す
   $endlessBtn.style.display='none';
   gs.running=false;ovTitle.style.color='#ff4444';ovTitle.style.textShadow='3px 3px 0 #880000,6px 6px 0 #330000';ovTitle.textContent='GAME OVER';if($ovSplash)$ovSplash.textContent='また挑戦しよう！';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='RETRY';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo({enableContinueButton:false});

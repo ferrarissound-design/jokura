@@ -284,6 +284,161 @@ body.creative #goalLabel{display:none}
 #lightning.on{opacity:.65}
 /* ☢ ツァーリ・ボンバの全画面白飛び。JSが opacity を直接制御して減衰させる（transition なし） */
 #tsarFlash{position:absolute;inset:0;background:#ffffff;opacity:0;pointer-events:none;z-index:34}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ☢ 終末兵器 起動シーケンス（tsar_sequence.js）
+   ・演出は原則 CSS アニメーション。JS は body のクラス切替と
+     残り時間テキスト(20Hz)だけを担当する。
+   ・レイヤ設計:
+       #tsarCine (z-6)  … シネスコ帯・警告パネル・走査線・外周点滅
+                          → ホットバー(11)/操作ボタン(10)/上部バー(12)より下。
+                            操作UIを覆い隠さず、帯の上に薄暗い操作UIが残る。
+       #tsarTint (z-13) … HUD ごと薄く赤で覆う警戒色（pointer-events なし）
+       #tsarBurst(z-33) … 爆心から引いていく白飛び
+       #tsarWarp (z-35) … 衝撃波通過の歪み/色収差風
+     いずれも pointer-events:none なので操作性は一切奪わない。
+   ═══════════════════════════════════════════════════════════════════════ */
+#tsarCine{position:absolute;inset:0;z-index:6;pointer-events:none;display:none;overflow:hidden}
+body.tsarCine #tsarCine,body.tsarBlast #tsarCine,body.tsarOffline #tsarCine{display:block}
+#tsarCine>*{position:absolute;pointer-events:none}
+/* ── シネマスコープ帯（上下）。安全領域を含めた高さで、下端の操作UIは上に残る ── */
+.tcBar{left:0;right:0;background:linear-gradient(#000 68%,rgba(0,0,0,0));will-change:transform}
+.tcBarTop{top:0;height:calc(8.5vh + var(--safeT));max-height:104px;transform:translateY(-101%);transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.tcBarBottom{bottom:0;height:calc(7.5vh + var(--safeB));max-height:96px;background:linear-gradient(0deg,#000 68%,rgba(0,0,0,0));transform:translateY(101%);transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+body.tsarCine .tcBar{transform:none}
+/* ── 外周のゆっくりした赤い点滅（起爆が近づくと速くなる） ── */
+.tcEdge{inset:0;opacity:0;box-shadow:inset 0 0 64px 2px rgba(180,18,0,.5),inset 0 0 18px 1px rgba(255,80,40,.3)}
+body.tsarCine .tcEdge{animation:tsarEdge 2.1s ease-in-out infinite}
+body.tsarHot .tcEdge{animation-duration:.62s}
+@keyframes tsarEdge{0%,100%{opacity:.22}50%{opacity:.95}}
+/* ── 走査線（transform で流すので再描画コストが小さい） ── */
+.tcScan{left:0;right:0;top:-100%;height:300%;opacity:.16;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.5) 0 1px,rgba(0,0,0,0) 1px 4px);will-change:transform}
+body.tsarCine .tcScan,body.tsarOffline .tcScan{animation:tsarScan 5.5s linear infinite}
+@keyframes tsarScan{from{transform:translateY(0)}to{transform:translateY(33.34%)}}
+/* ── 中央の警告パネル（軍事端末 × 封印解除 × 緊急放送） ── */
+.tcPanel{left:50%;top:41%;width:min(420px,82vw);padding:10px 13px 8px;
+  transform:translate(-50%,-50%) scale(.93);opacity:0;transition:opacity .34s,transform .34s;
+  border:1.5px solid rgba(255,70,25,.62);border-radius:3px;overflow:hidden;text-align:center;
+  background:linear-gradient(180deg,rgba(20,4,3,.9),rgba(5,2,2,.94));
+  box-shadow:0 0 30px rgba(255,45,0,.24),inset 0 0 34px rgba(255,30,0,.14)}
+body.tsarCine .tcPanel{opacity:1;transform:translate(-50%,-50%) scale(1)}
+body.tsarSilent .tcPanel{opacity:0;transform:translate(-50%,-50%) scale(1.05)}
+.tcPanel::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.055) 0 1px,rgba(0,0,0,0) 1px 3px)}
+.tcStripe{position:static;height:6px;margin:0 0 9px;opacity:.85;
+  background:repeating-linear-gradient(45deg,#ffab00 0 7px,#160f04 7px 14px)}
+.tcPanel .tcStripe:last-child{margin:9px 0 0}
+.tcTitle{position:static;font:900 clamp(15px,4.4vw,21px)/1.35 system-ui,-apple-system,sans-serif;color:#ff5733;
+  letter-spacing:.14em;text-shadow:0 0 16px rgba(255,50,0,.65),2px 2px 0 #000}
+.tcName{position:static;margin-top:7px;font:400 clamp(9px,2.6vw,12px)/1.6 'Press Start 2P',monospace;
+  color:#ffd9c6;letter-spacing:.16em;text-shadow:1px 1px 0 #000}
+.tcSub{position:static;margin-top:5px;font:400 clamp(6px,1.85vw,8px)/1.7 'Press Start 2P',monospace;
+  color:rgba(255,150,120,.72);letter-spacing:.2em}
+.tcRows{position:static;display:flex;flex-direction:column;gap:3px;margin:9px auto 0;max-width:280px}
+.tcRow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:2px 4px;border-top:1px solid rgba(255,80,40,.22)}
+.tcKey{font:400 clamp(6px,1.8vw,8px)/1.6 'Press Start 2P',monospace;color:rgba(255,170,140,.8);letter-spacing:.16em}
+.tcVal{font:400 clamp(10px,3vw,14px)/1.4 'Press Start 2P',monospace;color:#ffd23c;
+  letter-spacing:.08em;text-shadow:0 0 10px rgba(255,180,0,.4);font-variant-numeric:tabular-nums}
+.tcImpact{color:#ff8a4a}
+body.tsarHot .tcImpact{color:#fff;animation:tsarHotBlink .3s steps(2) infinite}
+@keyframes tsarHotBlink{0%,100%{opacity:1}50%{opacity:.35}}
+.tcNote{position:static;margin-top:8px;font-size:9px;letter-spacing:.1em;line-height:1.5;
+  color:rgba(255,140,110,.55);text-shadow:1px 1px 0 #000}
+/* ── SIGNAL LOST / WORLD DATA UPDATED / ENVIRONMENTAL HAZARD ── */
+.tcLost,.tcRestored{left:50%;top:41%;transform:translate(-50%,-50%);opacity:0;white-space:nowrap;
+  padding:7px 14px;border-radius:3px;background:rgba(0,0,0,.5);
+  font:400 clamp(8px,2.4vw,11px)/1.6 'Press Start 2P',monospace;letter-spacing:.24em}
+.tcLost{color:#ff5b3a;text-shadow:0 0 14px rgba(255,40,0,.55),1px 1px 0 #000}
+body.tsarSilent .tcLost{animation:tsarLost .3s ease-out forwards}
+@keyframes tsarLost{0%{opacity:0}30%{opacity:1}100%{opacity:.85}}
+.tcRestored{color:#cfe6ff;text-shadow:0 0 12px rgba(120,190,255,.45),1px 1px 0 #000}
+body.tsarRecover .tcRestored{animation:tsarRestored 1.85s ease-out forwards}
+@keyframes tsarRestored{0%{opacity:0}14%{opacity:1}72%{opacity:1}100%{opacity:0}}
+/* 操作ボタン群と重ならない中央上寄りへ置く（下端はホットバー/アクションの領域） */
+.tcHazard{left:50%;top:29%;transform:translateX(-50%);opacity:0;white-space:nowrap;
+  font:400 clamp(6px,1.9vw,8px)/1.6 'Press Start 2P',monospace;letter-spacing:.2em;
+  color:#ff7a4a;text-shadow:0 0 10px rgba(255,50,0,.5),1px 1px 0 #000}
+body.tsarOffline .tcHazard{animation:tsarHazard .9s steps(2) infinite}
+@keyframes tsarHazard{0%,100%{opacity:.9}50%{opacity:.35}}
+body.tsarRecover .tcHazard{animation:tsarHazardOut .6s ease-out forwards}
+@keyframes tsarHazardOut{to{opacity:0}}
+/* ── HUD 全体に重ねる薄い赤の警戒色（操作UIより上・当たり判定なし） ── */
+#tsarTint{position:absolute;inset:0;z-index:13;pointer-events:none;opacity:0;transition:opacity .45s;
+  background:radial-gradient(ellipse at center,rgba(120,0,0,.04) 38%,rgba(110,0,0,.24) 100%)}
+body.tsarCine #tsarTint,body.tsarOffline #tsarTint{opacity:1}
+/* ── 爆心から引いていく白飛び（--bx/--by は起爆時に JS が1回だけ設定） ── */
+#tsarBurst{position:absolute;left:0;top:0;width:100%;height:100%;z-index:33;pointer-events:none;opacity:0;
+  transform-origin:var(--bx,50%) var(--by,50%);
+  background:radial-gradient(circle at var(--bx,50%) var(--by,50%),rgba(255,255,255,0) 0%,rgba(255,255,255,.3) 32%,rgba(255,242,214,.92) 58%,#fff 100%)}
+body.tsarBlast #tsarBurst{animation:tsarBurstOut .62s ease-out forwards}
+@keyframes tsarBurstOut{0%{opacity:1;transform:scale(.18)}55%{opacity:.85}100%{opacity:0;transform:scale(2.6)}}
+/* 画面フラッシュ OFF: 白飛びを使わず、暗赤の縁取りと色味だけで衝撃を表す */
+body.tsarNoFlash #tsarBurst{background:radial-gradient(circle at var(--bx,50%) var(--by,50%),rgba(255,80,0,0) 0%,rgba(255,90,20,.2) 46%,rgba(150,20,0,.55) 78%,rgba(40,0,0,.75) 100%)}
+/* ── 衝撃波がプレイヤーへ到達した瞬間の歪み（短時間・軽量） ── */
+#tsarWarp{position:absolute;inset:0;z-index:35;pointer-events:none;opacity:0;
+  box-shadow:inset 0 0 100px 18px rgba(255,45,0,.5),inset 0 0 34px 4px rgba(0,215,255,.22);
+  background:linear-gradient(90deg,rgba(255,0,45,.12),rgba(0,0,0,0) 16%,rgba(0,0,0,0) 84%,rgba(0,205,255,.12))}
+body.tsarWarp #tsarWarp{animation:tsarWarpPulse .44s ease-out}
+@keyframes tsarWarpPulse{0%{opacity:0;transform:scale(1.05)}22%{opacity:1}100%{opacity:0;transform:scale(1)}}
+body.tsarWarp #c{animation:tsarWarpCanvas .44s ease-out}
+@keyframes tsarWarpCanvas{0%{transform:scale(1.035) skewX(.55deg)}45%{transform:scale(1.012) skewX(-.3deg)}100%{transform:none}}
+/* ── フェーズ1: 通常HUD・ミニマップ・ホットバー・操作ボタンを暗くする ── */
+body.tsarCine #topBar,body.tsarCine #leftStatus,body.tsarCine #minimap,body.tsarCine #hotbar,
+body.tsarCine #actionWrap,body.tsarCine #weaponBtn,body.tsarCine #joyWrap,body.tsarCine #cdBar,
+body.tsarCine #bossHpWrap,body.tsarCine #waveTimer,body.tsarCine #structBtn,body.tsarCine #regionEditBtn,
+body.tsarCine #coordsDisplay,body.tsarCine #treasureCompass{opacity:.42;transition:opacity .45s}
+/* 通常の通知ポップアップは演出中ずっと出さない（画面を情報で埋めない） */
+body.tsarCine #waveAlert,body.tsarCine #bonusPopup,body.tsarBlast #waveAlert,body.tsarBlast #bonusPopup,
+body.tsarOffline #waveAlert,body.tsarOffline #bonusPopup{opacity:0;transition:opacity .2s}
+body.tsarCine #xhair,body.tsarBlast #xhair,body.tsarOffline #xhair{opacity:0}
+/* 静寂の瞬間だけ HUD の一部をちらつかせる */
+body.tsarSilent #topBar,body.tsarSilent #leftStatus{animation:tsarGlitch .16s steps(2) 2}
+@keyframes tsarGlitch{0%{transform:translateX(0);opacity:.42}35%{transform:translateX(-3px);opacity:.16}70%{transform:translateX(2px);opacity:.7}100%{transform:none;opacity:.42}}
+/* ── フェーズ3: 起爆の瞬間は帯も文字も通常HUDも消す（光と音と衝撃波だけ） ── */
+body.tsarBlast #topBar,body.tsarBlast #leftStatus,body.tsarBlast #minimap,body.tsarBlast #hotbar,
+body.tsarBlast #cdBar,body.tsarBlast #bossHpWrap,body.tsarBlast #waveTimer,body.tsarBlast #structBtn,
+body.tsarBlast #regionEditBtn,body.tsarBlast #coordsDisplay,body.tsarBlast #treasureCompass{opacity:0;transition:opacity .12s}
+/* 操作ボタンは消さない（薄く残して操作性を維持する） */
+body.tsarBlast #actionWrap,body.tsarBlast #weaponBtn,body.tsarBlast #joyWrap{opacity:.16;transition:opacity .12s}
+/* ── フェーズ4: HUD障害（数値の伏せ字・ミニマップの砂嵐） ── */
+body.tsarOffline #topBar,body.tsarOffline #leftStatus,body.tsarOffline #minimap,body.tsarOffline #hotbar,
+body.tsarOffline #actionWrap,body.tsarOffline #weaponBtn,body.tsarOffline #joyWrap{opacity:.72;transition:opacity .5s}
+body.tsarOffline #scoreVal,body.tsarOffline #killVal{position:relative;visibility:hidden}
+body.tsarOffline #scoreVal::after,body.tsarOffline #killVal::after{position:absolute;left:0;right:0;top:0;
+  visibility:visible;color:#ff7a55;text-shadow:0 0 8px rgba(255,40,0,.6);animation:tsarFlick .42s steps(2) infinite}
+body.tsarOffline #scoreVal::after{content:'----'}
+body.tsarOffline #killVal::after{content:'??'}
+@keyframes tsarFlick{0%,100%{opacity:1}50%{opacity:.4}}
+#miniNoise{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.12) 0 1px,rgba(0,0,0,.62) 1px 2px),radial-gradient(circle,#3a0d08,#000);
+  color:#ff6b4a;font:400 7px/1.5 'Press Start 2P',monospace;letter-spacing:.5px;text-shadow:0 0 6px rgba(255,40,0,.7)}
+body.tsarOffline #miniNoise{display:flex;animation:tsarNoise .3s steps(3) infinite}
+@keyframes tsarNoise{from{background-position:0 0,0 0}to{background-position:0 7px,0 0}}
+/* ── 復旧: ミニマップ → 数値 → ハザード表示の順に数秒かけて戻す ── */
+body.tsarRecover #miniNoise{animation:tsarMiniBack .55s ease-out forwards}
+@keyframes tsarMiniBack{to{opacity:0}}
+body.tsarRecover #scoreVal,body.tsarRecover #killVal{animation:tsarValBack .01s .75s forwards}
+@keyframes tsarValBack{to{visibility:visible}}
+body.tsarRecover #scoreVal::after,body.tsarRecover #killVal::after{animation:tsarGarbleOut .3s .7s ease-out forwards}
+@keyframes tsarGarbleOut{to{opacity:0;visibility:hidden}}
+body.tsarRecover #topBar,body.tsarRecover #leftStatus,body.tsarRecover #minimap,body.tsarRecover #hotbar,
+body.tsarRecover #actionWrap,body.tsarRecover #weaponBtn,body.tsarRecover #joyWrap{opacity:1;transition:opacity .9s}
+/* 横向き・低い画面ではパネルを詰めて中央のゲーム世界を隠しすぎないようにする */
+@media (max-height:480px){
+  .tcBarTop{height:calc(6vh + var(--safeT))}
+  .tcBarBottom{height:calc(5vh + var(--safeB))}
+  .tcPanel{top:44%;padding:7px 11px 6px;width:min(380px,74vw)}
+  .tcNote{display:none}
+  .tcHazard{bottom:calc(9vh + var(--safeB))}
+}
+/* 端末の「視差効果を減らす」設定を尊重（点滅・流れる走査線を止める） */
+@media (prefers-reduced-motion:reduce){
+  .tcScan,.tcEdge,.tcImpact,#miniNoise,.tcHazard,
+  body.tsarOffline #scoreVal::after,body.tsarOffline #killVal::after{animation:none!important}
+  .tcEdge{opacity:.55}
+}
 #regionEditBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(92px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #66e0ff66;background:rgba(20,120,160,.22);color:#bff6ff;font-size:18px;font-weight:900;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #regionEditBtn:active{transform:scale(.92)}
 #regionEditHud{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:min(270px,calc(100vw - 18px - var(--safeL) - var(--safeR)));padding:8px;border-radius:12px;border:1.5px solid rgba(102,224,255,.45);background:rgba(5,10,18,.82);box-shadow:0 0 18px rgba(0,180,255,.18);pointer-events:auto;z-index:40;color:#e7fbff;text-shadow:1px 1px 0 #000;touch-action:manipulation}
