@@ -32,6 +32,7 @@ const TsarBombaConfig={
   // ── 起爆前演出 ──
   fuseTime:2.5,          // 着弾から起爆までの待ち時間（秒）
   warnBeepInterval:0.32, // 起爆前の警告音の間隔（秒）
+  silenceLead:0.30,      // 起爆の何秒前から「静寂」に入るか（tsar_sequence.js と共有）
 
   // ── 落下挙動（空中投下時） ──
   minAltitude:5,         // 空中投下に必要な地表からの高さ
@@ -286,6 +287,13 @@ const ShockwaveController={
     // 通過中は距離減衰の軽いカメラシェイク
     const pd=Math.hypot(P.x-a.cx,P.z-a.cz);
     if(Math.abs(pd-a.r)<8&&typeof ftvShake==='function')ftvShake(0.25*Math.max(0.1,1-a.r/a.S.shockR),.3);
+    // 衝撃波の前面がプレイヤーを追い越した瞬間 = 演出上の「到達」。
+    // ダメージ判定(_sweep)はクリエイティブ/無敵だとスキップされるので、
+    // 画面の歪みと強シェイクはここで距離減衰つきに1度だけ発火させる。
+    if(!a.passedPlayer&&a.r>=pd){
+      a.passedPlayer=true;
+      if(typeof TsarSequence!=='undefined')TsarSequence.onShockwavePass(Math.max(0.15,1-pd/a.S.shockR));
+    }
     if(a.r>=a.S.shockR){
       if(this.ring){scene.remove(this.ring);this.ringMat.dispose();this.ring=null;}
       this.active=null;
@@ -355,14 +363,22 @@ const TsarBombaExplosionController={
     const d=Math.hypot(P.x-cx,P.y+1-cy,P.z-cz);
 
     // ── 第1段階: 閃光 ──
+    // 演出シーケンスを「起爆」フェーズへ。警告パネル・シネスコ帯・通常HUDが
+    // ここで一度すべて消え、光と音と衝撃波だけが残る（文字は出さない）。
+    if(typeof TsarSequence!=='undefined')TsarSequence.detonate(cx,cy,cz);
     if(settings.flash!==false)_tsarFlashLevel=TsarBombaConfig.flashPeak;
     spawnParticles(cx,cy+1,cz,0xffffff,isTouch?6:14);
     if(!isTouch){const light=new THREE.PointLight(0xfff2c0,6,Math.min(90,S.shockR));light.position.set(cx,cy+4,cz);scene.add(light);setTimeout(()=>{scene.remove(light);},260);}
-    if(typeof ftvShake==='function')ftvShake(TsarBombaConfig.shakeSurface,1.1);
+    // 画面フラッシュOFF時は白飛びが出ないぶん、カメラ揺れを強めて衝撃を補う
+    if(typeof ftvShake==='function')ftvShake(TsarBombaConfig.shakeSurface*(settings.flash===false?1.35:1),settings.flash===false?1.35:1.1);
 
-    // 起爆音（遠いほど遅れて届く演出＋低音の衝撃）
-    const boom=()=>{const vol=Math.max(.05,.6*(1-d/120));playTone(38,.9,vol,'sine');playTone(70,.5,vol*.7,'square');playTone(120,.3,vol*.5,'sawtooth');};
-    if(d>40)setTimeout(boom,Math.min(900,d*7));else boom();
+    // 起爆音（光が先・音が後に届く。遠いほど遅れる）
+    const boom=()=>{
+      const vol=Math.max(.05,.6*(1-d/120));
+      playTone(38,.9,vol,'sine');playTone(70,.5,vol*.7,'square');playTone(120,.3,vol*.5,'sawtooth');
+      if(typeof sfxTsarRumble==='function')sfxTsarRumble(vol*.9,isTouch?1.5:2.3);
+    };
+    setTimeout(boom,Math.max(110,Math.min(900,d*7)));
 
     // ── 第2段階: 中心消滅（強制即死） ──
     _tsarVaporizeEntities(cx,cy,cz,S.vaporizeR);
@@ -382,8 +398,8 @@ const TsarBombaExplosionController={
         if(typeof ftvShake==='function'&&Math.hypot(P.x-cx,P.z-cz)<S.shockR)ftvShake(0.15,.35);
       },600+n*700+Math.random()*300);
     }
-
-    if(typeof showAlert==='function')showAlert('☢ ツァーリ・ボンバ 起爆！');
+    // 「起爆！」の文字は出さない。爆発の瞬間の主役は光・音・衝撃波で、
+    // 文字情報は演出シーケンス側の HUD 障害 → 復旧表示が引き受ける。
   },
 };
 
@@ -442,9 +458,14 @@ function updateTsarBomba(dt){
       }
     }else if(b.state==='fuse'){
       b.fuse-=dt;b.beepT-=dt;
-      // 起爆前演出: 赤点滅＋警告音、フューズ終盤ほど速く
+      // 起爆前演出: 赤点滅＋警告音、フューズ終盤ほど速く。
+      // 起爆直前の「静寂」に入ったら警告音も止める（音を奪ってから爆発させる）。
       const frac=Math.max(0,b.fuse/C.fuseTime),rate=C.warnBeepInterval*(0.35+0.65*frac);
-      if(b.beepT<=0){b.beepT=rate;playTone(320+(1-frac)*260,.09,.09,'square');playTone(150,.12,.06,'sawtooth');}
+      if(b.beepT<=0&&b.fuse>C.silenceLead){
+        b.beepT=rate;
+        if(typeof sfxTsarAlarm==='function')sfxTsarAlarm(frac);
+        else playTone(320+(1-frac)*260,.09,.09,'square');
+      }
       if(b.warn)b.warn.visible=Math.floor(performance.now()/(90+frac*180))%2===0;
       if(b.nose)b.nose.material.opacity=0.5+Math.abs(Math.sin(b.age*10))*0.5;
       const pulse=1+Math.sin(performance.now()*(.012+(1-frac)*.03))*(.03+(1-frac)*.05);b.root.scale.setScalar(pulse);
@@ -454,6 +475,26 @@ function updateTsarBomba(dt){
         TsarBombaExplosionController.detonate(ix,iy,iz);
       }
     }
+  }
+
+  // ── 起動シーケンス演出の同期（フェーズ1: armed / countdown / signalLost） ──
+  // 落下・設置中の爆弾の状態から演出フェーズを毎フレーム引き直すので、
+  // セーブからの復元・複数同時設置・連続使用でも状態がずれない。
+  if(typeof TsarSequence!=='undefined'){
+    let minFuse=null,falling=false;
+    for(const b of _tsarBombs){
+      if(b.state==='fuse')minFuse=(minFuse==null||b.fuse<minFuse)?b.fuse:minFuse;
+      else falling=true;
+    }
+    if(minFuse!=null){
+      TsarSequence.countdown(minFuse);
+      if(minFuse<=C.silenceLead)TsarSequence.signalLost();
+    }else if(falling){
+      TsarSequence.arm();
+    }else if(TsarSequence.phase==='armed'||TsarSequence.phase==='countdown'){
+      TsarSequence.abort(); // 起爆せずに爆弾が消えた（キャンセル等）
+    }
+    TsarSequence.update(dt);
   }
 
   // 段階システムの更新
@@ -468,12 +509,13 @@ function updateTsarBomba(dt){
   }else{const el=_tsarFlash();if(el&&el.style.opacity!=='0')el.style.opacity='0';}
 }
 
-// 着弾直後の演出: 低い警告音＋周囲環境音を弱める雰囲気（軽い実装）
+// 着弾直後の演出: 低い警告音＋起動シーケンス（シネスコ帯＋警告パネル）の開始。
+// 「起爆シーケンス開始」の簡易テキストは専用の警告パネルに置き換えた。
 function _tsarStartFuseFx(b){
   playTone(70,.4,.16,'sine');setTimeout(()=>playTone(55,.5,.14,'sine'),120);
   spawnParticles(b.x,b.y,b.z,0x332a20,4);
   if(typeof ftvShake==='function')ftvShake(0.25,.4);
-  if(typeof showBonus==='function')showBonus('☢ 起爆シーケンス開始… 退避せよ！');
+  if(typeof TsarSequence!=='undefined')TsarSequence.countdown(b.fuse);
 }
 
 // プレイヤーへの衝撃波ノックバック（main.js の movePlayer に加算される）
@@ -519,7 +561,7 @@ function _tsarAirDrop(){
   const vz=_tsarLastMoveZ*C.inheritVel+yawDir.z*0.8;
   _tsarSpawnEntity(sx,sy,sz,vx,-2,vz,'falling');
   playTone(420,.1,.1,'square');setTimeout(()=>playTone(300,.14,.09,'square'),100);
-  showAlert('☢ ツァーリ・ボンバ 投下！');
+  if(typeof TsarSequence!=='undefined')TsarSequence.arm(); // 着弾までは IMPACT --.--
 }
 
 function _tsarGroundPlace(){
@@ -531,8 +573,7 @@ function _tsarGroundPlace(){
   _tsarSpawnEntity(px+0.5,gy+1.5,pz+0.5,0,0,0,'fuse');
   const b=_tsarBombs[_tsarBombs.length-1];
   b.impactX=px;b.impactY=gy;b.impactZ=pz;b.fuse=TsarBombaConfig.fuseTime;
-  _tsarStartFuseFx(b);
-  showAlert('☢ ツァーリ・ボンバ 設置・点火！');
+  _tsarStartFuseFx(b); // 以降は専用の警告パネルが状態を伝える
 }
 
 // プレイヤーの直近の水平移動量（投下時の慣性継承）。main.js から毎フレーム更新。
@@ -572,6 +613,8 @@ function tsarBombaLoadState(saved){
   }
 }
 function resetTsarBomba(){
+  // 演出DOM・CSSクラス・ダックした音量を先に戻す（タイトル復帰/リセット/ロード）
+  if(typeof TsarSequence!=='undefined')TsarSequence.abort();
   for(const b of _tsarBombs){scene.remove(b.root);disposeObject3D(b.root);if(b.aim){scene.remove(b.aim);b.aim.material.dispose();}}
   _tsarBombs.length=0;
   TsarDestructionQueue.reset();ShockwaveController.reset();MushroomCloudEffect.reset();

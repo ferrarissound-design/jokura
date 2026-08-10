@@ -8,9 +8,34 @@
 // ============================================================================
 
 // ═══ AUDIO ═══
-let audioCtx=null;
-function initAudio(){if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return;}}if(audioCtx.state==='suspended'){audioCtx.resume().catch(()=>{});}}
-function playTone(f,d,v,t){if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||'square';o.frequency.value=f;g.gain.setValueAtTime(v||.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+(d||.1));o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+(d||.1));}catch(e){}}
+// すべての音は audioMaster（マスターゲイン）経由で出力する。☢ ツァーリ・ボンバの
+// 「着弾直前の静寂」で BGM・環境音・警告音をまとめて一瞬で落とすために必要で、
+// 通常時は常に 1.0 なので既存の音量バランスには影響しない。
+let audioCtx=null,audioMaster=null;
+function initAudio(){
+  if(!audioCtx){
+    try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return;}
+    try{audioMaster=audioCtx.createGain();audioMaster.gain.value=1;audioMaster.connect(audioCtx.destination);}catch(e){audioMaster=null;}
+  }
+  if(audioCtx.state==='suspended'){audioCtx.resume().catch(()=>{});}
+}
+// 全音の出口。マスターゲインを作れなかった環境では従来どおり destination へ直結する。
+function audioOut(){return audioMaster||audioCtx.destination;}
+// 全体音量を sec 秒かけて v へ落とす（v は 0 不可なので下限つき）
+function audioDuckTo(v,sec){
+  if(!audioCtx||!audioMaster)return;
+  try{
+    const t=audioCtx.currentTime,g=audioMaster.gain;
+    g.cancelScheduledValues(t);g.setValueAtTime(Math.max(.0001,g.value),t);
+    g.exponentialRampToValueAtTime(Math.max(.0001,v),t+Math.max(.02,sec||.15));
+  }catch(e){}
+}
+// ダックを即座に解除して通常音量へ戻す（演出の中断・リセットでも必ず呼ぶ）
+function audioMasterReset(){
+  if(!audioCtx||!audioMaster)return;
+  try{const t=audioCtx.currentTime,g=audioMaster.gain;g.cancelScheduledValues(t);g.setValueAtTime(1,t);}catch(e){}
+}
+function playTone(f,d,v,t){if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||'square';o.frequency.value=f;g.gain.setValueAtTime(v||.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+(d||.1));o.connect(g);g.connect(audioOut());o.start();o.stop(audioCtx.currentTime+(d||.1));}catch(e){}}
 const sfxHit=()=>playTone(220,.08,.12);
 const sfxKill=()=>{playTone(440,.05,.15);setTimeout(()=>playTone(660,.1,.12),60);};
 const sfxBreak=()=>playTone(160,.06,.08,'sawtooth');
@@ -32,13 +57,41 @@ const sfxDiamondStaff=()=>{playTone(2400,.1,.12,'sine');setTimeout(()=>playTone(
 const sfxOink=()=>{playTone(350,.12,.08,'sine');setTimeout(()=>playTone(280,.1,.06,'sine'),80);};
 const sfxEnterUnder=()=>{[400,300,220,160,100].forEach((f,i)=>setTimeout(()=>playTone(f,.18,.07,'sine'),i*90));};
 const sfxExitUnder=()=>{[100,160,220,300,440].forEach((f,i)=>setTimeout(()=>playTone(f,.15,.06,'sine'),i*80));};
+// ─── ☢ ツァーリ・ボンバ 起動シーケンス用（既存の Web Audio だけで生成する） ───
+// 警告音: frac は 1(起爆まで遠い)→0(直前)。近づくほど高く・鋭くなる。
+// 鳴らす間隔は tsar_bomba.js の fuse 側が短くしていく。
+function sfxTsarAlarm(frac){
+  const u=1-Math.max(0,Math.min(1,frac));
+  playTone(300+u*300,.10,.085,'square');
+  playTone(74,.16,.05,'sawtooth');
+  setTimeout(()=>playTone(212+u*268,.09,.055,'square'),70);
+}
+// 静寂へ落ちる瞬間の「回線が切れた」音（この直後にマスターがダックされる）
+function sfxTsarSignalLost(){playTone(1180,.05,.05,'sine');setTimeout(()=>playTone(300,.16,.04,'sine'),60);}
+// 起爆の低音轟音。sfxThunder と同じくノイズ＋ローパスで作る（外部音源なし）。
+function sfxTsarRumble(vol,dur){
+  if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
+  try{
+    const d=Math.max(.4,dur||2.2),t0=audioCtx.currentTime,v=Math.max(.02,Math.min(.9,vol||.5));
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*d),audioCtx.sampleRate);
+    const data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+    const src=audioCtx.createBufferSource();src.buffer=buf;
+    const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.setValueAtTime(300,t0);lp.frequency.linearRampToValueAtTime(42,t0+d);lp.Q.value=.7;
+    const g=audioCtx.createGain();
+    g.gain.setValueAtTime(.0001,t0);
+    g.gain.exponentialRampToValueAtTime(v,t0+.08);
+    g.gain.exponentialRampToValueAtTime(v*.3,t0+d*.42);
+    g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    src.connect(lp);lp.connect(g);g.connect(audioOut());src.start();src.stop(t0+d);
+  }catch(e){}
+}
 
 // ═══ BGM ═══
 let bgmNodes=[],bgmSeqTimer=null,bgmBiome=-1,bgmBoss=false,bgmWave=false,bgmUnder=false,bgmUnderDragon=false;
 function stopBgm(){stopSeq();bgmNodes.forEach(n=>{try{n.stop(audioCtx.currentTime+.05);}catch(e){}});bgmNodes=[];}
 function stopSeq(){if(bgmSeqTimer){clearInterval(bgmSeqTimer);bgmSeqTimer=null;}}
-function bgmOsc(freq,type,vol){if(settings.bgmMuted||!audioCtx||audioCtx.state!=='running')return null;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||.02;o.connect(g);g.connect(audioCtx.destination);o.start();bgmNodes.push(o);return o;}
-function bgmNote(freq,dur,vol,type){if(settings.bgmMuted||!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.setValueAtTime(vol||.04,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);}catch(e){}}
+function bgmOsc(freq,type,vol){if(settings.bgmMuted||!audioCtx||audioCtx.state!=='running')return null;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||.02;o.connect(g);g.connect(audioOut());o.start();bgmNodes.push(o);return o;}
+function bgmNote(freq,dur,vol,type){if(settings.bgmMuted||!audioCtx||audioCtx.state!=='running')return;try{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.setValueAtTime(vol||.04,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioOut());o.start();o.stop(audioCtx.currentTime+dur);}catch(e){}}
 function bgmSeq(notes,interval,vol,type){let i=0;bgmSeqTimer=setInterval(()=>{if(!audioCtx||audioCtx.state!=='running')return;const f=notes[i%notes.length];if(f>0)bgmNote(f,interval*.9/1000,vol,type);i++;},interval);}
 function startBgm(m){
   if(settings.bgmMuted){stopBgm();return;}

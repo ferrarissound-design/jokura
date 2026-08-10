@@ -200,7 +200,7 @@ function sfxThunder(){
     g.gain.exponentialRampToValueAtTime(0.5,t0+0.05);
     g.gain.exponentialRampToValueAtTime(0.16,t0+0.35);
     g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
-    src.connect(lp);lp.connect(g);g.connect(audioCtx.destination);src.start();src.stop(t0+dur);
+    src.connect(lp);lp.connect(g);g.connect(audioOut());src.start();src.stop(t0+dur);
     playTone(85,.2,.22,'sawtooth'); // initial crack
   }catch(e){}
 }
