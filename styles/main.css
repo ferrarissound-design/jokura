@@ -597,9 +597,13 @@ body.creative #hudMenuBtn{display:flex}
 /* ── 4. ミニマップをやや縮小（タップで拡大する既存挙動はそのまま） ── */
 #minimap{width:64px;height:64px}
 
-/* ── 6〜8. 地上/飛行で操作系を切り替える。共通: 右端の BUILD/BOMB 入口 ── */
+/* ── 6〜8. 地上/飛行で操作系を切り替える。共通: 右端の BUILD/BOMB 入口 ──
+   top:50% + transform:translateY(-50%) は、モバイルSafariのアドレスバー等で
+   実際の可視ビューポート高さが変動すると #weaponBtn(bottom起点で固定配置)と
+   縦位置が重なってしまう不具合があった。ミニマップ直下という固定のtop基準に
+   変更し、常に画面上寄りの安全な位置(下部の操作系から十分離れた場所)に置く。 */
 #hudEdgeMenu{
-  position:absolute;right:calc(6px + var(--safeR));top:50%;transform:translateY(-50%);
+  position:absolute;right:calc(8px + var(--safeR));top:calc(122px + var(--safeT));
   display:none;flex-direction:column;gap:10px;z-index:10;
 }
 body.creative #hudEdgeMenu{display:flex}
@@ -612,7 +616,7 @@ body.creative #hudEdgeMenu{display:flex}
 .edgeIcon:active{transform:scale(.92);background:var(--ui-bg-active)}
 #buildMenuBtn{border-color:rgba(179,136,255,.55);background:rgba(149,117,205,.2);color:#e6d9ff}
 #bombMenuBtn{border-color:rgba(255,120,70,.55);background:rgba(150,50,30,.24);color:#ffd8c2}
-#buildMenuPopover,#bombMenuPopover{top:50%;right:calc(54px + var(--safeR));transform:translateY(-50%)}
+#buildMenuPopover,#bombMenuPopover{top:calc(122px + var(--safeT));right:calc(54px + var(--safeR))}
 
 /* 地上: FLY 単体ボタン。飛行中専用の DOWN/UP レイアウトは適用しない
    (flyDownBtn/crustBombBtn は各JSが P.flying を見て display:none にする)。 */
@@ -639,7 +643,6 @@ body.tsarBlast #buildMenuBtn,body.tsarBlast #bombMenuBtn,body.tsarBlast #hudMenu
 body.tsarRecover #buildMenuBtn,body.tsarRecover #bombMenuBtn,body.tsarRecover #hudMenuBtn{opacity:1;transition:opacity .9s}
 
 @media (max-width:430px){
-  #hudEdgeMenu{right:calc(8px + var(--safeR))}
   .hudPopover{min-width:160px}
   /* 既存のレスポンシブ幅(56/76px)に合わせておかないと、狭い端末で
      クリエイティブの2列グリッドだけ幅がはみ出す。 */
