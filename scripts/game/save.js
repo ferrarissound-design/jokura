@@ -178,6 +178,11 @@ async function saveGame(){
     worldEdits:packWorldEdits(worldEdits),
     explosives:(typeof tntSaveState==='function')?tntSaveState():[],
     tsarBombs:(typeof tsarBombaSaveState==='function')?tsarBombaSaveState():[],
+    // ☢ 永久破壊領域（3000%級の巨大クレーターを未読み込み範囲へ遅延適用するための
+    // 少数パラメータのみ）。旧セーブには存在しないため読み込み側は配列でなければ
+    // 空扱いにする（tsarZonesLoadState）。SAVE_VERSIONは上げていない: 既存フィールドは
+    // 一切変更しておらず、この追加フィールドが無くても正常に読み込めるため。
+    tsarZones:(typeof tsarZonesSaveState==='function')?tsarZonesSaveState():[],
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),

@@ -401,6 +401,9 @@ async function continueGame(){
   srcLoadState(d.sunkenCity);
   // 🏰 歩き続ける巨大城塞: 移動体なのでチャンク生成前に位置だけ復元
   wfLoadState(d.walkingFortress);
+  // ☢ ツァーリ・ボンバの永久破壊領域: updateChunks(true) が呼ぶ generateChunk/
+  // generateUnderChunk がこの索引を参照するため、必ずそれより前に復元する
+  if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(d.tsarZones);
   if(d.villages&&typeof generatedVillageChunks!=='undefined')(d.villages.generatedChunks||[]).forEach(k=>generatedVillageChunks.add(k));
   updateChunks(true);
   if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}

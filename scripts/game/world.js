@@ -797,6 +797,13 @@ function generateChunk(cx,cz){
   const key=cKey(cx,cz);if(chunks[key])return;
   weMarkChunkGenerated(cx,cz); // 新規生成列を記録 → applyWorldEdits がこの列だけ再生する
   const meshes=new Set(),ox=cx*CHUNK,oz=cz*CHUNK;
+  // ☢ ツァーリ・ボンバ 永久破壊領域: このチャンクと交差する領域だけを先に
+  // 索引で絞り込む（交差しないチャンクは以下の zoneCut/zoneAny が常に false を
+  // 即返すだけで追加コストゼロ）。solidAt に組み込むことで、クレーターの
+  // 内側は「地形が無い」ものとして生成され、外側の生き残ったブロックは
+  // 「露出面」として正しく実体化する＝チャンク境界に段差や孤立voxelができない。
+  const _tzZones=(typeof tsarMatchedZonesForChunk==='function')?tsarMatchedZonesForChunk(cx,cz):null;
+  const zoneAny=_tzZones?(x,y,z)=>_tsarZonesRemoveAny(x,y,z,_tzZones):null;
   // per-generation caches: neighbour exposure tests hit the same cells often
   const colCache=new Map(),solidCache=new Map();
   const colAt=(x,z)=>{
@@ -816,7 +823,7 @@ function generateChunk(cx,cz){
   const tintAt=(x,z)=>{const c=colAt(x,z);return c.tint||(c.tint=computeGrassTint(x,z,(xx,zz)=>colAt(xx,zz).biome));};
   // is a surface cell solid? (lakes keep their bed and are never carved)
   const solidAt=(x,y,z)=>{
-    if(y<0)return isUnderSolid(x,y,z);
+    if(y<0){let s=isUnderSolid(x,y,z);if(s&&zoneAny&&zoneAny(x,y,z))s=false;return s;}
     const k=x+'|'+y+'|'+z;const hit=solidCache.get(k);
     if(hit!==undefined)return hit;
     const c=colAt(x,z);let s;
@@ -826,6 +833,7 @@ function generateChunk(cx,cz){
     else if(_caveMouth(x,y,z))s=false;
     else if((c.biome===BIOMES.MOUNTAIN||c.biome===BIOMES.VOLCANO)&&y>=1&&y<c.h&&_cliffCarve(x,y,z))s=false;
     else s=true;
+    if(s&&zoneAny&&zoneAny(x,y,z))s=false; // ☢ 永久破壊領域の内側は地形なし扱い
     solidCache.set(k,s);return s;
   };
   for(let lx=0;lx<CHUNK;lx++)for(let lz=0;lz<CHUNK;lz++){
@@ -834,16 +842,19 @@ function generateChunk(cx,cz){
     // lakes carve one block down: sandy bed below, water in the ground cell,
     // so the surface sits lower than the surrounding land (Minecraft-style)
     if(ci.lake){
-      const mb=addBlock(wx,h-1,wz,2,false);if(mb)meshes.add(mb);
-      const mw=addBlock(wx,h,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);
+      // ☢ 永久破壊領域: 湖の水/湖底も露出判定を通らない一括生成なので個別に判定する
+      if(!zoneAny||!zoneAny(wx,h-1,wz)){const mb=addBlock(wx,h-1,wz,2,false);if(mb)meshes.add(mb);}
+      if(!zoneAny||!zoneAny(wx,h,wz)){const mw=addBlock(wx,h,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);}
       continue;
     }
     if((biome===BIOMES.OCEAN||biome===BIOMES.SWAMP)&&ci.waterY!=null){
       const bedTi=biome===BIOMES.OCEAN?_seabedType(wx,wz,h):(rand2(wx,wz,185)<.45?CLAY_BLOCK:rand2(wx,wz,186)<.72?CAVE_DIRT:0);
-      const mb=addBlock(wx,h,wz,bedTi,false);if(mb)meshes.add(mb);
-      for(let wy=h+1;wy<=ci.waterY;wy++){const mw=addBlock(wx,wy,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);}
-      _placeAquaticDecor(wx,h,wz,biome,meshes);
-      if(biome===BIOMES.SWAMP&&h>=ci.waterY&&rand2(wx,wz,187)<.035)_growSwampTree(wx,h,wz,meshes);
+      if(!zoneAny||!zoneAny(wx,h,wz)){const mb=addBlock(wx,h,wz,bedTi,false);if(mb)meshes.add(mb);}
+      for(let wy=h+1;wy<=ci.waterY;wy++){if(zoneAny&&zoneAny(wx,wy,wz))continue;const mw=addBlock(wx,wy,wz,WATER_BLOCK,false);if(mw)meshes.add(mw);}
+      if(!zoneAny||!zoneAny(wx,h+1,wz)){
+        _placeAquaticDecor(wx,h,wz,biome,meshes);
+        if(biome===BIOMES.SWAMP&&h>=ci.waterY&&rand2(wx,wz,187)<.035)_growSwampTree(wx,h,wz,meshes);
+      }
       continue;
     }
     const sub=biome===BIOMES.VOLCANO?7:biome===BIOMES.SNOW?SNOW_BLOCK:biome===BIOMES.MUSHROOM_ISLAND?CAVE_DIRT:1;
@@ -891,6 +902,16 @@ function generateChunk(cx,cz){
   }
   _spawnSurfaceStructures(cx,cz,meshes);
   if(typeof maybeGenerateVillageForChunk==='function')maybeGenerateVillageForChunk(cx,cz,meshes);
+  // ☢ 永久破壊領域: 構造物/村は solidAt を経由しない直接配置なので、露出判定とは
+  // 別に最後の掃除パスで領域内に落ちたぶんだけ取り除く（このチャンクの新規voxelの
+  // 個数だけを見る軽い後始末で、まだシーンに追加されていないので removeBlock不要）
+  if(zoneAny){
+    for(const k of meshes){
+      const v=voxels[k];if(!v)continue;
+      const p=k.split('|'),x=+p[0],y=+p[1],z=+p[2];
+      if(zoneAny(x,y,z)){delete worldEdits.placed[k];delete worldEdits.removed[k];delete voxels[k];meshes.delete(k);}
+    }
+  }
   const rec=makeChunkRec(false);
   for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
   chunks[key]=rec;
@@ -1027,10 +1048,16 @@ function generateUnderChunk(cx,cy,cz){
   weMarkChunkGenerated(cx,cz); // 地下層の生成でも列を記録（y<0 の編集を再生するため）
   const meshes=new Set(),ox=cx*CHUNK,oy=cy*CHUNK_Y,oz=cz*CHUNK;
   const dirs=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  // ☢ ツァーリ・ボンバ 永久破壊領域: generateChunk と同じ考え方で、露出判定にも
+  // 領域を「空洞」として組み込む（solidU）。交差する領域が無いチャンクは
+  // isUnderSolid をそのまま使うので追加コストが無い。
+  const _tzZones=(typeof tsarMatchedZonesForChunk==='function')?tsarMatchedZonesForChunk(cx,cz):null;
+  const zoneAny=_tzZones?(x,y,z)=>_tsarZonesRemoveAny(x,y,z,_tzZones):null;
+  const solidU=zoneAny?(x,y,z)=>isUnderSolid(x,y,z)&&!zoneAny(x,y,z):isUnderSolid;
   for(let lx=0;lx<CHUNK;lx++)for(let lz=0;lz<CHUNK;lz++)for(let ly=0;ly<CHUNK_Y;ly++){
     const wx=ox+lx,wy=oy+ly,wz=oz+lz;
-    if(!isUnderSolid(wx,wy,wz))continue; // cave air
-    if(!dirs.some(([dx,dy,dz])=>!isUnderSolid(wx+dx,wy+dy,wz+dz)))continue; // fully interior
+    if(!solidU(wx,wy,wz))continue; // cave air (or ☢ crater void)
+    if(!dirs.some(([dx,dy,dz])=>!solidU(wx+dx,wy+dy,wz+dz)))continue; // fully interior
     const depth=-wy;
     let ti;
     if(depth<=10){
@@ -1060,6 +1087,14 @@ function generateUnderChunk(cx,cy,cz){
     const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
   }
   _spawnRoomContent(cx,cy,cz,meshes);
+  // ☢ 永久破壊領域: 地下部屋(宝箱の柱等)も直接配置なので同じ後始末を行う
+  if(zoneAny){
+    for(const k of meshes){
+      const v=voxels[k];if(!v)continue;
+      const p=k.split('|'),x=+p[0],y=+p[1],z=+p[2];
+      if(zoneAny(x,y,z)){delete worldEdits.placed[k];delete worldEdits.removed[k];delete voxels[k];meshes.delete(k);}
+    }
+  }
   const rec=makeChunkRec(true);
   for(const k2 of meshes){const v=voxels[k2];if(!v)continue;v.rec=rec;rec.keys.add(k2);if(v.mesh)rec.specials.add(v.mesh);}
   underChunks[key]=rec;

@@ -36,10 +36,10 @@ const TSAR_SEQ={
   lostMax:1.60,     // 起爆が来ないまま静寂が続いた場合の保険（秒）
 };
 // 演出で使う body クラス。abort() はこの一覧を消すだけで完全に元へ戻る。
-const TSAR_SEQ_CLASSES=['tsarCine','tsarHot','tsarSilent','tsarBlast','tsarOffline','tsarRecover','tsarWarp','tsarNoFlash'];
+const TSAR_SEQ_CLASSES=['tsarCine','tsarHot','tsarSilent','tsarBlast','tsarOffline','tsarRecover','tsarWarp','tsarNoFlash','tsarExtinct'];
 
 // ─── DOM は index.html に静的に置いてある（実行時生成・innerHTML更新をしない） ───
-let _tcRoot=null,_tcYield=null,_tcImpact=null,_tcBurst=null,_tcReady=false;
+let _tcRoot=null,_tcYield=null,_tcImpact=null,_tcBurst=null,_tcHazard=null,_tcRestored=null,_tcReady=false;
 function _tcEnsure(){
   if(_tcReady)return;
   _tcReady=true;
@@ -47,6 +47,8 @@ function _tcEnsure(){
   _tcYield=document.getElementById('tsarYield');
   _tcImpact=document.getElementById('tsarImpact');
   _tcBurst=document.getElementById('tsarBurst');
+  _tcHazard=_tcRoot?_tcRoot.querySelector('.tcHazard'):null;
+  _tcRestored=_tcRoot?_tcRoot.querySelector('.tcRestored'):null;
 }
 // 現在のツァーリ・ボンバ規模設定をそのまま出力（20%〜1000%）
 function _tsarYieldText(){
@@ -125,6 +127,12 @@ const TsarSequence={
     _tcSetBurstOrigin(cx,cy,cz);
     // 画面フラッシュ OFF の設定を尊重: 白飛びの代わりに暗赤の縁取りへ差し替える
     document.body.classList.toggle('tsarNoFlash',typeof settings!=='undefined'&&settings.flash===false);
+    // EXTINCTION(3000%)級だけ、既存のハザード表示/復旧表示の文言を専用のものへ
+    // 差し替える（新しい演出システムは作らず、既存の tcHazard/tcRestored を再利用）
+    const extinct=typeof settings!=='undefined'&&Number(settings.tsarScale)>=30;
+    document.body.classList.toggle('tsarExtinct',extinct);
+    if(_tcHazard)_tcHazard.textContent=extinct?'☢ EXTINCTION EVENT':'ENVIRONMENTAL HAZARD';
+    if(_tcRestored)_tcRestored.textContent=extinct?'REGIONAL TERRAIN DATA ERASED':'WORLD DATA UPDATED';
     this._impactT=null;
     this._enter('flash');
     if(typeof audioMasterReset==='function')audioMasterReset(); // 静寂から復帰（爆音は原寸で）
