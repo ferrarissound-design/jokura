@@ -524,3 +524,132 @@ body.creative #bagCreative{display:block}
   #goalLabel{display:none}
   #hint{display:none}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   クリエイティブHUD再設計
+   ・「全部盛りの秘密基地UI」ではなく「整理された建築用コックピット」を目標に、
+     常時表示ではなく「今その瞬間に必要な機能だけ」を出す方針で再構成する。
+   ・すべて body.creative 配下に閉じたセレクタで書く（サバイバル等の既存HUDには
+     一切影響しない）。既存ロジック(main.js/aerial_bomb.js/tsar_bomba.js等)は
+     そのまま再利用し、ここでは「表示・配置・まとめ方」だけを変える。
+   ・地上⇄飛行の切替は body.flying の有無で行う（main.js updateFlyBtns() が
+     P.flying の変化のたびにこのクラスを同期する）。
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. クリエイティブでは SCORE / KILLS を非表示（他モードは従来どおり） ── */
+/* tbLeft を display:none で丸ごと消すと #topBar の flex item が実質1個(tbRight)だけに
+   なり、justify-content:space-between が単一アイテムでは flex-start 相当になって
+   「…」ボタンが左端に寄ってしまう。visibility:hidden ならレイアウト上の場所(=左端)は
+   保持したまま見た目だけ消せるので、tbRight は引き続き右端に残る。 */
+body.creative #topBar .tbLeft{visibility:hidden}
+body.creative #topBar .tbRight .pi{display:none}
+
+/* ── 2. DAY / バイオーム / CREATIVE をコンパクトな2行パネルとして左上へまとめる ──
+   通常モードのレイアウト(#topBar内で中央寄せ)には触れず、クリエイティブ時だけ
+   #topBar を基準に左上へ絶対配置し直す。 */
+.tbRow2{display:flex;align-items:center;gap:6px}
+body.creative .tbCenter{
+  position:absolute;left:calc(8px + var(--safeL));top:calc(6px + var(--safeT));
+  flex:none;align-items:flex-start;gap:1px;pointer-events:none;
+}
+body.creative #dayCluster{gap:4px}
+body.creative #dayIcon{font-size:12px}
+body.creative #dayVal{font-size:10px}
+body.creative #biomeLabel{font-size:8px}
+body.creative #creativeBadge{
+  font-size:8px;padding:0 6px;border-radius:8px;letter-spacing:1px;
+}
+
+/* ── 3. 右上メニューを「…」1つにまとめる（バッグ/クエスト/クラフト/一時停止アイコン列を隠す） ── */
+body.creative #menuBtns{display:none}
+#hudMenuBtn{display:none}
+body.creative #hudMenuBtn{display:flex}
+#hudMenuPopover{top:calc(48px + var(--safeT));right:calc(8px + var(--safeR))}
+
+/* ポップオーバー共通（「…」/BUILD/BOMB すべてで共有） */
+.hudPopover{
+  position:absolute;display:none;flex-direction:column;gap:7px;padding:8px;
+  background:linear-gradient(180deg,rgba(20,22,32,.96),rgba(8,10,16,.98));
+  border:1.5px solid var(--ui-border);border-radius:var(--ui-radius);
+  box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:45;pointer-events:auto;
+  min-width:180px;max-width:min(240px,80vw);max-height:60vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;touch-action:pan-y;
+}
+.hudPopover.show{display:flex}
+/* 各アイテムは元のボタン(structBtn/regionEditBtn/crustBombBtn/tsarBombBtn等)を
+   そのまま流用するため、絶対配置・固定サイズ・grid-areaだけリセットして
+   ポップオーバー内では横並びの行として振る舞わせる。表示/非表示(display)は
+   各機能側のJS判定(飛行中のみ等)を尊重してここでは触らない。 */
+.popItem{
+  position:static!important;width:100%!important;height:auto!important;
+  top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+  grid-area:auto!important;
+  flex-direction:row;align-items:center;justify-content:flex-start;gap:9px;
+  padding:9px 11px;border-radius:9px;font-size:12px;font-weight:800;text-align:left;
+  color:var(--ui-text);background:var(--ui-bg);border:var(--ui-bw) solid var(--ui-border);
+  cursor:pointer;min-height:42px;letter-spacing:.2px;line-height:1.3;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+}
+.popItem:active{background:var(--ui-bg-active);transform:scale(.97)}
+.popItem .aIcon{font-size:17px;line-height:1}
+.popItem .aLabel{font-size:11px}
+
+/* ── 4. ミニマップをやや縮小（タップで拡大する既存挙動はそのまま） ── */
+#minimap{width:64px;height:64px}
+
+/* ── 6〜8. 地上/飛行で操作系を切り替える。共通: 右端の BUILD/BOMB 入口 ── */
+#hudEdgeMenu{
+  position:absolute;right:calc(6px + var(--safeR));top:50%;transform:translateY(-50%);
+  display:none;flex-direction:column;gap:10px;z-index:10;
+}
+body.creative #hudEdgeMenu{display:flex}
+.edgeIcon{
+  width:40px;height:40px;border-radius:50%;border:var(--ui-bw) solid var(--ui-border);
+  background:var(--ui-bg);color:var(--ui-text);font-size:18px;cursor:pointer;pointer-events:auto;
+  display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;transition:transform .1s,background .1s;
+}
+.edgeIcon:active{transform:scale(.92);background:var(--ui-bg-active)}
+#buildMenuBtn{border-color:rgba(179,136,255,.55);background:rgba(149,117,205,.2);color:#e6d9ff}
+#bombMenuBtn{border-color:rgba(255,120,70,.55);background:rgba(150,50,30,.24);color:#ffd8c2}
+#buildMenuPopover,#bombMenuPopover{top:50%;right:calc(54px + var(--safeR));transform:translateY(-50%)}
+
+/* 地上: FLY 単体ボタン。飛行中専用の DOWN/UP レイアウトは適用しない
+   (flyDownBtn/crustBombBtn は各JSが P.flying を見て display:none にする)。 */
+body.creative:not(.flying) #actionWrap{
+  grid-template-columns:64px 84px;
+  grid-template-areas:". fly" "sub jump" "sub main";
+}
+/* 飛行中: 上昇(JUMPを流用)・下降・LAND を右側にまとめて縦の占有を抑える。
+   UP/DOWNを同じ行に並べ、その下にLAND、さらに下にPLACE/ATTACKという3行構成にする。 */
+body.creative.flying #actionWrap{
+  grid-template-columns:64px 84px;
+  grid-template-areas:"down up" "sub land" "sub main";
+}
+body.creative.flying #jumpBtn{grid-area:up}
+body.creative.flying #flyDownBtn{grid-area:down}
+body.creative.flying #flyBtn{grid-area:land}
+body.creative.flying #jumpBtn{width:84px;height:44px}
+body.creative.flying #flyDownBtn{width:64px;height:44px;justify-self:stretch}
+body.creative.flying #flyBtn{width:84px;height:44px;justify-self:end}
+
+/* 建築/破壊メニューもツァーリ演出中は他HUDと同様に薄く暗くする */
+body.tsarCine #buildMenuBtn,body.tsarCine #bombMenuBtn,body.tsarCine #hudMenuBtn{opacity:.42;transition:opacity .45s}
+body.tsarBlast #buildMenuBtn,body.tsarBlast #bombMenuBtn,body.tsarBlast #hudMenuBtn{opacity:0;transition:opacity .12s}
+body.tsarRecover #buildMenuBtn,body.tsarRecover #bombMenuBtn,body.tsarRecover #hudMenuBtn{opacity:1;transition:opacity .9s}
+
+@media (max-width:430px){
+  #hudEdgeMenu{right:calc(8px + var(--safeR))}
+  .hudPopover{min-width:160px}
+  /* 既存のレスポンシブ幅(56/76px)に合わせておかないと、狭い端末で
+     クリエイティブの2列グリッドだけ幅がはみ出す。 */
+  body.creative:not(.flying) #actionWrap{grid-template-columns:56px 76px}
+  body.creative.flying #actionWrap{grid-template-columns:56px 76px}
+  body.creative.flying #jumpBtn{width:76px;height:38px}
+  body.creative.flying #flyDownBtn{width:56px;height:38px}
+  body.creative.flying #flyBtn{width:76px;height:38px}
+}
+@media (max-width:360px){
+  body.creative:not(.flying) #actionWrap{grid-template-columns:58px 76px}
+  body.creative.flying #actionWrap{grid-template-columns:58px 76px}
+}

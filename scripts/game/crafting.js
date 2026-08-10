@@ -388,7 +388,7 @@ bindTapSafe($craftBtn,_onCraftBtnTap);
 if($invArrow)bindTapSafe($invArrow,()=>setArrowMode('normal'));
 if($invFireArrow)bindTapSafe($invFireArrow,()=>setArrowMode('fire'));
 if($invIceArrow)bindTapSafe($invIceArrow,()=>setArrowMode('ice'));
-document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn')return;closeCraftPanel();},{passive:true});
+document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains('open'))return;if(e.target.closest('#craftPanel')||e.target.id==='craftBtn'||e.target.id==='hmCraftBtn')return;closeCraftPanel();},{passive:true});
 
 function resetInv(){
   inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.fireArrow=0;inv.iceArrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;

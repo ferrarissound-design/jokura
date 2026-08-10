@@ -55,6 +55,14 @@ function updateFlyBtns(){
   if($flyDownBtn)$flyDownBtn.style.display=show&&P.flying?'':'none';
   if(typeof updateCrustBombBtn==='function')updateCrustBombBtn();
   if(typeof updateTsarBombBtn==='function')updateTsarBombBtn();
+  // 地上⇄飛行のHUD切替: body.flying の有無だけをCSS側の切替スイッチにする
+  // (実際の表示/非表示・レイアウトは styles/main.css の body.creative.flying 側で完結させる)。
+  document.body.classList.toggle('flying',!!P.flying);
+  // 飛行中はJUMPボタンを「上昇」操作として流用しているため、ラベルもそれに合わせる
+  if(jumpBtn){
+    const lbl=jumpBtn.querySelector('.aLabel');
+    if(lbl)lbl.textContent=(isCreative()&&P.flying)?'UP':'JUMP';
+  }
 }
 // ─── 🏗 特殊生成 PICKER (creative only) ───
 // ボタンは即座にメニューを開くだけ（クールダウン不要）。実際の一発生成（数千
