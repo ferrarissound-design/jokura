@@ -10,7 +10,7 @@
 // ═══ HELP / SETTINGS ═══
 const SETTINGS_KEY='jokura-settings-v1';
 // difficulty: player-damage multiplier; lookSens: touch look multiplier; flash: hit/lava screen flashes; autoSave: periodic save
-const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival',skyQuality:'auto',showCoords:false,tntRadius:5,tntBlockDamage:true,tntEntityDamage:true,tntPlayerDamage:true,tntPlayerKnockback:true,tntItemDrops:false,tntScreenShake:true,tntChain:true,tntPreview:true,tntFriendlyFire:false,tntEffectQuality:'auto',tsarConfirm:true,tsarScale:1};
+const settings={bgmMuted:false,sfxMuted:false,difficulty:'normal',lookSens:1,flash:true,autoSave:true,shadows:null,bob:true,gameMode:'survival',skyQuality:'auto',showCoords:false,tntRadius:5,tntBlockDamage:true,tntEntityDamage:true,tntPlayerDamage:true,tntPlayerKnockback:true,tntItemDrops:false,tntScreenShake:true,tntChain:true,tntPreview:true,tntFriendlyFire:false,tntEffectQuality:'auto',tsarConfirm:true,tsarScale:1,tsarExtinctionWarned:false};
 const SKY_QUALITIES=['auto','low','medium','high'];
 const DIFF_MULT={easy:.6,normal:1,hard:1.5};
 function difficultyMult(){return DIFF_MULT[settings.difficulty]||1;}
@@ -24,6 +24,7 @@ async function loadSettings(){
   settings.tntRadius=Math.max(2,Math.min(isTouch?12:16,Number(settings.tntRadius)||5));
   if(!['auto','low','high'].includes(settings.tntEffectQuality))settings.tntEffectQuality='auto';
   settings.tsarScale=Math.max(0.05,Math.min(TSAR_SCALE_VALS[TSAR_SCALE_VALS.length-1],Number(settings.tsarScale)||1));
+  settings.tsarExtinctionWarned=!!settings.tsarExtinctionWarned;
   // LS initialises from settings.lookSens at its own declaration; don't touch it here (TDZ)
 }
 function applyAccessibility(){try{LS=LS_BASE*settings.lookSens;}catch(e){}}
@@ -99,11 +100,25 @@ function _toggleTNTSetting(key){settings[key]=!settings[key];saveSettings();upda
 function cycleTNTRadius(){const vals=isTouch?[3,4,5,6,8,10,12]:[3,4,5,6,8,10,12,16],i=vals.indexOf(settings.tntRadius);settings.tntRadius=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();}
 function cycleTNTEffectQuality(){const vals=['auto','low','high'],i=vals.indexOf(settings.tntEffectQuality);settings.tntEffectQuality=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();}
 function toggleTsarConfirm(){settings.tsarConfirm=settings.tsarConfirm===false;saveSettings();updateSettingsUI();showSaveToast(settings.tsarConfirm!==false?'☢ 使用前の確認 ON':'☢ 使用前の確認 OFF');}
-// 最大10倍(1000%)まで。最大値ではロード済みワールド全域が破壊範囲に収まるため、
-// これ以上上げても破壊できるものが増えず衝撃波が間延びするだけになる。
-const TSAR_SCALE_VALS=[0.2,0.5,1,1.5,2,3,5,10];
-function _tsarScaleLabel(v){const pct=Math.round(v*100)+'%';return v>=TSAR_SCALE_VALS[TSAR_SCALE_VALS.length-1]?pct+' (MAX)':pct;}
-function cycleTsarScale(){const vals=TSAR_SCALE_VALS,cur=Number(settings.tsarScale)||1,i=vals.indexOf(cur);settings.tsarScale=vals[(i+1)%vals.length];saveSettings();updateSettingsUI();showSaveToast('☢ 規模スケール: '+_tsarScaleLabel(settings.tsarScale));}
+// 最大30倍(3000%)まで。1000%はロード済みワールド全域が読み込み時点の破壊範囲に
+// 収まる規模（MAXIMUM）。2000%(CATASTROPHE)/3000%(EXTINCTION)はそれを超える
+// 領域を「永久破壊領域(TsarBlastZones)」として登録し、未読み込みチャンクが
+// 後から生成される瞬間に遅延適用することで、読み込み範囲の外まで実際に
+// クレーターが続く「地域消滅兵器」になる（詳細: tsar_bomba.js TsarBlastZones）。
+const TSAR_SCALE_VALS=[0.2,0.5,1,1.5,2,3,5,10,20,30];
+const TSAR_SCALE_NAMES={10:'MAXIMUM',20:'CATASTROPHE',30:'EXTINCTION'};
+function _tsarScaleLabel(v){const pct=Math.round(v*100)+'%';const nm=TSAR_SCALE_NAMES[Math.round(v)];return nm?pct+' '+nm:pct;}
+function cycleTsarScale(){
+  const vals=TSAR_SCALE_VALS,cur=Number(settings.tsarScale)||1,i=vals.indexOf(cur);
+  settings.tsarScale=vals[(i+1)%vals.length];
+  saveSettings();updateSettingsUI();
+  showSaveToast('☢ 規模スケール: '+_tsarScaleLabel(settings.tsarScale));
+  // EXTINCTION(3000%)を初めて選んだ時だけ短い警告を出す（毎回は出さない＝操作テンポを保つ）
+  if(settings.tsarScale>=30&&!settings.tsarExtinctionWarned){
+    settings.tsarExtinctionWarned=true;saveSettings();
+    if(typeof showAlert==='function')showAlert('☢ EXTINCTION SCALE — 広範囲の地形が永久に変更されます');
+  }
+}
 function cycleSkyQuality(){
   const i=SKY_QUALITIES.indexOf(settings.skyQuality);
   settings.skyQuality=SKY_QUALITIES[(i+1)%SKY_QUALITIES.length];

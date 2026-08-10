@@ -136,6 +136,16 @@ function drawMinimap(){const S=90;miniCtx.fillStyle='rgba(0,0,0,.75)';miniCtx.fi
   for(const h of humanoids){const p=h.root.position,hx=cx+(p.x-P.x)*sc,hy=cy+(p.z-P.z)*sc;if(hx<-2||hx>S+2||hy<-2||hy>S+2)continue;miniCtx.fillStyle=h.hostile?'#ff6655':'#e5c07b';miniCtx.fillRect(hx-2,hy-2,4,4);}
   for(const e of enemies){const p=e.root.position,ex=cx+(p.x-P.x)*sc,ey=cy+(p.z-P.z)*sc;if(ex<-2||ex>S+2||ey<-2||ey>S+2)continue;miniCtx.fillStyle=e.type.lava?'#ff6600':e.type.ice?'#44ddff':e.type.creeper?'#66ff44':e.type.spider?'#d08850':e.type.phantom?'#88aaff':e.type.name==='Skeleton'?'#eeeeff':e.type.name==='Golem'?'#4488ff':'#ff4444';miniCtx.fillRect(ex-1.5,ey-1.5,3,3);}
   if(boss){const p=boss.root.position,bx=cx+(p.x-P.x)*sc,by=cy+(p.z-P.z)*sc;if(bx>-5&&bx<S+5&&by>-5&&by<S+5){miniCtx.fillStyle='#ff0066';miniCtx.fillRect(bx-3,by-3,6,6);}}
+  // ☢ 永久破壊領域: 近くにある領域だけ赤黒い円で示す（領域数は少ないので毎回全走査でも軽い）
+  if(typeof TsarBlastZones!=='undefined'&&TsarBlastZones.length){
+    for(const zone of TsarBlastZones){
+      if(Math.hypot(zone.x-P.x,zone.z-P.z)>zone.destroyR+40)continue;
+      const zx=cx+(zone.x-P.x)*sc,zy=cy+(zone.z-P.z)*sc,zr=zone.destroyR*sc;
+      miniCtx.beginPath();miniCtx.arc(zx,zy,zr,0,Math.PI*2);
+      miniCtx.fillStyle='rgba(40,0,0,.32)';miniCtx.fill();
+      miniCtx.lineWidth=2;miniCtx.strokeStyle='rgba(255,40,20,.85)';miniCtx.stroke();
+    }
+  }
   for(const it of items){const ix=cx+(it.x-P.x)*sc,iy=cy+(it.z-P.z)*sc;if(ix>-2&&ix<S+2&&iy>-2&&iy<S+2){miniCtx.fillStyle='#ffff00';miniCtx.fillRect(ix-1,iy-1,2,2);}}
   miniCtx.fillStyle='#44ff44';miniCtx.beginPath();miniCtx.arc(cx,cy,2.5,0,Math.PI*2);miniCtx.fill();
   const ddx=Math.sin(yaw)*7,ddy=-Math.cos(yaw)*7;miniCtx.strokeStyle='#44ff44';miniCtx.lineWidth=1.5;miniCtx.beginPath();miniCtx.moveTo(cx,cy);miniCtx.lineTo(cx+ddx,cy+ddy);miniCtx.stroke();

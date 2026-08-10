@@ -78,9 +78,15 @@ const TsarBombaConfig={
 };
 
 // 実効値（DEBUG_SCALE 反映）。設定変更に追従できるよう毎回計算する軽い getter。
+// s は 0.05〜TSAR_SCALE_VALS の最大値(既定30=3000%)へ必ずクランプする。
+// settings.tsarScale はロード時に ui.js 側でも同じ範囲へ丸めているが、ここでも
+// 二重にクランプすることで、改ざん・破損セーブ・NaN/文字列/負数/Infinityなどの
+// 不正値が実際の爆発規模・永久破壊領域の登録範囲(チャンク索引)に影響しないようにする。
 function _tsarScaledConfig(){
   const raw=(typeof settings!=='undefined'&&settings.tsarScale!=null)?settings.tsarScale:TSAR_BOMBA_DEBUG_SCALE;
-  const s=Math.max(0.05,Number(raw)||1),c=TsarBombaConfig;
+  const n=Number(raw);
+  const hardMax=(typeof TSAR_SCALE_VALS!=='undefined'&&TSAR_SCALE_VALS.length)?TSAR_SCALE_VALS[TSAR_SCALE_VALS.length-1]:30;
+  const s=Math.max(0.05,Math.min(hardMax,Number.isFinite(n)?n:1)),c=TsarBombaConfig;
   // 大規模スケール時は破壊対象が半径の2乗以上で増えるため、フレーム分散の
   // 予算も引き上げる（上限つき。1フレームの負荷が壊れない範囲で処理を速める）
   const budget=Math.min(4,Math.max(1,s));
@@ -95,6 +101,163 @@ function _tsarScaledConfig(){
     maxGlassify:Math.round(c.maxGlassify*Math.min(6,Math.max(1,s))),
   };
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// TsarBlastZones: 永久破壊領域（地域消滅データ）
+//   爆発の瞬間に「クレーターの形状パラメータ」だけを登録する軽量レコード。
+//   半径数千ブロック分のvoxelをその場で生成・走査・削除することは絶対にしない。
+//   代わりに、未生成チャンクが後から generateChunk/generateUnderChunk (world.js)
+//   で生成される瞬間に「このチャンクは領域と交差するか」だけをチャンク索引
+//   (_tsarZoneGrid) で判定し、交差するときだけ同じ距離減衰の式
+//   （_tsarZoneDepthAt / tsarZoneRemovesAt）でその場を彫る。読み込み済み領域は
+//   既存の TsarDestructionQueue（フレーム分散のスナップショット破壊）が同じ式を
+//   使って処理するので、読み込み済み/未読み込みの境界に段差ができない。
+//
+//   適用順（重要・崩すと再建物がロードのたびに消える）:
+//     チャンク生成(基本地形・自動構造物) → 永久破壊領域を彫る（このセクションの
+//     関数が world.js の generateChunk/generateUnderChunk から呼ばれる）
+//       → applyWorldEdits() が worldEdits.placed を再生（爆発"後"の再建物）
+//   worldEdits 自体には巨大な削除ログを残さない。爆発の瞬間に、その時点までに
+//   存在した worldEdits のうち領域内に入る記録（爆発"前"の設置/破壊）だけを
+//   回収し、領域データへ意味を集約する（_tsarPurgeStaleEdits）。爆発後に新しく
+//   置かれる worldEdits.placed（再建物）はこの回収の対象外なので、
+//   ロードのたびに正しく復元される。
+// ══════════════════════════════════════════════════════════════════════════
+const TSAR_ZONE_VERSION=1; // 領域データの形式バージョン（将来形式を変える時のため）
+const TsarBlastZones=[];   // {v,id,x,y,z,scale,seed,vaporizeR,destroyR,craterDepth,deepR,createdAt}
+const TSAR_ZONE_GRID=16;   // 粗インデックスの1セル = 16x16チャンク(256x256ブロック)
+const _tsarZoneGrid=new Map(); // "gx,gz" -> zone[]（生成中チャンクの列だけを索引で絞る）
+let _tsarZoneSeq=0;
+
+function _tsarZoneMaxScale(){return(typeof TSAR_SCALE_VALS!=='undefined'&&TSAR_SCALE_VALS.length)?TSAR_SCALE_VALS[TSAR_SCALE_VALS.length-1]:30;}
+function _tsarZoneCellRange(zone){
+  const pad=zone.destroyR+CHUNK*2,cell=CHUNK*TSAR_ZONE_GRID;
+  return{
+    gxA:Math.floor((zone.x-pad)/cell),gxB:Math.floor((zone.x+pad)/cell),
+    gzA:Math.floor((zone.z-pad)/cell),gzB:Math.floor((zone.z+pad)/cell),
+  };
+}
+function _tsarIndexZone(zone){
+  const{gxA,gxB,gzA,gzB}=_tsarZoneCellRange(zone);
+  for(let gx=gxA;gx<=gxB;gx++)for(let gz=gzA;gz<=gzB;gz++){
+    const gk=gx+','+gz;let arr=_tsarZoneGrid.get(gk);
+    if(!arr){arr=[];_tsarZoneGrid.set(gk,arr);}
+    arr.push(zone);
+  }
+}
+function _tsarRebuildZoneIndex(){_tsarZoneGrid.clear();for(const z of TsarBlastZones)_tsarIndexZone(z);}
+// このチャンク列(cx,cz)と実際にバウンディングボックスが交差する領域だけを返す。
+// 索引に候補が無ければ Map 参照1回だけで即 null（交差しないチャンクへ追加コストを払わない）。
+function tsarMatchedZonesForChunk(cx,cz){
+  if(!TsarBlastZones.length)return null;
+  const gx=Math.floor(cx/TSAR_ZONE_GRID),gz=Math.floor(cz/TSAR_ZONE_GRID);
+  const cand=_tsarZoneGrid.get(gx+','+gz);
+  if(!cand||!cand.length)return null;
+  const ox=cx*CHUNK,oz=cz*CHUNK,out=[];
+  for(const zone of cand){
+    const px=Math.max(ox,Math.min(zone.x,ox+CHUNK)),pz=Math.max(oz,Math.min(zone.z,oz+CHUNK));
+    const dx=zone.x-px,dz=zone.z-pz,r=zone.destroyR+2;
+    if(dx*dx+dz*dz<=r*r)out.push(zone);
+  }
+  return out.length?out:null;
+}
+// 距離減衰クレーター形状（読み込み済み破壊 TsarDestructionQueue と、未読み込み
+// チャンク生成の両方が共有する唯一の式。境界の連続性はこの共有だけで保たれる）
+function _tsarZoneDepthAt(hd,zone){
+  if(hd>=zone.destroyR)return 0;
+  if(hd<=zone.deepR)return zone.craterDepth;
+  const t=(hd-zone.deepR)/Math.max(0.001,zone.destroyR-zone.deepR);
+  return zone.craterDepth*Math.pow(Math.max(0,1-t),1.7);
+}
+function _tsarZoneFloorY(x,z,zone,hd){
+  const wob=(_tsarHash(x+zone.seed,z-zone.seed)-0.35)*zone.craterDepth*0.28;
+  return zone.y-_tsarZoneDepthAt(hd,zone)+wob;
+}
+// 1 voxel が領域によって「爆発で消し飛ばされている」か（vaporize球 or クレーター床より上）
+function tsarZoneRemovesAt(x,y,z,zone){
+  const dx=x+0.5-zone.x,dz=z+0.5-zone.z,hd=Math.hypot(dx,dz);
+  if(hd>zone.destroyR)return false;
+  const dy=y+0.5-zone.y,d3=Math.hypot(dx,dy,dz);
+  if(d3<=zone.vaporizeR)return true;
+  return y+0.5>=_tsarZoneFloorY(x,z,zone,hd);
+}
+function _tsarZonesRemoveAny(x,y,z,zones){
+  for(let i=0;i<zones.length;i++)if(tsarZoneRemovesAt(x,y,z,zones[i]))return true;
+  return false;
+}
+// クレーター外縁付近（焦土化/ガラス化の対象帯）。読み込み済み/未読み込み両経路で揃える
+function _tsarZoneRimBand(hd,zone){return hd>zone.destroyR*0.45&&hd<=zone.destroyR;}
+
+function _tsarMakeZone(cx,cy,cz){
+  const S=_tsarScaledConfig();
+  const id='tz'+Date.now().toString(36)+'_'+(_tsarZoneSeq++).toString(36);
+  return{
+    v:TSAR_ZONE_VERSION,id,
+    x:cx,y:cy,z:cz,
+    scale:(typeof settings!=='undefined'&&settings.tsarScale!=null)?Number(settings.tsarScale):1,
+    seed:(hash2i(Math.round(cx),Math.round(cz),(_tsarZoneSeq*2654435761)>>>0)|0),
+    vaporizeR:S.vaporizeR,destroyR:S.destroyR,craterDepth:S.craterDepth,deepR:S.deepR,
+    createdAt:Date.now(),
+  };
+}
+// 爆発前から存在した worldEdits（設置/破壊の記録）のうち、この領域に消し飛ばされる
+// 位置のものを回収する。領域そのものが「その場所の地形は消えた」という記録に
+// なるので、個々の voxel を worldEdits.removed に何百万件も残す必要が無くなる
+// （要件: 破壊領域で表現できる削除情報は領域データへ集約する）。このタイミングで
+// 既に存在する編集だけが対象なので、爆発"後"に新しく置かれる worldEdits.placed
+// （再建物）には一切触れない＝再建物は必ず生き残る。
+function _tsarPurgeStaleEdits(zone){
+  if(typeof worldEdits==='undefined')return;
+  const hit=[];
+  for(const k in worldEdits.placed)if(_tsarKeyInZone(k,zone))hit.push(k);
+  for(const k in worldEdits.removed)if(_tsarKeyInZone(k,zone))hit.push(k);
+  for(const k of hit){delete worldEdits.placed[k];delete worldEdits.removed[k];}
+}
+function _tsarKeyInZone(k,zone){
+  const p=k.split('|');
+  return tsarZoneRemovesAt(+p[0],+p[1],+p[2],zone);
+}
+function _tsarRegisterZone(cx,cy,cz){
+  const zone=_tsarMakeZone(cx,cy,cz);
+  _tsarPurgeStaleEdits(zone);
+  TsarBlastZones.push(zone);
+  _tsarIndexZone(zone);
+  return zone;
+}
+// 不正値・旧バージョン・改ざんされたセーブ値を安全な範囲へ丸める
+// (NaN/文字列/負数/Infinity/欠損フィールドいずれも既定値へフォールバックする)
+function _tsarSanitizeZone(d){
+  if(!d||typeof d!=='object')return null;
+  const num=(v,def,min,max)=>{const n=Number(v);return(Number.isFinite(n)&&n>=min&&n<=max)?n:def;};
+  const x=num(d.x,NaN,-1e8,1e8),y=num(d.y,NaN,-4096,4096),z=num(d.z,NaN,-1e8,1e8);
+  if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return null;
+  const destroyR=num(d.destroyR,0,0,1e5);
+  if(destroyR<=0)return null; // 破壊半径の無い領域は保存する意味が無いので破棄
+  return{
+    v:1,id:typeof d.id==='string'&&d.id?d.id:('tz'+x+'_'+z+'_'+num(d.createdAt,0,0,Number.MAX_SAFE_INTEGER)),
+    x,y,z,
+    scale:num(d.scale,1,0.01,_tsarZoneMaxScale()*2),
+    seed:num(d.seed,0,-2147483648,2147483647)|0,
+    vaporizeR:num(d.vaporizeR,0,0,destroyR),
+    destroyR,
+    craterDepth:num(d.craterDepth,10,0,1e5),
+    deepR:num(d.deepR,0,0,destroyR),
+    createdAt:num(d.createdAt,Date.now(),0,Number.MAX_SAFE_INTEGER),
+  };
+}
+function tsarZonesSaveState(){
+  return TsarBlastZones.map(z=>({v:z.v,id:z.id,x:z.x,y:z.y,z:z.z,scale:z.scale,seed:z.seed,
+    vaporizeR:z.vaporizeR,destroyR:z.destroyR,craterDepth:z.craterDepth,deepR:z.deepR,createdAt:z.createdAt}));
+}
+function tsarZonesLoadState(saved){
+  TsarBlastZones.length=0;_tsarZoneGrid.clear();
+  if(!Array.isArray(saved))return;
+  for(const d of saved){
+    const zone=_tsarSanitizeZone(d);
+    if(zone){TsarBlastZones.push(zone);_tsarIndexZone(zone);}
+  }
+}
+function resetTsarZones(){TsarBlastZones.length=0;_tsarZoneGrid.clear();}
 
 // ══════════════════════════════════════════════════════════════════════════
 // 見た目（1度だけ生成し、以降クローン）
@@ -185,39 +348,36 @@ function _tsarHash(x,z){ // 0..1 の決定的擬似乱数（リムの不規則�
 }
 const TsarDestructionQueue={
   active:null,
+  // zone: 永久破壊領域（形状パラメータの単一情報源。未読み込みチャンクが後で
+  // 生成されるときも tsarZoneRemovesAt/_tsarZoneFloorY が同じ zone を使って
+  // 同じ形を彫るので、読み込み済み/未読み込みの境界に段差が出ない）
   begin(cx,cy,cz){
-    const S=_tsarScaledConfig();
+    const zone=(typeof _tsarRegisterZone==='function')?_tsarRegisterZone(cx,cy,cz):{x:cx,y:cy,z:cz,seed:0,..._tsarScaledConfig()};
+    const S=_tsarScaledConfig(); // フレーム負荷の予算だけ（形状には使わない・保存もしない）
     this.active={
-      cx,cy,cz,S,
+      zone,
       keys:Object.keys(voxels), // スナップショット（以降 voxels が変化しても走査は安定）
       scan:0,blocks:[],destroy:0,debris:0,
       glassCols:new Map(), // "x|z" -> floorY（リムのガラス化候補）
+      scanPerFrame:S.scanPerFrame,blocksPerFrame:S.blocksPerFrame,maxGlassify:S.maxGlassify,
       done:false,
     };
   },
-  _depthAt(hd,S){
-    if(hd>=S.destroyR)return 0;
-    if(hd<=S.deepR)return S.craterDepth;
-    const t=(hd-S.deepR)/Math.max(0.001,S.destroyR-S.deepR);
-    return S.craterDepth*Math.pow(Math.max(0,1-t),1.7);
-  },
   _scanKey(t,k){
-    const p=k.split('|'),x=+p[0],y=+p[1],z=+p[2];
-    const dx=x+0.5-t.cx,dz=z+0.5-t.cz,hd=Math.hypot(dx,dz),S=t.S;
-    if(hd>S.destroyR)return;
-    const dy=y+0.5-t.cy,d3=Math.hypot(dx,dy,dz);
-    // リムのゆらぎ: ノイズで縁を不規則に、局所的に縦穴/崩落壁が残るように
-    const wob=(_tsarHash(x,z)-0.35)*S.craterDepth*0.28;
-    const floorY=t.cy-this._depthAt(hd,S)+wob;
-    const inVapor=d3<=S.vaporizeR;
+    const p=k.split('|'),x=+p[0],y=+p[1],z=+p[2],zone=t.zone;
+    const dx=x+0.5-zone.x,dz=z+0.5-zone.z,hd=Math.hypot(dx,dz);
+    if(hd>zone.destroyR)return;
+    const dy=y+0.5-zone.y,d3=Math.hypot(dx,dy,dz);
+    const inVapor=d3<=zone.vaporizeR;
+    const floorY=_tsarZoneFloorY(x,z,zone,hd);
     let remove=false;
     if(inVapor)remove=true;                       // 中心消滅: 黒曜石も建築も液体も消す
-    else if(hd<=S.destroyR&&y+0.5>=floorY)remove=true; // クレーター床から上を全部えぐる
+    else if(y+0.5>=floorY)remove=true;             // クレーター床から上を全部えぐる（hd<=destroyRは確認済み）
     if(!remove)return;
     const v=voxels[k];if(!v||!v.active)return;
     t.blocks.push({x,y,z,k,ti:v.ti,d:d3,playerPlaced:v.playerPlaced});
     // 縁付近の「新しい床」を記録（後段で焦土/ガラス化）
-    if(TsarBombaConfig.glassifyRim&&!inVapor&&hd>S.destroyR*0.45){
+    if(TsarBombaConfig.glassifyRim&&!inVapor&&_tsarZoneRimBand(hd,zone)){
       const col=x+'|'+z,cur=t.glassCols.get(col);
       const fy=Math.floor(floorY)-1;
       if(cur===undefined||fy<cur)t.glassCols.set(col,fy);
@@ -237,11 +397,11 @@ const TsarDestructionQueue={
     const t=this.active;if(!t||t.done)return;
     const prevDefer=_deferDirty;_deferDirty=true;
     // スキャン（破壊候補の収集）を分割
-    let sb=t.S.scanPerFrame;
+    let sb=t.scanPerFrame;
     while(t.scan<t.keys.length&&sb-->0)this._scanKey(t,t.keys[t.scan++]);
     // 破壊（近い順に見えるよう、収集済み分を距離ソートしてから消す）
     if(t.scan>=t.keys.length&&!t._sorted){t.blocks.sort((a,b)=>a.d-b.d);t._sorted=true;}
-    if(t._sorted){let db=t.S.blocksPerFrame;while(t.destroy<t.blocks.length&&db-->0)this._destroyOne(t);}
+    if(t._sorted){let db=t.blocksPerFrame;while(t.destroy<t.blocks.length&&db-->0)this._destroyOne(t);}
     _deferDirty=prevDefer;if(!prevDefer)flushDirtyChunks();
     if(t._sorted&&t.destroy>=t.blocks.length){this._glassify(t);t.done=true;}
   },
@@ -250,7 +410,7 @@ const TsarDestructionQueue={
     if(!TsarBombaConfig.glassifyRim)return;
     let n=0;const prevDefer=_deferDirty;_deferDirty=true;
     for(const[col,fy] of t.glassCols){
-      if(n++>=t.S.maxGlassify)break;
+      if(n++>=t.maxGlassify)break;
       const p=col.split('|'),x=+p[0],z=+p[1];
       const k=vKey(x,fy,z),v=voxels[k];
       if(!v||!v.active||v.ti===WATER_BLOCK||v.ti===LAVA_BLOCK)continue;
@@ -319,32 +479,42 @@ const ShockwaveController={
 // ══════════════════════════════════════════════════════════════════════════
 const _tsarCloudGeo=new THREE.SphereGeometry(1,12,9);
 const _tsarStemGeo=new THREE.CylinderGeometry(0.55,0.9,1,10,1,true);
+// 規模スケールが CATASTROPHE(2000%)/EXTINCTION(3000%) 帯のときはキノコ雲を
+// 大きく・長く残す（3000%の巨大さを、画面に映る範囲だけでも伝えるための軽量演出）。
+function _tsarCloudScaleFactor(){
+  const raw=(typeof settings!=='undefined'&&settings.tsarScale!=null)?Number(settings.tsarScale):1;
+  if(!Number.isFinite(raw)||raw<20)return 1;
+  return raw>=30?1.9:1.5;
+}
 const MushroomCloudEffect={
   active:[],
   spawn(cx,cy,cz){
     const d=Math.hypot(P.x-cx,P.z-cz),far=d>120;
+    const m=_tsarCloudScaleFactor();
     const grp=new THREE.Group();grp.position.set(cx,cy,cz);
     const stemMat=new THREE.MeshBasicMaterial({color:0x30271f,transparent:true,opacity:.72,depthWrite:false});
     const capMat=new THREE.MeshBasicMaterial({color:0x4a3b2c,transparent:true,opacity:.82,depthWrite:false});
-    const stem=new THREE.Mesh(_tsarStemGeo,stemMat);stem.scale.set(3,8,3);stem.position.y=4;
-    const cap=new THREE.Mesh(_tsarCloudGeo,capMat);cap.scale.set(6,3.4,6);cap.position.y=10;
+    const stem=new THREE.Mesh(_tsarStemGeo,stemMat);stem.scale.set(3*m,8*m,3*m);stem.position.y=4;
+    const cap=new THREE.Mesh(_tsarCloudGeo,capMat);cap.scale.set(6*m,3.4*m,6*m);cap.position.y=10;
     grp.add(stem,cap);
     let light=null;
-    if(!far&&!isTouch){light=new THREE.PointLight(0xff6622,3,60);light.position.y=9;grp.add(light);}
+    if(!far&&!isTouch){light=new THREE.PointLight(0xff6622,3,60*m);light.position.y=9;grp.add(light);}
     scene.add(grp);
-    this.active.push({grp,stem,stemMat,cap,capMat,light,t:0,life:TsarBombaConfig.cloudLife,cx,cy,cz,far,puffT:0});
+    this.active.push({grp,stem,stemMat,cap,capMat,light,t:0,life:TsarBombaConfig.cloudLife*m,cx,cy,cz,far,puffT:0,ashT:0,m});
   },
   update(dt){
     for(let i=this.active.length-1;i>=0;i--){
-      const c=this.active[i];c.t+=dt;const q=c.t/c.life;
+      const c=this.active[i];c.t+=dt;const q=c.t/c.life,m=c.m||1;
       // 上昇＋横拡散
-      c.cap.position.y=10+q*22;c.cap.scale.set(6+q*10,3.4+q*2,6+q*10);
-      c.stem.scale.set(3+q*1.5,8+q*14,3+q*1.5);c.stem.position.y=4+q*11;
+      c.cap.position.y=10+q*22*m;c.cap.scale.set((6+q*10)*m,(3.4+q*2)*m,(6+q*10)*m);
+      c.stem.scale.set((3+q*1.5)*m,(8+q*14)*m,(3+q*1.5)*m);c.stem.position.y=4+q*11*m;
       c.grp.rotation.y+=dt*0.15;
       c.capMat.opacity=.82*Math.max(0,1-q);c.stemMat.opacity=.72*Math.max(0,1-q*1.1);
       if(c.light)c.light.intensity=3*Math.max(0,1-q*2.2);
       // 立ち上る黒煙（近距離のみ、間引き）
       if(!c.far){c.puffT-=dt;if(c.puffT<=0){c.puffT=isTouch?.4:.22;spawnParticles(c.cx+(Math.random()-.5)*4,c.cy+2+q*10,c.cz+(Math.random()-.5)*4,0x2a221b,isTouch?1:2);}}
+      // CATASTROPHE/EXTINCTION帯だけ: プレイヤー付近に灰を降らせる（雲が消えるまでの間だけ・軽量）
+      if(m>1.2){c.ashT-=dt;if(c.ashT<=0){c.ashT=isTouch?.55:.32;spawnParticles(P.x+(Math.random()-.5)*14,P.y+8+Math.random()*4,P.z+(Math.random()-.5)*14,0x9a8f82,isTouch?1:2);}}
       if(c.t>=c.life){scene.remove(c.grp);c.stemMat.dispose();c.capMat.dispose();this.active.splice(i,1);}
     }
   },
@@ -593,8 +763,11 @@ function updateTsarBombBtn(){
 
 // ══════════════════════════════════════════════════════════════════════════
 // セーブ / リセット
-//   地形破壊は worldEdits（既存のワールド保存方式）に反映済みなので
-//   再読み込み後もクレーターは残る。落下/起爆中の爆弾だけ状態を保存する。
+//   読み込み済みだった範囲の地形破壊は worldEdits（既存のワールド保存方式）に
+//   反映済みなので再読み込み後もクレーターは残る。未読み込みだった範囲は
+//   TsarBlastZones（永久破壊領域。tsarZonesSaveState/tsarZonesLoadState）が
+//   セーブされ、ロード後にチャンクが生成される瞬間へ遅延適用される。
+//   落下/起爆中の爆弾はそれとは別に tsarBombaSaveState/LoadState で保存する。
 //   （倒したボスの復活防止・破壊建築の非復活も worldEdits/実績側で担保される）
 // ══════════════════════════════════════════════════════════════════════════
 function tsarBombaSaveState(){
@@ -618,6 +791,7 @@ function resetTsarBomba(){
   for(const b of _tsarBombs){scene.remove(b.root);disposeObject3D(b.root);if(b.aim){scene.remove(b.aim);b.aim.material.dispose();}}
   _tsarBombs.length=0;
   TsarDestructionQueue.reset();ShockwaveController.reset();MushroomCloudEffect.reset();
+  if(typeof resetTsarZones==='function')resetTsarZones(); // NEW GAME/ロード開始時は必ず前のワールドの永久破壊領域を消す
   _tsarBombCD=0;_tsarTrailAcc=0;_tsarArmT=0;_tsarPlayerVX=0;_tsarPlayerVZ=0;_tsarFlashLevel=0;
   const el=_tsarFlash();if(el)el.style.opacity='0';
 }
