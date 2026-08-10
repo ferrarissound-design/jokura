@@ -183,6 +183,10 @@ async function saveGame(){
     // 空扱いにする（tsarZonesLoadState）。SAVE_VERSIONは上げていない: 既存フィールドは
     // 一切変更しておらず、この追加フィールドが無くても正常に読み込めるため。
     tsarZones:(typeof tsarZonesSaveState==='function')?tsarZonesSaveState():[],
+    // 🔱 LONGINUS: 進行中の演出は保存しない（数秒の固定シーケンスなので次回起動時に
+    // クールダウンだけ引き継ぐ）。着弾済みのクレーター/専用ブロックは worldEdits 経由で
+    // 通常のブロック編集と同様に保存されるため、ここでは別途保存する必要が無い。
+    longinus:(typeof longinusSaveState==='function')?longinusSaveState():null,
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),

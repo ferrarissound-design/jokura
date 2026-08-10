@@ -90,6 +90,41 @@ function sfxTsarRumble(vol,dur){
   }catch(e){}
 }
 
+// ─── 🔱 LONGINUS 用（既存の Web Audio ノイズバッファ手法を流用） ───
+// 降下音: 帯域を低→高へ持ち上げていく「降ってくる悲鳴」。tsar の轟音(低→低のまま
+// 大きくなるだけ)とは逆に、周波数そのものが登っていくことで速度感を出す。
+function sfxLonginusDescent(vol,dur){
+  if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
+  try{
+    const d=Math.max(.3,dur||1.6),t0=audioCtx.currentTime,v=Math.max(.02,Math.min(.9,vol||.4));
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*d),audioCtx.sampleRate);
+    const data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+    const src=audioCtx.createBufferSource();src.buffer=buf;
+    const bp=audioCtx.createBiquadFilter();bp.type='bandpass';bp.frequency.setValueAtTime(160,t0);bp.frequency.exponentialRampToValueAtTime(2200,t0+d);bp.Q.value=.9;
+    const g=audioCtx.createGain();
+    g.gain.setValueAtTime(.0001,t0);
+    g.gain.exponentialRampToValueAtTime(v*.5,t0+d*.5);
+    g.gain.exponentialRampToValueAtTime(v,t0+d*.94);
+    g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    src.connect(bp);bp.connect(g);g.connect(audioOut());src.start();src.stop(t0+d);
+  }catch(e){}
+}
+// 着弾音: 甲高いクラック(縦に貫く一撃)＋低音の轟き(tsarRumbleを短く再利用)を重ねる
+function sfxLonginusImpact(vol){
+  if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
+  const v=Math.max(.03,Math.min(.9,vol||.5));
+  try{
+    const d=.3,t0=audioCtx.currentTime;
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*d),audioCtx.sampleRate);
+    const data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+    const src=audioCtx.createBufferSource();src.buffer=buf;
+    const hp=audioCtx.createBiquadFilter();hp.type='bandpass';hp.frequency.setValueAtTime(2600,t0);hp.frequency.exponentialRampToValueAtTime(180,t0+d);hp.Q.value=1.1;
+    const g=audioCtx.createGain();g.gain.setValueAtTime(v,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    src.connect(hp);hp.connect(g);g.connect(audioOut());src.start();src.stop(t0+d);
+  }catch(e){}
+  sfxTsarRumble(v*.85,1.6);
+}
+
 // ═══ BGM ═══
 let bgmNodes=[],bgmSeqTimer=null,bgmBiome=-1,bgmBoss=false,bgmWave=false,bgmUnder=false,bgmUnderDragon=false;
 function stopBgm(){stopSeq();bgmNodes.forEach(n=>{try{n.stop(audioCtx.currentTime+.05);}catch(e){}});bgmNodes=[];}

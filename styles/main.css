@@ -115,7 +115,7 @@ body.creative #goalLabel{display:none}
    BOMB/TSAR は grid-area を明示して左列(1列目)に置く。エリア未指定だと
    暗黙の最下行に自動配置され、下端基準のグリッド全体が上へ伸びて
    FLY ボタンが #weaponBtn と重なる（iPhone縦画面で発生していた不具合）。 */
-#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(64px + var(--safeB));display:grid;grid-template-columns:auto 64px 84px;grid-template-rows:auto auto auto;grid-template-areas:". fly fly" "bomb sub jump" "tsar sub main";column-gap:10px;row-gap:10px;align-items:end;pointer-events:auto;z-index:10}
+#actionWrap{position:absolute;right:calc(10px + var(--safeR));bottom:calc(64px + var(--safeB));display:grid;grid-template-columns:auto 64px 84px;grid-template-rows:auto auto auto auto;grid-template-areas:". fly fly" "lgn sub jump" "bomb sub jump" "tsar sub main";column-gap:10px;row-gap:10px;align-items:end;pointer-events:auto;z-index:10}
 .abtn{border-radius:var(--ui-radius);border:var(--ui-bw) solid var(--ui-border);color:var(--ui-text);font-weight:800;letter-spacing:.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;background:var(--ui-bg);transition:transform .1s,background .1s;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
 .abtn:active{transform:scale(.93);background:var(--ui-bg-active)}
 .abtn .aIcon{font-size:20px;line-height:1}
@@ -132,6 +132,7 @@ body.creative #goalLabel{display:none}
 #flyDownBtn{grid-area:fly;justify-self:start;width:64px;height:40px;flex-direction:row;gap:3px;font-size:11px}
 #crustBombBtn{grid-area:bomb;width:64px;height:52px}
 #tsarBombBtn{grid-area:tsar;width:64px;height:52px}
+#longinusBtn{grid-area:lgn;width:64px;height:52px}
 /* actionWrap の最上段(FLY)より上へ置く。旧 bottom:212px は FLY とほぼ同じ
    座標になり、iPhone 縦画面で両ボタンの押下領域が重なっていた。 */
 #weaponBtn{position:absolute;right:calc(14px + var(--safeR));bottom:calc(270px + var(--safeB));width:58px;height:50px;border-radius:var(--ui-radius);border:var(--ui-bw) solid rgba(255,216,74,.5);background:var(--ui-bg);color:var(--ui-highlight);font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
@@ -443,6 +444,82 @@ body.tsarRecover #actionWrap,body.tsarRecover #weaponBtn,body.tsarRecover #joyWr
   body.tsarOffline #scoreVal::after,body.tsarOffline #killVal::after{animation:none!important}
   .tcEdge{opacity:.55}
 }
+/* ═══════════════════════════════════════════════════════════════════════
+   🔱 LONGINUS「神罰」演出（longinus_sequence.js が body のクラスで出し入れする）
+   ・Tsar のようにHUDを大きく壊す/走査線を出す演出は使わない。画面端だけを
+     落とすヴィネットに留め、着弾地点（プレイヤーが照準した先＝画面中心寄り）は
+     常に視認できる状態を保つ。テキスト自体にも背景パネルを敷かない。
+   ═══════════════════════════════════════════════════════════════════════ */
+#longinusFlash{position:absolute;inset:0;background:#fff8e8;opacity:0;pointer-events:none;z-index:34}
+#longinusVignette{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;transition:opacity .5s;
+  background:radial-gradient(circle at 50% 46%,rgba(6,4,10,0) 26%,rgba(8,6,14,.42) 62%,rgba(4,2,8,.78) 100%)}
+body.lgnLock #longinusVignette,body.lgnJudgment #longinusVignette{opacity:1}
+body.lgnSilence #longinusVignette{opacity:1;background:radial-gradient(circle at 50% 46%,rgba(0,0,0,.15) 0%,rgba(0,0,0,.55) 100%)}
+
+#longinusLock{position:absolute;inset:0;z-index:7;pointer-events:none;display:none}
+body.lgnLock #longinusLock{display:block}
+.lgLockText{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);
+  font:900 min(15px,4vw) 'Press Start 2P',monospace;letter-spacing:4px;white-space:nowrap;
+  color:#eaf6ff;text-shadow:0 0 6px #dcefff,0 0 18px #9fd8ffcc,0 0 34px #6ab8ff88,2px 2px 0 #000;
+  opacity:0;animation:lgnBannerInOut 1.15s ease-out forwards}
+@keyframes lgnBannerInOut{
+  0%{opacity:0;letter-spacing:9px;transform:translate(-50%,-50%) scale(.9)}
+  20%{opacity:1;letter-spacing:4px;transform:translate(-50%,-50%) scale(1)}
+  75%{opacity:1}
+  100%{opacity:0}
+}
+
+#longinusJudgment{position:absolute;inset:0;z-index:7;pointer-events:none;text-align:center}
+/* .ljTitle/.ljSub は lgnJudgment→lgnDescent と2つの body class をまたいでフェード
+   するため、tsarCine の .tcPanel と同じ「transition の後勝ちルール」を使う:
+   class 追加時は追加後ルールの transition(長め=ゆっくり出現)が、class 除去時は
+   ベースルールの transition(短め=素早く消える)が使われる。keyframe ではなく
+   これにすることで、フェード中に演出が中断されても常に正しい方向へ収束する。 */
+.ljTitle{position:absolute;top:38%;left:50%;width:min(680px,92vw);
+  font:900 min(26px,7vw) 'Press Start 2P',monospace;letter-spacing:2px;line-height:1.6;
+  color:#f6ecd2;text-shadow:0 0 10px #fff3ce,0 0 24px #e8c977dd,0 0 46px #caa23f99,0 0 70px #4a1a1a55,3px 3px 0 #000;
+  opacity:0;transform:translate(-50%,-50%) scale(.84);filter:blur(6px);
+  transition:opacity .3s,transform .3s,filter .3s}
+.ljSub{position:absolute;top:38%;left:50%;width:min(560px,88vw);
+  font:700 min(9px,2.6vw) 'Press Start 2P',monospace;letter-spacing:3px;
+  color:#cfe3ff;text-shadow:0 0 8px #9fd8ffaa,1px 1px 0 #000;
+  opacity:0;transform:translate(-50%,20px);
+  transition:opacity .25s,transform .25s}
+body.lgnJudgment .ljTitle{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0);
+  transition:opacity 1.15s ease-out,transform 1.15s ease-out,filter 1.15s ease-out}
+body.lgnJudgment .ljSub{opacity:.92;transform:translate(-50%,26px);
+  transition:opacity 1.5s ease-out .35s,transform 1.5s ease-out .35s}
+
+#longinusComplete{position:absolute;inset:0;z-index:7;pointer-events:none;display:none;text-align:center}
+body.lgnComplete #longinusComplete{display:block}
+.lcTitle{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);width:min(500px,88vw);
+  font:900 min(17px,4.6vw) 'Press Start 2P',monospace;letter-spacing:3px;
+  color:#f2ecda;text-shadow:0 0 8px #f6ecc4cc,0 0 22px #cba8577a,2px 2px 0 #000;
+  opacity:0;animation:lgnCompleteText 2.6s ease-in-out forwards}
+.lcSub{position:absolute;top:40%;left:50%;transform:translate(-50%,24px);width:min(460px,86vw);
+  font:700 min(10px,2.8vw) 'Press Start 2P',monospace;letter-spacing:1px;line-height:1.6;
+  color:#d8c9a6;text-shadow:1px 1px 0 #000;
+  opacity:0;animation:lgnCompleteText 2.6s ease-in-out .12s forwards}
+@keyframes lgnCompleteText{0%{opacity:0}18%{opacity:.95}78%{opacity:.95}100%{opacity:0}}
+
+#longinusWarp{position:absolute;inset:0;z-index:35;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at 50% 48%,rgba(255,247,225,0) 40%,rgba(180,150,80,.14) 100%)}
+body.lgnWarp #longinusWarp{animation:lgnWarpPulse .42s ease-out}
+@keyframes lgnWarpPulse{0%{opacity:0;transform:scale(1.04)}25%{opacity:1}100%{opacity:0;transform:scale(1)}}
+body.lgnWarp #c{animation:lgnWarpCanvas .42s ease-out}
+@keyframes lgnWarpCanvas{0%{transform:scale(1.03)}50%{transform:scale(1.008)}100%{transform:none}}
+
+/* 神罰メッセージ中だけ、控えめにHUDへ意識を寄せさせる（Tsarほど強くは落とさない） */
+body.lgnJudgment #topBar,body.lgnJudgment #hotbar,body.lgnJudgment #actionWrap,
+body.lgnJudgment #weaponBtn,body.lgnJudgment #joyWrap,body.lgnJudgment #minimap{opacity:.6;transition:opacity .5s}
+body.lgnDescent #topBar,body.lgnDescent #hotbar,body.lgnDescent #actionWrap,
+body.lgnDescent #weaponBtn,body.lgnDescent #joyWrap,body.lgnDescent #minimap{opacity:1;transition:opacity .6s}
+
+@media (prefers-reduced-motion:reduce){
+  .lgLockText,.lcTitle,.lcSub{animation-duration:.01s!important;animation-delay:0s!important}
+  .ljTitle,.ljSub{transition-duration:.01s!important;transition-delay:0s!important}
+}
+
 #regionEditBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(92px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #66e0ff66;background:rgba(20,120,160,.22);color:#bff6ff;font-size:18px;font-weight:900;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #regionEditBtn:active{transform:scale(.92)}
 #regionEditHud{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:min(270px,calc(100vw - 18px - var(--safeL) - var(--safeR)));padding:8px;border-radius:12px;border:1.5px solid rgba(102,224,255,.45);background:rgba(5,10,18,.82);box-shadow:0 0 18px rgba(0,180,255,.18);pointer-events:auto;z-index:40;color:#e7fbff;text-shadow:1px 1px 0 #000;touch-action:manipulation}
@@ -499,7 +576,7 @@ body.creative #bagCreative{display:block}
   #jumpBtn{width:76px;height:48px}
   #flyBtn{width:76px;height:38px}
   #flyDownBtn{width:56px;height:38px}
-  #crustBombBtn,#tsarBombBtn{width:56px;height:48px}
+  #crustBombBtn,#tsarBombBtn,#longinusBtn{width:56px;height:48px}
   #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
   #weaponBtn{right:calc(18px + var(--safeR));bottom:calc(248px + var(--safeB));width:54px;height:46px}
   #cdBar{right:calc(18px + var(--safeR));bottom:calc(151px + var(--safeB));width:72px}
@@ -510,7 +587,7 @@ body.creative #bagCreative{display:block}
   #menuBtns{gap:4px}
   #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
   #actionWrap{grid-template-columns:auto 58px 76px}
-  #crustBombBtn,#tsarBombBtn{width:54px;height:46px}
+  #crustBombBtn,#tsarBombBtn,#longinusBtn{width:54px;height:46px}
   #breakBtn{width:76px;height:76px}
   #jumpBtn{width:76px;height:46px}
   #placeBtn{width:58px;height:58px}

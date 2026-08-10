@@ -49,12 +49,15 @@ const $crustBombBtn=document.getElementById('crustBombBtn');
 if($crustBombBtn)bindTapSafe($crustBombBtn,()=>{if(typeof deployCrustBomb==='function')deployCrustBomb();});
 const $tsarBombBtn=document.getElementById('tsarBombBtn');
 if($tsarBombBtn)bindTapSafe($tsarBombBtn,()=>{if(typeof deployTsarBomba==='function')deployTsarBomba();});
+const $longinusBtn=document.getElementById('longinusBtn');
+if($longinusBtn)bindTapSafe($longinusBtn,()=>{if(typeof deployLonginus==='function')deployLonginus();});
 function updateFlyBtns(){
   const show=isCreative()&&!isDesktop&&gs.running;
   if($flyBtn){$flyBtn.style.display=show?'':'none';$flyBtn.textContent=P.flying?'🛬 LAND':'🕊 FLY';}
   if($flyDownBtn)$flyDownBtn.style.display=show&&P.flying?'':'none';
   if(typeof updateCrustBombBtn==='function')updateCrustBombBtn();
   if(typeof updateTsarBombBtn==='function')updateTsarBombBtn();
+  if(typeof updateLonginusBtn==='function')updateLonginusBtn();
   // 地上⇄飛行のHUD切替: body.flying の有無だけをCSS側の切替スイッチにする
   // (実際の表示/非表示・レイアウトは styles/main.css の body.creative.flying 側で完結させる)。
   document.body.classList.toggle('flying',!!P.flying);
@@ -227,6 +230,7 @@ let undergroundSnapshot=null,prevPlayerUnderground=false;
 function undergroundDeath(){
   P.hp=0;P.invT=99;gs.running=false;updateHUD();
   if(typeof tsarSeqAbort==='function')tsarSeqAbort(); // ☢演出の途中で死んでも残さない
+  if(typeof longinusSeqAbort==='function')longinusSeqAbort(); // 🔱演出の途中で死んでも残さない
   if(undergroundSnapshot){
     for(const k in undergroundSnapshot.inv){if(k in inv)inv[k]=undergroundSnapshot.inv[k];}
     unlockedWeapons.forEach((_,i)=>{unlockedWeapons[i]=undergroundSnapshot.unlockedWeapons[i];});
@@ -262,6 +266,7 @@ function undergroundDeath(){
 function gameComplete(){
   gs.running=false;
   if(typeof tsarSeqAbort==='function')tsarSeqAbort(); // ☢でボスを倒した場合の演出残留を防ぐ
+  if(typeof longinusSeqAbort==='function')longinusSeqAbort(); // 🔱でボスを倒した場合の演出残留を防ぐ
   unlockAchievement('dragonSlayer');
   saveScore(true);
   ovTitle.style.color='#00e5ff';ovTitle.style.textShadow='3px 3px 0 #006688,6px 6px 0 #003344,0 0 30px #00e5ffaa';
@@ -290,6 +295,7 @@ function startEndless(){
 function gameOver(){
   if(P.y<0&&undergroundSnapshot){undergroundDeath();return;}
   if(typeof tsarSeqAbort==='function')tsarSeqAbort(); // ☢演出の途中で死んでも残さない
+  if(typeof longinusSeqAbort==='function')longinusSeqAbort(); // 🔱演出の途中で死んでも残さない
   saveScore(endlessMode); // エンドレス中の死亡は「クリア済みラン」としてランキングに残す
   $endlessBtn.style.display='none';
   gs.running=false;ovTitle.style.color='#ff4444';ovTitle.style.textShadow='3px 3px 0 #880000,6px 6px 0 #330000';ovTitle.textContent='GAME OVER';if($ovSplash)$ovSplash.textContent='また挑戦しよう！';ovSub.textContent='';ovInfo.innerHTML='スコア: <b>'+gs.score+'</b><br>ウェーブ: '+gs.wave+'　キル: '+gs.kills+'<br>生存日数: '+gs.day+'日<br>🥩 MEAT: '+meat;ovBtn.textContent='RETRY';$contDeathBtn.style.display='';$contBtn.classList.add('disabled');renderRankHUD();overlay.classList.remove('hide');updateOverlaySaveInfo({enableContinueButton:false});
@@ -299,6 +305,7 @@ function commonReset(){
   if(typeof resetTNTSystem==='function')resetTNTSystem();
   if(typeof resetCrustBomb==='function')resetCrustBomb();
   if(typeof resetTsarBomba==='function')resetTsarBomba();
+  if(typeof resetLonginus==='function')resetLonginus();
   for(const e of enemies){scene.remove(e.root);disposeObject3D(e.root);}enemies.length=0;
   for(const mob of mobs){scene.remove(mob.root);disposeObject3D(mob.root);}mobs.length=0;meat=0;mobRespawnT=MOB_RESPAWN_INTERVAL;updateMeatHUD();
   if(typeof clearVillages==='function')clearVillages();else clearHumanoids();
@@ -418,6 +425,7 @@ async function continueGame(){
   applyWorldEdits();
   if(typeof tntLoadState==='function')tntLoadState(d.explosives);
   if(typeof tsarBombaLoadState==='function')tsarBombaLoadState(d.tsarBombs);
+  if(typeof longinusLoadState==='function')longinusLoadState(d.longinus);
   if(typeof villagesLoadState==='function')villagesLoadState(d.villages);
   // チェスト復元
   chestCount=d.chestCount||0;
@@ -556,13 +564,15 @@ function tick(now){
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   const blastImpulse=tntPlayerImpulse(dt);
   const tsarImpulse=(typeof tsarPlayerImpulse==='function')?tsarPlayerImpulse(dt):{x:0,z:0};
+  const lgnImpulse=(typeof longinusPlayerImpulse==='function')?longinusPlayerImpulse(dt):{x:0,z:0};
   const _mvX=(sr*cY+fw*sY)*curSpeed,_mvZ=(fw*cY-sr*sY)*curSpeed;
-  movePlayer(_mvX+blastImpulse.x+tsarImpulse.x,_mvZ+blastImpulse.z+tsarImpulse.z,dt);
+  movePlayer(_mvX+blastImpulse.x+tsarImpulse.x+lgnImpulse.x,_mvZ+blastImpulse.z+tsarImpulse.z+lgnImpulse.z,dt);
   if(typeof crustBombNoteMove==='function')crustBombNoteMove(_mvX,_mvZ);
   if(typeof tsarBombNoteMove==='function')tsarBombNoteMove(_mvX,_mvZ);
   updateExplosionSystem(dt);
   if(typeof updateCrustBomb==='function')updateCrustBomb(dt);
   if(typeof updateTsarBomba==='function')updateTsarBomba(dt);
+  if(typeof updateLonginus==='function')updateLonginus(dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
   ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
   sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）

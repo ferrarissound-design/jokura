@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260810hudredesign1">
+<link rel="stylesheet" href="styles/main.css?v=20260810longinus1">
 
 </head>
 <body>
@@ -167,6 +167,21 @@
   <div id="tsarTint" aria-hidden="true"></div>
   <div id="tsarBurst" aria-hidden="true"></div>
   <div id="tsarWarp" aria-hidden="true"></div>
+  <div id="longinusFlash"></div>
+  <!-- 🔱 LONGINUS「神罰」演出（longinus_sequence.js が body のクラスで出し入れする）。
+       Tsar と違いHUDは壊さず、画面端だけを暗くするヴィネットに留める。着弾地点は
+       プレイヤーが照準した先＝画面中央付近なので、常に視界に残る。 -->
+  <div id="longinusVignette" aria-hidden="true"></div>
+  <div id="longinusLock" aria-hidden="true"><div class="lgLockText">ORBITAL TARGET LOCKED</div></div>
+  <div id="longinusJudgment" aria-hidden="true">
+    <div class="ljTitle">愚か者に、神の裁きを。</div>
+    <div class="ljSub">DIVINE JUDGMENT HAS BEEN AUTHORIZED</div>
+  </div>
+  <div id="longinusComplete" aria-hidden="true">
+    <div class="lcTitle">JUDGMENT COMPLETE</div>
+    <div class="lcSub">裁きは終わった。傷跡だけが残る。</div>
+  </div>
+  <div id="longinusWarp" aria-hidden="true"></div>
   <div id="cdBar"><div id="cdFill"></div></div>
   <div id="bossHpWrap">
     <div id="bossName">💀 BOSS</div>
@@ -193,7 +208,7 @@
   </div>
   <pre id="tntDebug" style="display:none"></pre>
   <div id="hint">左スティック移動(倒し切りでダッシュ) / 右スワイプ視点 / メインアクションで攻撃・採掘 / サブで設置(長押し=家具)</div>
-  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-0:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト / I:インベントリ / N:地殻貫通爆弾(飛行中) / M:ツァーリ・ボンバ(設置/投下) / V:範囲編集(クリエイティブ)</div>
+  <div id="hintPC">WASD移動 / マウス視点 / 左クリック攻撃 / 右クリック設置 / Space:ジャンプ / E:武器切替 / R:矢切替 / 1-0:ブロック / Shift:ダッシュ / F5:セーブ / X:家具 / B:ベッド / C:クラフト / I:インベントリ / N:地殻貫通爆弾(飛行中) / M:ツァーリ・ボンバ(設置/投下) / L:LONGINUS(照準先へ神罰) / V:範囲編集(クリエイティブ)</div>
   <div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
   <button id="weaponBtn" title="武器を切り替え"><span class="wIcon" id="weaponBtnIcon">🔁</span><span class="wLabel" id="weaponBtnLabel">武器</span></button>
   <div id="actionWrap">
@@ -201,6 +216,7 @@
     <button class="abtn" id="flyDownBtn" style="display:none">⬇ DOWN</button>
     <button class="abtn popItem" id="crustBombBtn" style="display:none"><span class="aIcon">🌋</span><span class="aLabel">地殻貫通爆弾</span></button>
     <button class="abtn popItem" id="tsarBombBtn" style="display:none"><span class="aIcon">☢</span><span class="aLabel">ツァーリ・ボンバ</span></button>
+    <button class="abtn popItem" id="longinusBtn" style="display:none"><span class="aIcon">🔱</span><span class="aLabel">LONGINUS</span></button>
     <button class="abtn" id="jumpBtn"><span class="aIcon">↑</span><span class="aLabel">JUMP</span></button>
     <button class="abtn subAct" id="placeBtn"><span class="aIcon" id="subActIcon">🧱</span><span class="aLabel" id="subActLabel">PLACE</span></button>
     <button class="abtn mainAct" id="breakBtn"><span class="aIcon" id="mainActIcon">⚔</span><span class="aLabel" id="mainActLabel">ATTACK</span></button>
@@ -292,6 +308,8 @@
     <div class="setLabel">☢ ツァーリ・ボンバ</div>
     <button class="pmBtn settingToggle" id="tsarConfirmBtn">使用前の確認: ON</button>
     <button class="pmBtn settingToggle" id="tsarScaleBtn">規模スケール: 100%</button>
+    <div class="setLabel">🔱 LONGINUS</div>
+    <button class="pmBtn settingToggle" id="longinusConfirmBtn">使用前の確認: ON</button>
     <div class="menuText small">設定はこの端末に保存されます。難易度は被ダメージ量に影響します。</div>
     <button class="pmBtn menuClose" id="settingsCloseBtn">CLOSE</button>
   </div>
@@ -374,7 +392,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260810hudredesign1';
+  var V='20260810longinus1';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
   var PARTS=['state','achievements','crafting','save','ui','audio',
@@ -384,7 +402,7 @@
              'structures_inverted_castle','structures_frozen_village',
              'structures_underground_city','structures_sky_city','structures_sunken_city',
              'structures_walking_fortress','structures_registry',
-             'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','hud','region_editor','input','main','cheats','mobileui'];
+             'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','longinus','longinus_sequence','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）
