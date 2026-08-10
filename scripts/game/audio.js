@@ -17,7 +17,11 @@ function initAudio(){
     try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return;}
     try{audioMaster=audioCtx.createGain();audioMaster.gain.value=1;audioMaster.connect(audioCtx.destination);}catch(e){audioMaster=null;}
   }
-  if(audioCtx.state==='suspended'){audioCtx.resume().catch(()=>{});}
+  // 'suspended' だけでなく 'interrupted'（iOS Safariで着信・他アプリ切替後などに
+  // 遷移する状態）でも再開を試みないと、タップし続けても音が二度と戻らなくなる。
+  if(audioCtx.state!=='running'&&audioCtx.state!=='closed'){
+    try{audioCtx.resume().catch(()=>{});}catch(e){}
+  }
 }
 // 全音の出口。マスターゲインを作れなかった環境では従来どおり destination へ直結する。
 function audioOut(){return audioMaster||audioCtx.destination;}
