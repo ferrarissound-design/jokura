@@ -157,7 +157,7 @@ body.creative #goalLabel{display:none}
 /* ── ミニマップ: 20%ほど縮小・細枠・やや透明。タップで拡大 ── */
 #minimap{position:absolute;top:calc(50px + var(--safeT));right:calc(8px + var(--safeR));width:72px;height:72px;border:1px solid var(--ui-border);border-radius:var(--ui-radius-sm);background:rgba(0,0,0,.4);overflow:hidden;z-index:10;opacity:.82;pointer-events:auto;touch-action:manipulation;transition:width .18s,height .18s,opacity .18s}
 #minimap.big{width:150px;height:150px;opacity:1}
-#minimap.big #miniCoords{display:block}
+#minimap.big #miniCoords{display:none}
 #miniCoords{position:absolute;left:3px;bottom:2px;display:none;font-size:8px;font-weight:700;color:#cfe8ff;text-shadow:1px 1px 0 #000;letter-spacing:.3px;pointer-events:none}
 #miniCanvas{width:100%;height:100%;display:block}
 #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:999;pointer-events:auto}
