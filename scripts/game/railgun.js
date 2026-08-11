@@ -16,7 +16,7 @@
 //   専用構造:
 //     RailgunConfig            … 調整用定数（射程・半径・負荷制御・演出）
 //     RailgunDestructionQueue  … 射線上のトンネル破壊＋フレーム分散（Longinus方式を流用）
-//     _railDamageEntitiesAlongLine … 射線上の敵/ボス/ドラゴン/動物/村人/相棒へのダメージ
+//     _railAnnihilateEntitiesAlongLine … 射線上の敵/ボス/ドラゴン/動物/村人/相棒を即時撃破
 //     _railSpawnBeam/_railUpdateBeams … 発射直後だけ光る「通過した痕跡」のビーム残像
 //     RailgunSequence(railgun_sequence.js) … CHARGING/CHARGED/COOLING の画面演出
 //
@@ -49,8 +49,7 @@ const RailgunConfig={
   maxGlassBlocks:isTouch?16:34,
   maxSteamPoints:isTouch?5:10,
 
-  // ── 貫通ダメージ: 射線上のエンティティへ1回だけ命中（強力だが即死兵器ではない） ──
-  pierceDamage:48,
+  // ── 消滅判定: 射線上のエンティティはHP・防御・種別を問わず即時撃破 ──
   pierceBand:.6,                    // 判定半径 = tunnelRadius + これ
 
   // ── 反動・演出 ──
@@ -129,12 +128,13 @@ function _railFire(){
   if(typeof RailgunSequence!=='undefined'){RailgunSequence.charged();RailgunSequence.fired();}
 
   _railSpawnBeam(ox,oy,oz,dir);
-  _railDamageEntitiesAlongLine(ox,oy,oz,dir);
+  _railAnnihilateEntitiesAlongLine(ox,oy,oz,dir);
   RailgunDestructionQueue.begin(ox,oy,oz,dir,seed);
 }
 
-// ── 射線上のエンティティへ1回ずつダメージ（防御貫通の即死ではなく通常ダメージ経路を使う） ──
-function _railDamageEntitiesAlongLine(ox,oy,oz,dir){
+// ── 射線上のエンティティを問答無用で撃破する。
+// 通常の死亡処理へ致死値を渡し、ドロップ・スコア・実績・ボス進行は維持する。 ──
+function _railAnnihilateEntitiesAlongLine(ox,oy,oz,dir){
   const C=RailgunConfig,R=C.tunnelRadius+C.pierceBand,R2=R*R,maxT=C.maxRange;
   const within=(p)=>{
     const rx=p.x-ox,ry=p.y-oy,rz=p.z-oz;
@@ -143,12 +143,13 @@ function _railDamageEntitiesAlongLine(ox,oy,oz,dir){
     const dx=p.x-cx,dy=p.y-cy,dz=p.z-cz;
     return dx*dx+dy*dy+dz*dz<=R2;
   };
-  if(typeof enemies!=='undefined')for(const e of[...enemies]){if(!e.dead&&within(e.root.position))hitEnemy(e,C.pierceDamage);}
-  if(typeof boss!=='undefined'&&boss&&within(boss.root.position))hitBoss(C.pierceDamage);
-  if(typeof dragon!=='undefined'&&dragon&&within(dragon.root.position))hitDragon(C.pierceDamage,true);
-  if(typeof mobs!=='undefined')for(const m of[...mobs]){if(!m.dead&&within(m.root.position))hitMob(m,C.pierceDamage);}
-  if(typeof humanoids!=='undefined')for(const h of[...humanoids]){const dead=typeof HUMANOID_STATES!=='undefined'&&h.state===HUMANOID_STATES.DEAD;if(!dead&&within(h.root.position))hitHumanoid(h,C.pierceDamage);}
-  if(typeof pet!=='undefined'&&pet&&pet.downT<=0&&within(pet.root.position))hitPet(C.pierceDamage);
+  const lethal=(e)=>Math.max(1,(Number(e.hp)||0)+(Number(e.maxHp)||0)+1);
+  if(typeof enemies!=='undefined')for(const e of[...enemies]){if(!e.dead&&within(e.root.position))hitEnemy(e,lethal(e));}
+  if(typeof boss!=='undefined'&&boss&&within(boss.root.position))hitBoss(lethal(boss));
+  if(typeof dragon!=='undefined'&&dragon&&within(dragon.root.position))hitDragon(lethal(dragon),true);
+  if(typeof mobs!=='undefined')for(const m of[...mobs]){if(!m.dead&&within(m.root.position))hitMob(m,lethal(m));}
+  if(typeof humanoids!=='undefined')for(const h of[...humanoids]){const dead=typeof HUMANOID_STATES!=='undefined'&&h.state===HUMANOID_STATES.DEAD;if(!dead&&within(h.root.position))hitHumanoid(h,lethal(h));}
+  if(typeof pet!=='undefined'&&pet&&within(pet.root.position))removePet();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
