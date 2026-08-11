@@ -186,7 +186,6 @@ function _lgnCloudPunch(x,y,z){
 // ══════════════════════════════════════════════════════════════════════════
 const _lgnStrikes=[];
 let _lgnCD=0,_lgnArmT=0;
-let _lgnPlayerVX=0,_lgnPlayerVZ=0;
 let _lgnFlashLevel=0,_lgnFlashEl=null;
 function _lgnFlash(){if(!_lgnFlashEl)_lgnFlashEl=document.getElementById('longinusFlash');return _lgnFlashEl;}
 
@@ -276,7 +275,7 @@ function _lgnImpact(s){
   spawnParticles(cx,topY+1,cz,0xdcefff,isTouch?4:8);
   if(typeof ftvShake==='function')ftvShake(C.shakeImpact*(settings.flash===false?1.3:1),0.9);
   if(typeof LonginusSequence!=='undefined')LonginusSequence.impactFlash(cx,topY,cz);
-  _lgnDamageEntities(cx,topY+1,cz,C.craterRadius*1.35);
+  _lgnVaporizeEntities(cx,topY+1,cz,C.craterRadius*1.35);
   LonginusDestructionQueue.begin(s.tx,s.ty,s.tz,s.seed);
   if(s.reticle&&s.reticle.pillarMat)s.reticle.pillarMat.opacity=0.95;
   s.phase='aftermath';s.t=0;
@@ -334,35 +333,23 @@ function updateLonginus(dt){
   }else{const el=_lgnFlash();if(el&&el.style.opacity!=='0')el.style.opacity='0';}
 }
 
-// プレイヤーへの着弾ノックバック（main.js の movePlayer に加算される）
-function longinusPlayerImpulse(dt){
-  const out={x:_lgnPlayerVX,z:_lgnPlayerVZ};
-  const decay=Math.exp(-5.5*dt);
-  _lgnPlayerVX*=decay;_lgnPlayerVZ*=decay;
-  if(Math.abs(_lgnPlayerVX)<.02)_lgnPlayerVX=0;if(Math.abs(_lgnPlayerVZ)<.02)_lgnPlayerVZ=0;
-  return out;
-}
-
 // ══════════════════════════════════════════════════════════════════════════
-// エンティティ被害: Tsar のような防御貫通の強制即死ではなく、通常のダメージ
-// 経路(hitEnemy等)を距離減衰つきで叩く（縦方向の一撃という演出に留める）。
+// エンティティ消滅: ダメージ計算やノックバックを一切介さず、着弾半径内の敵・
+// ボス・ドラゴン・モブ・動物・村人問わず即座に消滅させる（tsarForceKill を
+// そのまま再利用し、防御・無敵・フェーズ・復活を迂回する）。
 // ══════════════════════════════════════════════════════════════════════════
-function _lgnDamageEntities(cx,cy,cz,R){
+function _lgnVaporizeEntities(cx,cy,cz,R){
   const R2=R*R,within=(p)=>{const dx=p.x-cx,dy=p.y-cy,dz=p.z-cz;return dx*dx+dy*dy+dz*dz<=R2;};
-  const dmgAt=(p)=>{const d=Math.hypot(p.x-cx,p.z-cz);return Math.max(0.2,1-d/R);};
-  const push=(o,mul)=>{const p=o.root.position,dx=p.x-cx,dz=p.z-cz,l=Math.hypot(dx,dz)||1,f=dmgAt(p);o.blastVX=(o.blastVX||0)+dx/l*18*f*mul;o.blastVZ=(o.blastVZ||0)+dz/l*18*f*mul;o.velY=Math.max(o.velY||0,10*f*mul);};
-  if(typeof enemies!=='undefined')for(const e of[...enemies]){if(e.dead)continue;const p=e.root.position;if(!within(p))continue;hitEnemy(e,220*dmgAt(p));if(!e.dead)push(e,1);}
-  if(typeof boss!=='undefined'&&boss&&within(boss.root.position)){hitBoss(160*dmgAt(boss.root.position));if(boss)push(boss,.5);}
-  if(typeof dragon!=='undefined'&&dragon&&within(dragon.root.position))hitDragon(160*dmgAt(dragon.root.position),true);
-  if(typeof mobs!=='undefined')for(const m of[...mobs]){if(m.dead)continue;const p=m.root.position;if(within(p))hitMob(m,220*dmgAt(p));}
-  if(typeof humanoids!=='undefined')for(const h of[...humanoids]){const dead=typeof HUMANOID_STATES!=='undefined'&&h.state===HUMANOID_STATES.DEAD;if(dead)continue;const p=h.root.position;if(within(p))hitHumanoid(h,180*dmgAt(p));}
+  if(typeof enemies!=='undefined')for(const e of[...enemies]){if(!e.dead&&within(e.root.position))tsarForceKill.enemy(e);}
+  if(typeof boss!=='undefined'&&boss&&within(boss.root.position))tsarForceKill.boss();
+  if(typeof dragon!=='undefined'&&dragon&&within(dragon.root.position))tsarForceKill.dragon();
+  if(typeof mobs!=='undefined')for(const m of[...mobs]){if(!m.dead&&within(m.root.position))tsarForceKill.mob(m);}
+  if(typeof humanoids!=='undefined')for(const h of[...humanoids]){const dead=typeof HUMANOID_STATES!=='undefined'&&h.state===HUMANOID_STATES.DEAD;if(!dead&&within(h.root.position))tsarForceKill.humanoid(h);}
+  if(typeof pet!=='undefined'&&pet&&pet.downT<=0&&within(pet.root.position))tsarForceKill.pet();
+  // 着弾半径内のプレイヤー（クリエイティブ/無敵以外）も問答無用で即死させる
   if(!isCreative()&&!(typeof godMode!=='undefined'&&godMode)){
     const pp={x:P.x,y:P.y+1,z:P.z};
-    if(within(pp)){
-      const f=dmgAt(pp);dmgPlayer(85*f);
-      const dx=P.x-cx,dz=P.z-cz,l=Math.hypot(dx,dz)||1;
-      _lgnPlayerVX+=dx/l*16*f;_lgnPlayerVZ+=dz/l*16*f;P.velY=Math.max(P.velY,9*f);P.onGround=false;
-    }
+    if(within(pp)){P.invT=0;if(typeof dmgPlayer==='function')dmgPlayer(99999);}
   }
 }
 
@@ -518,7 +505,7 @@ function resetLonginus(){
   }
   _lgnStrikes.length=0;
   LonginusDestructionQueue.reset();
-  _lgnCD=0;_lgnArmT=0;_lgnPlayerVX=0;_lgnPlayerVZ=0;_lgnFlashLevel=0;
+  _lgnCD=0;_lgnArmT=0;_lgnFlashLevel=0;
   const el=_lgnFlash();if(el)el.style.opacity='0';
 }
 

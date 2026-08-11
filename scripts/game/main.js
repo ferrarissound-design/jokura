@@ -564,9 +564,8 @@ function tick(now){
   const sY=Math.sin(yaw),cY=Math.cos(yaw);
   const blastImpulse=tntPlayerImpulse(dt);
   const tsarImpulse=(typeof tsarPlayerImpulse==='function')?tsarPlayerImpulse(dt):{x:0,z:0};
-  const lgnImpulse=(typeof longinusPlayerImpulse==='function')?longinusPlayerImpulse(dt):{x:0,z:0};
   const _mvX=(sr*cY+fw*sY)*curSpeed,_mvZ=(fw*cY-sr*sY)*curSpeed;
-  movePlayer(_mvX+blastImpulse.x+tsarImpulse.x+lgnImpulse.x,_mvZ+blastImpulse.z+tsarImpulse.z+lgnImpulse.z,dt);
+  movePlayer(_mvX+blastImpulse.x+tsarImpulse.x,_mvZ+blastImpulse.z+tsarImpulse.z,dt);
   if(typeof crustBombNoteMove==='function')crustBombNoteMove(_mvX,_mvZ);
   if(typeof tsarBombNoteMove==='function')tsarBombNoteMove(_mvX,_mvZ);
   updateExplosionSystem(dt);
