@@ -333,6 +333,9 @@ function buildChunkMesh(rec){
 // chunk record owning given world coordinates (may be null if not generated)
 function recAt(x,y,z){
   const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK);
+  // 🌀 終端界: 縦チャンク(underChunks)を持たない単一の chunks[] だけを使う
+  // （島は下面まで同じ列メッシュへ載る）。y<0 でも underChunks を参照しない。
+  if(currentDimension==='endZone')return chunks[cKey(cx,cz)]||null;
   if(y<0){const cy=Math.floor(y/CHUNK_Y);return underChunks[ucKey(cx,cy,cz)]||null;}
   return chunks[cKey(cx,cz)]||null;
 }
@@ -1032,15 +1035,22 @@ function unloadFarChunks(pcx,pcz){
     if(Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz))>UNLOAD_R){_disposeChunkRec(underChunks[key]);delete underChunks[key];}
   }
 }
+// scene からチャンクの全メッシュ(本体+特殊メッシュ)を外して破棄するだけの下請け。
+// clearWorld()（新規ゲーム/セーブロード用: 構造物の状態もリセットする）と
+// dimensions.js のディメンション退出処理（構造物の状態はリセットしない）の
+// 両方から呼ばれる。
+function _disposeAllChunks(){
+  const drop=(rec)=>{scene.remove(rec.solidMesh);rec.solidMesh.geometry.dispose();for(const m of rec.specials)scene.remove(m);};
+  for(const key in chunks)drop(chunks[key]);
+  for(const key in underChunks)drop(underChunks[key]);
+  chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};lavaBlocks.clear();torchBlocks.clear();_dirtyRecs.clear();lastPCX=null;lastPCZ=null;lastPCY=null;
+}
 function clearWorld(){
   resetFrozenVillage(); // ⏳ 時間が止まった村の静止メッシュ（矢・炎・グロー）も一緒に破棄
   resetUndergroundCity(); // 🏛 封印された地底都市の演出メッシュと状態も破棄
   resetCollapsingSkyCity(); // ☁ 崩れかけの天空都市の輪・遠景演出と状態も破棄
   resetSunkenRoyalCity(); // 🌊 海底に沈んだ王都の海面メッシュと状態も破棄
-  const drop=(rec)=>{scene.remove(rec.solidMesh);rec.solidMesh.geometry.dispose();for(const m of rec.specials)scene.remove(m);};
-  for(const key in chunks)drop(chunks[key]);
-  for(const key in underChunks)drop(underChunks[key]);
-  chunks={};activeChunks={};underChunks={};activeUnderChunks={};voxels={};lavaBlocks.clear();torchBlocks.clear();_dirtyRecs.clear();lastPCX=null;lastPCZ=null;lastPCY=null;
+  _disposeAllChunks();
 }
 
 // ─── UNDERGROUND GENERATION ───

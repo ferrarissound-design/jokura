@@ -66,6 +66,7 @@ function dmgSnow(){if(isCreative()||godMode)return;P.hp=Math.max(0,P.hp-3);if(se
 function matProgress(mat,need){return (inv[mat]||0)+'/'+need;}
 function getCurrentGoal(){
   if(!gs.running)return '🎯 NEW GAMEで冒険開始';
+  if(currentDimension==='endZone')return '🌀 終端界：浮遊島の建造物を好きな兵器で破壊しよう！';
   if(isCreative())return isDesktop?'🪄 クリエイティブ：自由に建築！Space2回で飛行':'🪄 クリエイティブ：自由に建築！FLYで飛行';
   if(P.hp<=35&&meat>0)return '🍖 HPが低い！肉で回復しよう';
   if(fullMoonNight&&gs.time>=.4&&gs.time<=.9)return '🌕 満月の夜！敵が増え、キルスコアが2倍に';
@@ -108,8 +109,10 @@ function updateHUD(){
   const pct=Math.max(0,Math.min(100,P.hp));$hf.style.width=pct+'%';
   $hf.style.background=pct>40?'linear-gradient(90deg,#43a047,#a5d6a7)':'linear-gradient(90deg,#e53935,#ff8a80)';
   const fpct=Math.max(0,Math.min(100,P.food));if($ff){$ff.style.width=fpct+'%';$ff.style.background=fpct>20?'linear-gradient(90deg,#e07f1f,#ffcf7f)':'linear-gradient(90deg,#b71c1c,#ff8a65)';}
-  {const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
-  {const aq=typeof getAquaticState==='function'?getAquaticState(P.x,P.z):null;const sy=surfaceHeightAt(Math.floor(P.x),Math.floor(P.z));$cd.textContent='X:'+Math.floor(P.x)+' Y:'+Math.floor(P.y)+' Z:'+Math.floor(P.z)+'\nBiome: '+getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z))).replace(/^[^ ]+ /,'')+'\nSurface:'+sy+(aq?' WaterY:'+(aq.surfaceY==null?'-':aq.surfaceY)+' Depth:'+aq.depth.toFixed(1)+' '+aq.kind:'');}
+  if(currentDimension==='endZone')$bl.textContent='🌀 THE END ZONE';
+  else{const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
+  if(currentDimension==='endZone'){$cd.textContent='X:'+Math.floor(P.x)+' Y:'+Math.floor(P.y)+' Z:'+Math.floor(P.z)+'\nTHE END ZONE';}
+  else{const aq=typeof getAquaticState==='function'?getAquaticState(P.x,P.z):null;const sy=surfaceHeightAt(Math.floor(P.x),Math.floor(P.z));$cd.textContent='X:'+Math.floor(P.x)+' Y:'+Math.floor(P.y)+' Z:'+Math.floor(P.z)+'\nBiome: '+getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z))).replace(/^[^ ]+ /,'')+'\nSurface:'+sy+(aq?' WaterY:'+(aq.surfaceY==null?'-':aq.surfaceY)+' Depth:'+aq.depth.toFixed(1)+' '+aq.kind:'');}
   const w=WEAPONS[weaponIdx];
   const arrowIcon=weaponIdx===3&&arrowMode!=='normal'?(arrowMode==='fire'?'🔥':'🧊'):'';
   $wl.textContent=w.name+arrowIcon+enchSuffix()+(unlockedWeapons[weaponIdx]?'':'🔒');

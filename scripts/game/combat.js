@@ -129,7 +129,9 @@ function flyMove(vx,vz,dt){
     else if(vy<0){setFlying(false);break;} // touched down: land like Minecraft
   }
   P.velY=0;P.onGround=false;coyoteTime=0;jumpBuffer=0;
-  if(P.y<-40){P.y=20;P.velY=0;}
+  // 🌀 終端界: 奈落へ落ちても死なせず開始地点へ戻す（通常世界は従来どおり y=20 へ）
+  if(currentDimension==='endZone'){if(P.y<EZ_VOID_Y)ezVoidRespawn();}
+  else if(P.y<-40){P.y=20;P.velY=0;}
 }
 // 氷の上は滑る: 入力速度へ即座に切り替わらず、前フレームの速度から
 // ゆっくり補間する（氷から降りると即座に通常操作へ戻る）
@@ -142,7 +144,11 @@ function _onIce(){
 function movePlayer(vx,vz,dt){if(P.flying){flyMove(vx,vz,dt);return;}
   if(_onIce()){const k=Math.min(1,dt*2.2);_slideVX+=(vx-_slideVX)*k;_slideVZ+=(vz-_slideVZ)*k;vx=_slideVX;vz=_slideVZ;}
   else{_slideVX=vx;_slideVZ=vz;}
-  P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=jumpV();P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}}
+  P.velY-=GRAV*dt;const steps=3,sdt=dt/steps;let grounded=false;for(let s=0;s<steps;s++){const canStep=grounded||P.onGround;let nx=P.x+vx*sdt;if(!overlaps(nx,P.y,P.z))P.x=nx;else if(canStep&&!overlaps(nx,P.y+.55,P.z)){P.x=nx;P.y+=.55;}let nz=P.z+vz*sdt;if(!overlaps(P.x,P.y,nz))P.z=nz;else if(canStep&&!overlaps(P.x,P.y+.55,nz)){P.z=nz;P.y+=.55;}const ny=P.y+P.velY*sdt;if(!overlaps(P.x,ny,P.z)){P.y=ny;}else{if(P.velY<0)grounded=true;P.velY=0;}}P.onGround=grounded;if(P.onGround){coyoteTime=COYOTE;}else{coyoteTime=Math.max(0,coyoteTime-dt);}if(jumpBuffer>0){jumpBuffer-=dt;if(P.onGround||coyoteTime>0){P.velY=jumpV();P.onGround=false;coyoteTime=0;jumpBuffer=0;sfxJump();}}
+  // 🌀 終端界: 奈落へ落ちても死なせず開始地点へ戻す（通常世界は従来どおり y=20+ダメージ）
+  if(currentDimension==='endZone'){if(P.y<EZ_VOID_Y)ezVoidRespawn();}
+  else if(P.y<-40){P.y=20;P.velY=0;dmgPlayer(15);}
+}
 let _flyTapT=0;
 function setFlying(on){
   if(!isCreative()&&on)return;

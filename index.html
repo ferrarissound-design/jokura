@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260811railgun3">
+<link rel="stylesheet" href="styles/main.css?v=20260811endzone1">
 
 </head>
 <body>
@@ -52,7 +52,12 @@
     <button id="buildMenuBtn" class="edgeIcon" title="建築メニュー" aria-label="建築メニュー">🔨</button>
     <button id="bombMenuBtn" class="edgeIcon" title="特殊破壊メニュー" aria-label="特殊破壊メニュー">💣</button>
   </div>
-  <div id="buildMenuPopover" class="hudPopover" aria-hidden="true"></div>
+  <div id="buildMenuPopover" class="hudPopover" aria-hidden="true">
+    <!-- 🌀 終端界: クリエイティブ専用の入退場ボタン。サバイバルでは applyModeUI/
+         ezUpdateMenuButtons が display:none のまま維持する。 -->
+    <button class="popItem" id="dimTeleportBtn" style="display:none"><span class="aIcon">🌀</span><span class="aLabel">終端界へ</span></button>
+    <button class="popItem" id="ezRegenBtn" style="display:none"><span class="aIcon">♻</span><span class="aLabel">終端界を再生成</span></button>
+  </div>
   <div id="bombMenuPopover" class="hudPopover" aria-hidden="true">
     <button class="popItem" id="bombTntSelectBtn"><span class="aIcon">💣</span><span class="aLabel">TNT を選択</span></button>
   </div>
@@ -197,6 +202,15 @@
   <div id="railgunChargedText" aria-hidden="true">RAILGUN CHARGED</div>
   <div id="railgunWarp" aria-hidden="true"></div>
   <div id="railgunCoolText" aria-hidden="true">COOLING</div>
+  <!-- 🌀 終端界: ディメンション移動の黒紫フェード演出(dimensions.jsが body クラスではなく
+       このオーバーレイのクラスを直接トグルする、短時間で終わる一発演出)。 -->
+  <div id="dimWarp" aria-hidden="true"><div id="dimWarpText"></div></div>
+  <!-- 🌀 終端界: 初回入場時だけ数秒表示して自然に消えるバナー。 -->
+  <div id="ezBanner" aria-hidden="true">
+    <div class="ezTitle">THE END ZONE</div>
+    <div class="ezLine">建造物の保護機能は停止しています。</div>
+    <div class="ezLine ezLine2">取り敢えず、破壊しとけ！</div>
+  </div>
   <div id="cdBar"><div id="cdFill"></div></div>
   <div id="bossHpWrap">
     <div id="bossName">💀 BOSS</div>
@@ -408,9 +422,12 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260811railgun3';
+  var V='20260811endzone1';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
+  // dimensions/end_zone/end_zone_structures はその後: world.js のチャンク基盤と
+  // structures_common.js の生成ヘルパーに依存し、sky/combat/hud/main 側から
+  // currentDimension 等を参照されるため、それらより前に置く。
   var PARTS=['state','achievements','crafting','save','ui','audio',
              'world',
              'structures_common','structures_sage_garden','structures_watchtower',
@@ -418,6 +435,7 @@
              'structures_inverted_castle','structures_frozen_village',
              'structures_underground_city','structures_sky_city','structures_sunken_city',
              'structures_walking_fortress','structures_registry',
+             'dimensions','end_zone','end_zone_structures',
              'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','longinus','longinus_sequence','railgun','railgun_sequence','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
