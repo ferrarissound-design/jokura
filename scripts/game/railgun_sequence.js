@@ -108,10 +108,10 @@ body.railOverdrive #railgunStatus{color:#e9f8ff;text-shadow:0 0 10px #8fd8ff,1px
     this._ensureFx();
     const b=document.body;
     b.classList.remove('railFire','railAfterglow');void b.offsetWidth;
-    b.classList.add('railFire','railAfterglow');
+    b.classList.add('railFire');
     if(this._fx)this._fx.style.opacity='1';
     this._fireT=.55;
-    this._afterT=.9;
+    this._afterT=0;
     this.phase='fire';
   },
   cooling(sec){
@@ -135,8 +135,18 @@ body.railOverdrive #railgunStatus{color:#e9f8ff;text-shadow:0 0 10px #8fd8ff,1px
   },
   update(dt){
     if(this._chargedT>0){this._chargedT-=dt;if(this._chargedT<=0)document.body.classList.remove('railCharged');}
-    if(this._fireT>0){this._fireT-=dt;if(this._fireT<=0)document.body.classList.remove('railFire','railOverdrive');}
-    if(this._afterT>0){this._afterT-=dt;if(this._afterT<=0){document.body.classList.remove('railAfterglow');if(this._fx)this._fx.style.opacity='0';}}
+    if(this._fireT>0){
+      this._fireT-=dt;
+      if(this._fireT<=0){
+        document.body.classList.remove('railFire','railOverdrive');
+        document.body.classList.remove('railAfterglow');void document.body.offsetWidth;document.body.classList.add('railAfterglow');
+        this._afterT=.9;
+      }
+    }
+    if(this._afterT>0){
+      this._afterT-=dt;
+      if(this._afterT<=0){document.body.classList.remove('railAfterglow');if(this._fx)this._fx.style.opacity='0';}
+    }
   },
   _clearClasses(){
     const b=document.body;
