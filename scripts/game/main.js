@@ -177,6 +177,7 @@ function applyModeUI(){
   updateFlyBtns();
   if(typeof applyMobileModeUI==='function')applyMobileModeUI();
   if(typeof updateTNTModeButton==='function')updateTNTModeButton();
+  if(typeof ezUpdateMenuButtons==='function')ezUpdateMenuButtons(); // 🌀 サバイバルでは入口を出さない
 }
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}
@@ -362,6 +363,7 @@ async function startGame(){
   ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();
   gameMode=settings.gameMode==='creative'?'creative':'survival';
+  if(typeof dimensionsResetForNewGame==='function')dimensionsResetForNewGame(); // 🌀 新規ゲームは常に通常世界から
   initWorldNoise(Math.floor(Math.random()*999999));
   commonReset();resetInv();resetAchievements();resetWorldEdits();if(typeof resetBiomeDiscoveries==='function')resetBiomeDiscoveries();
   P.x=0;P.z=0;P.velY=0;P.onGround=false;P.hp=100;P.food=100;P.invT=0;P.flying=false;
@@ -413,7 +415,7 @@ async function continueGame(){
   if(d.hasDiamondStaff)applyDiamondStaff();
   if(d.hasDiamondHammer)applyDiamondHammer();
   ensureUnlockedWeaponSelected();
-  if(d.worldSeed!=null)initWorldNoise(d.worldSeed);
+  if(d.worldSeed!=null)initWorldNoise(d.worldSeed); // 通常世界のノイズは常にセットしておく(終端界滞在中でも次回帰還に必要)
   // 🏛 封印された地底都市の状態復元。updateChunks が都市チャンクの生成フックを
   // 参照するため、最初の updateChunks(true) より前に復元しておく
   sucLoadState(d.undergroundCity);
@@ -423,18 +425,26 @@ async function continueGame(){
   srcLoadState(d.sunkenCity);
   // 🏰 歩き続ける巨大城塞: 移動体なのでチャンク生成前に位置だけ復元
   wfLoadState(d.walkingFortress);
-  // ☢ ツァーリ・ボンバの永久破壊領域: updateChunks(true) が呼ぶ generateChunk/
-  // generateUnderChunk がこの索引を参照するため、必ずそれより前に復元する
-  if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(d.tsarZones);
   if(d.villages&&typeof generatedVillageChunks!=='undefined')(d.villages.generatedChunks||[]).forEach(k=>generatedVillageChunks.add(k));
-  updateChunks(true);
-  if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
-  applyWorldEdits();
-  if(typeof tntLoadState==='function')tntLoadState(d.explosives);
-  if(typeof tsarBombaLoadState==='function')tsarBombaLoadState(d.tsarBombs);
-  if(typeof longinusLoadState==='function')longinusLoadState(d.longinus);
-  if(typeof railgunLoadState==='function')railgunLoadState(d.railgun);
   if(typeof villagesLoadState==='function')villagesLoadState(d.villages);
+  // 🌀 終端界: セーブ時点でどちらのディメンションがアクティブだったかで分岐する。
+  // dimensionsApplyContinueLoad が終端界側を処理した場合は true を返し、以下の
+  // 通常世界向けブロック(updateChunks/worldEdits/TNT/ツァーリ/LONGINUS/RAILGUN)を
+  // 丸ごとスキップする(既存セーブにendZoneが無ければ常にfalseで、この分岐は
+  // ほぼ従来どおり動く＝後方互換)。
+  const _dimHandled=(typeof dimensionsApplyContinueLoad==='function')&&dimensionsApplyContinueLoad(d);
+  if(!_dimHandled){
+    // ☢ ツァーリ・ボンバの永久破壊領域: updateChunks(true) が呼ぶ generateChunk/
+    // generateUnderChunk がこの索引を参照するため、必ずそれより前に復元する
+    if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(d.tsarZones);
+    updateChunks(true);
+    if(d.worldEdits){resetWorldEdits();unpackWorldEditsInto(worldEdits,d.worldEdits);}
+    applyWorldEdits();
+    if(typeof tntLoadState==='function')tntLoadState(d.explosives);
+    if(typeof tsarBombaLoadState==='function')tsarBombaLoadState(d.tsarBombs);
+    if(typeof longinusLoadState==='function')longinusLoadState(d.longinus);
+    if(typeof railgunLoadState==='function')railgunLoadState(d.railgun);
+  }
   // チェスト復元
   chestCount=d.chestCount||0;
   if(d.chests){for(const cd of d.chests){const mesh=makeChestMesh();mesh.position.set(cd.x+.5,cd.y,cd.z+.5);scene.add(mesh);chests.push({mesh,x:cd.x,y:cd.y,z:cd.z,contents:cd.contents||{wood:0,stone:0,sand:0,grass:0,brick:0,meat:0}});}}
@@ -526,16 +536,25 @@ function tick(now){
   }
   if(!isCreative()&&!_wasDayPhase&&isDay&&fullMoonNight){unlockAchievement('fullMoonSurvivor');fullMoonNight=false;}
   _wasDayPhase=isDay;
-  const curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
-  if(typeof updateBiomeDiscovery==='function')updateBiomeDiscovery(curBiome);
-  const inVolcano=curBiome===BIOMES.VOLCANO,inSnow=curBiome===BIOMES.SNOW;
-  const _isUnder=P.y<0;
-  updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome,_isUnder);
-  if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
-  else{scene.fog.near=DRAW_R*CHUNK*FOG_START_MULTIPLIER;scene.fog.far=DRAW_R*CHUNK*FOG_END_MULTIPLIER;skyMesh.visible=true;if(typeof updateBiomeAtmosphere==='function')updateBiomeAtmosphere(curBiome);}
-  updateCelestial(gs.time,dt);
-  updateWeather(dt,inVolcano,inSnow,_isUnder,now/1000);
-  updateMeteorEvent(dt,_isUnder);
+  const inEndZone=currentDimension==='endZone';
+  let curBiome=BIOMES.PLAINS,inVolcano=false,inSnow=false,_isUnder=false;
+  if(inEndZone){
+    // 🌀 終端界: 太陽・月・通常の雲/雨/雪/雷・昼夜サイクルは存在しない。
+    // 専用の演出だけを更新し、通常世界のバイオーム判定・天候・BGM切替には触れない。
+    if(typeof ezTick==='function')ezTick(dt);
+    rainGroup.visible=false;snowGroup.visible=false;
+  }else{
+    curBiome=getBiome(Math.floor(P.x),Math.floor(P.z));
+    if(typeof updateBiomeDiscovery==='function')updateBiomeDiscovery(curBiome);
+    inVolcano=curBiome===BIOMES.VOLCANO;inSnow=curBiome===BIOMES.SNOW;
+    _isUnder=P.y<0;
+    updateSky(gs.time,inVolcano,inSnow);updateBgm(curBiome,_isUnder);
+    if(_isUnder){updateUnderAtmosphere(P.y);skyMesh.visible=false;}
+    else{scene.fog.near=DRAW_R*CHUNK*FOG_START_MULTIPLIER;scene.fog.far=DRAW_R*CHUNK*FOG_END_MULTIPLIER;skyMesh.visible=true;if(typeof updateBiomeAtmosphere==='function')updateBiomeAtmosphere(curBiome);}
+    updateCelestial(gs.time,dt);
+    updateWeather(dt,inVolcano,inSnow,_isUnder,now/1000);
+    updateMeteorEvent(dt,_isUnder);
+  }
   updateTorchLights();
   updateBlockCursor();
   if(_waterUniforms)_waterUniforms.uTime.value=now/1000;
@@ -600,7 +619,13 @@ function tick(now){
   // sprint FOV kick (Minecraft-style)
   const _tgtFov=(sprinting&&_moving)?80:72;
   if(Math.abs(camera.fov-_tgtFov)>0.01){camera.fov+=(_tgtFov-camera.fov)*Math.min(1,dt*7);camera.updateProjectionMatrix();}
-  chunkT+=dt;if(chunkT>.5){if(updateChunks(false))applyWorldEdits();chunkT=0;}
+  chunkT+=dt;if(chunkT>.5){
+    // 🌀 終端界にいる間は終端界専用のチャンク生成/破棄だけを回し、通常世界の
+    // generateChunk()/updateChunks()は一切呼ばない(逆も同様)。
+    const _grew=inEndZone?(typeof updateEndZoneChunks==='function'&&updateEndZoneChunks(false)):updateChunks(false);
+    if(_grew)applyWorldEdits();
+    chunkT=0;
+  }
   updateBoss(dt);updateDragon(dt);updateMobs(dt);updateHumanoids(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);updateMerchant(dt,_isUnder);
   mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
   const t=Date.now()/1000;
@@ -684,7 +709,7 @@ function tick(now){
   for(let i=items.length-1;i>=0;i--){const it=items[i];it.time+=dt;it.mesh.position.y=it.y+Math.sin(it.time*3)*.2;it.mesh.rotation.y+=dt*2;const dx=P.x-it.x,dz=P.z-it.z,dy=P.y-it.y;if(dx*dx+dy*dy+dz*dz<3){pickupItem(it.info);scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);continue;}if(it.time>25){scene.remove(it.mesh);it.mat.dispose();items.splice(i,1);}}
   updateParticles(dt);
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}
-  minimapT+=dt;if(minimapT>MINIMAP_INTERVAL){drawMinimap();minimapT=0;}
+  minimapT+=dt;if(minimapT>MINIMAP_INTERVAL){if(inEndZone&&typeof drawEndZoneMinimap==='function')drawEndZoneMinimap();else drawMinimap();minimapT=0;}
   if(settings.autoSave&&gs.running&&!gs.paused){autoSaveT+=dt;if(autoSaveT>=AUTOSAVE_INTERVAL){autoSaveT=0;saveGame();showSaveToast('💾 AUTO-SAVED');}}
   if(regionEditor&&regionEditor.state.active)regionEditor.updateVisuals();
   renderer.render(scene,camera);

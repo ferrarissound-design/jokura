@@ -45,12 +45,16 @@ function _frontAnchor(dist){
   return{fx,fz,cx0,cz0,aim:Math.atan2(fz,fx)};
 }
 // フットプリント半径 R が重なりうる全チャンクを事前生成する。未生成チャンク
-// への addBlock は不可視の孤児 voxel になるため（applyWorldEdits と同じ理由）
+// への addBlock は不可視の孤児 voxel になるため（applyWorldEdits と同じ理由）。
+// 🌀 終端界にいる間は通常世界の generateChunk() ではなく generateEndZoneChunk()
+// を使う（特殊生成メニューは終端界でもそのまま使えるが、通常世界の地形が
+// 終端界のチャンクへ混ざらないようにする）。
 function _ensureChunksAround(cx0,cz0,R,pad){
   pad=pad==null?2:pad;
+  const gen=(currentDimension==='endZone'&&typeof generateEndZoneChunk==='function')?generateEndZoneChunk:generateChunk;
   for(let cx=Math.floor((cx0-R-pad)/CHUNK);cx<=Math.floor((cx0+R+pad)/CHUNK);cx++)
     for(let cz=Math.floor((cz0-R-pad)/CHUNK);cz<=Math.floor((cz0+R+pad)/CHUNK);cz++)
-      generateChunk(cx,cz);
+      gen(cx,cz);
 }
 // 周辺地表の中央値と中心直下の高さの高い方（丘に半分埋まった土台を避ける）
 function _footprintYBase(cx0,cz0,R,step){

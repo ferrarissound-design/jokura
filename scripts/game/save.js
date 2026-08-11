@@ -14,8 +14,11 @@
 // スパイクになっていた。placed/removed の書き込み箇所はゲーム全域に散らばっている
 // ので、Proxy の set トラップで索引を自動維持し、書き込み側のイディオム
 // （worldEdits.placed[k]=v / worldEdits.removed[k]=true / delete ...）は一切変えない。
-const _weIndex=new Map();       // "cx,cz" → Set(voxelKey) 編集のチャンク列索引
-const _wePendingCols=new Set(); // 前回適用以降に（再）生成されたチャンク列
+// 🌀 終端界: ディメンション切替時に dimensions.js がこの2つを丸ごと差し替えるため let。
+// (通常時は他のあらゆるコードと同じく中身を書き換えるだけで、参照を差し替えるのは
+// dimensions.js の enterDimension() だけ)
+let _weIndex=new Map();       // "cx,cz" → Set(voxelKey) 編集のチャンク列索引
+let _wePendingCols=new Set(); // 前回適用以降に（再）生成されたチャンク列
 function _weTrack(k){
   // voxelキー "x|y|z" からチャンク列キーを導く（world.js の cKey と同じ書式）
   const x=+k.slice(0,k.indexOf('|')),z=+k.slice(k.lastIndexOf('|')+1);
@@ -161,12 +164,19 @@ async function deleteSave(slot=activeSaveSlot){
 async function saveGame(){
   const existing=await loadSaveData(activeSaveSlot);
   const slotName=(existing&&existing.slotName)||('SLOT '+activeSaveSlot);
+  // 🌀 終端界: 通常世界向けのトップレベル項目(worldSeed/worldEdits/explosives/
+  // tsarBombs/tsarZones/longinus/railgun/px/py/pz/yaw/pitch)は、アクティブな
+  // ディメンションに関わらず常に「通常世界」を指す(既存セーブとの後方互換のため
+  // 意味を変えない)。終端界のデータは新規トップレベル項目 endZone/currentDimension
+  // にだけ追加する。dimensionsSaveFields() が現在どちらのディメンションがライブか
+  // を吸収するので、ここでは常に同じ形で読める。
+  const _dim=(typeof dimensionsSaveFields==='function')?dimensionsSaveFields():null;
   const data={
     version:SAVE_VERSION,saveSlot:activeSaveSlot,slotName,
     gameMode,flying:!!P.flying,cheatsUsed,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
-    px:P.x,py:P.y,pz:P.z,yaw,pitch,
+    px:_dim?_dim.px:P.x,py:_dim?_dim.py:P.y,pz:_dim?_dim.pz:P.z,yaw:_dim?_dim.yaw:yaw,pitch:_dim?_dim.pitch:pitch,
     inv:{...inv},unlockedWeapons:[...unlockedWeapons],meat,hasDiamondSword,hasDiamondBow,hasDiamondStaff,hasDiamondHammer,hasIronSword,
     arrowMode,enchants:{...enchants},
     enchTableCount,enchTables:enchTables.map(t=>({x:t.x,y:t.y,z:t.z})),
@@ -174,22 +184,27 @@ async function saveGame(){
     pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
     horseTamed:!!horse,mounted,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
-    worldSeed:WORLD_SEED,worldGenVersion:2,
-    worldEdits:packWorldEdits(worldEdits),
-    explosives:(typeof tntSaveState==='function')?tntSaveState():[],
-    tsarBombs:(typeof tsarBombaSaveState==='function')?tsarBombaSaveState():[],
+    worldSeed:_dim?_dim.worldSeed:WORLD_SEED,worldGenVersion:2,
+    worldEdits:_dim?_dim.worldEdits:packWorldEdits(worldEdits),
+    explosives:_dim?_dim.explosives:((typeof tntSaveState==='function')?tntSaveState():[]),
+    tsarBombs:_dim?_dim.tsarBombs:((typeof tsarBombaSaveState==='function')?tsarBombaSaveState():[]),
     // ☢ 永久破壊領域（3000%級の巨大クレーターを未読み込み範囲へ遅延適用するための
     // 少数パラメータのみ）。旧セーブには存在しないため読み込み側は配列でなければ
     // 空扱いにする（tsarZonesLoadState）。SAVE_VERSIONは上げていない: 既存フィールドは
     // 一切変更しておらず、この追加フィールドが無くても正常に読み込めるため。
-    tsarZones:(typeof tsarZonesSaveState==='function')?tsarZonesSaveState():[],
+    tsarZones:_dim?_dim.tsarZones:((typeof tsarZonesSaveState==='function')?tsarZonesSaveState():[]),
     // 🔱 LONGINUS: 進行中の演出は保存しない（数秒の固定シーケンスなので次回起動時に
     // クールダウンだけ引き継ぐ）。着弾済みのクレーター/専用ブロックは worldEdits 経由で
     // 通常のブロック編集と同様に保存されるため、ここでは別途保存する必要が無い。
-    longinus:(typeof longinusSaveState==='function')?longinusSaveState():null,
+    longinus:_dim?_dim.longinus:((typeof longinusSaveState==='function')?longinusSaveState():null),
     // 🚀 RAILGUN: LONGINUSと同じ理由でクールダウンだけ保存する（掘られたトンネルは
     // worldEdits経由で保存される）。
-    railgun:(typeof railgunSaveState==='function')?railgunSaveState():null,
+    railgun:_dim?_dim.railgun:((typeof railgunSaveState==='function')?railgunSaveState():null),
+    // 🌀 終端界: currentDimensionが'endZone'かどうか、および終端界自身のワールド
+    // データ(シード/worldEdits/兵器状態/座標等)。旧セーブ・endZone未訪問セーブでは
+    // どちらも存在しないので、読み込み側は「未訪問」として扱う(dimensionsApplyContinueLoad)。
+    currentDimension:_dim?_dim.currentDimension:'overworld',
+    endZone:_dim?_dim.endZone:null,
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),
