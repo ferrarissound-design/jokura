@@ -26,7 +26,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,tnt:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0,crustBomb:0,tsarBomba:0,longinus:0,judgmentCore:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,tnt:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0,crustBomb:0,tsarBomba:0,longinus:0,judgmentCore:0,railgun:0};
 // 弓に装填する矢の種類: 'normal' | 'fire'(炎上) | 'ice'(鈍足)
 let arrowMode='normal';
 
@@ -126,6 +126,8 @@ const CRAFT_RECIPES=[
   {name:'☢ ツァーリ・ボンバ',wi:-31,needs:{crustBomb:2,diamond:6,obsidian:8,dragonCore:1},desc:'🌋×2 + 💎×6 + ⬛×8 + 💠×1', req:2},
   // 🔱 LONGINUS: 横方向の爆発力ではなく縦方向の貫通と永久の傷跡を刻む軌道兵器。
   {name:'🔱 LONGINUS',wi:-32,needs:{crystal:12,diamond:10,obsidian:10,dragonCore:2},desc:'🔮×12 + 💎×10 + ⬛×10 + 💠×2', req:2},
+  // 🚀 超大型レールガン: 面でも縦でもなく「線」で世界を撃ち抜く超長距離貫通兵器。
+  {name:'🚀 RAILGUN',wi:-33,needs:{ironIngot:8,diamond:8,crystal:6,obsidian:4},desc:'🔩×8 + 💎×8 + 🔮×6 + ⬛×4', req:2},
 ];
 
 // ═══ 武器強化（エンチャント） ═══
