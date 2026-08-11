@@ -849,7 +849,7 @@ body.creative #destabGaugeWrap{margin-top:1px}
    ezBanner と同じ「短時間で自然に消える中央演出」の型を踏襲しつつ、不穏な赤紫の配色で
    ezBannerとは異なる文脈だとひと目でわかるようにする。 */
 #destabBanner{
-  position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);z-index:27;
+  position:absolute;top:64%;left:50%;transform:translate(-50%,-50%);z-index:27;
   pointer-events:none;text-align:center;opacity:0;transition:opacity .4s;
   text-shadow:2px 2px 0 #000,0 0 24px #ff2a4aaa;width:min(560px,92vw);
 }
