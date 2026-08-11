@@ -134,6 +134,7 @@ body.creative #goalLabel{display:none}
 #crustBombBtn{grid-area:bomb;width:64px;height:52px}
 #tsarBombBtn{grid-area:tsar;width:64px;height:52px}
 #longinusBtn{grid-area:lgn;width:64px;height:52px}
+#railgunBtn{grid-area:rail;width:64px;height:52px}
 /* actionWrap の最上段(FLY)より上へ置く。旧 bottom:212px は FLY とほぼ同じ
    座標になり、iPhone 縦画面で両ボタンの押下領域が重なっていた。 */
 #weaponBtn{position:absolute;right:calc(14px + var(--safeR));bottom:calc(270px + var(--safeB));width:58px;height:50px;border-radius:var(--ui-radius);border:var(--ui-bw) solid rgba(255,216,74,.5);background:var(--ui-bg);color:var(--ui-highlight);font-weight:800;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-shadow:var(--ui-shadow)}
@@ -521,6 +522,62 @@ body.lgnDescent #weaponBtn,body.lgnDescent #joyWrap,body.lgnDescent #minimap{opa
   .ljTitle,.ljSub{transition-duration:.01s!important;transition-delay:0s!important}
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   🚀 超大型レールガン演出（railgun_sequence.js が body のクラスで出し入れする）。
+   ・爆発ではなく「線の貫通」が主役なので、Tsar/Longinusのような画面全体の
+     暗転・グリッチは使わない。チャージ中は控えめなゲージ+ヴィネットだけに留め、
+     発射の瞬間だけごく短い強い閃光を入れる（長時間の白飛びにはしない）。
+   ═══════════════════════════════════════════════════════════════════════ */
+#railgunFlash{position:absolute;inset:0;background:#eef6ff;opacity:0;pointer-events:none;z-index:36}
+#railgunVignette{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0;transition:opacity .4s;
+  background:radial-gradient(circle at 50% 50%,rgba(10,20,40,0) 40%,rgba(10,26,54,.5) 100%)}
+body.railCharging #railgunVignette{opacity:1}
+
+#railgunHud{position:absolute;top:14%;left:50%;transform:translate(-50%,0);z-index:8;pointer-events:none;
+  text-align:center;display:none;width:min(280px,80vw)}
+body.railCharging #railgunHud{display:block}
+#railgunTitle{font:900 min(16px,4.6vw) 'Press Start 2P',monospace;letter-spacing:5px;
+  color:#dff1ff;text-shadow:0 0 8px #9fd8ffcc,0 0 22px #4fb3ff88,2px 2px 0 #000;
+  animation:railTitlePulse 1s ease-in-out infinite}
+@keyframes railTitlePulse{0%,100%{opacity:.85}50%{opacity:1;text-shadow:0 0 14px #cdeeffee,0 0 34px #4fb3ffbb,2px 2px 0 #000}}
+#railgunStatus{margin-top:5px;font:700 min(9px,2.6vw) 'Press Start 2P',monospace;letter-spacing:2px;
+  color:#9fd8ff;text-shadow:1px 1px 0 #000}
+#railgunGaugeWrap{margin:10px auto 4px;width:100%;height:12px;border:1.5px solid rgba(159,216,255,.65);
+  border-radius:6px;background:rgba(4,10,20,.6);overflow:hidden;box-shadow:0 0 10px rgba(80,180,255,.25) inset}
+#railgunGaugeFill{width:0%;height:100%;background:linear-gradient(90deg,#2d6fb0,#9fe0ff,#ffffff);
+  box-shadow:0 0 10px rgba(159,224,255,.85);transition:width .08s linear}
+#railgunGaugePct{font:700 11px 'Press Start 2P',monospace;color:#eaf7ff;text-shadow:1px 1px 0 #000}
+.railSpark{position:absolute;top:36px;width:2px;height:10px;background:#cdeeff;opacity:0;
+  box-shadow:0 0 6px #9fd8ff;animation:railSparkFlicker 1.7s linear infinite}
+.railSpark.s1{left:18%;animation-delay:.1s}
+.railSpark.s2{left:52%;animation-delay:.55s;height:7px}
+.railSpark.s3{left:80%;animation-delay:1.05s;height:12px}
+@keyframes railSparkFlicker{0%,88%{opacity:0}90%{opacity:1}92%{opacity:.2}94%{opacity:1}97%{opacity:0}100%{opacity:0}}
+
+#railgunChargedText{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);z-index:9;
+  pointer-events:none;white-space:nowrap;font:900 min(18px,5vw) 'Press Start 2P',monospace;letter-spacing:3px;
+  color:#ffffff;text-shadow:0 0 10px #dff1ff,0 0 28px #7fc8ffcc,0 0 50px #2d8fffaa,2px 2px 0 #000;
+  opacity:0}
+body.railCharged #railgunChargedText{animation:railChargedPop .5s ease-out forwards}
+@keyframes railChargedPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}55%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+
+#railgunWarp{position:absolute;inset:0;z-index:35;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at 50% 50%,rgba(223,241,255,0) 30%,rgba(120,190,255,.22) 100%)}
+body.railFire #railgunWarp{animation:railWarpPulse .35s ease-out}
+@keyframes railWarpPulse{0%{opacity:0;transform:scale(1.05)}18%{opacity:1}100%{opacity:0;transform:scale(1)}}
+body.railFire #c{animation:railWarpCanvas .35s ease-out}
+@keyframes railWarpCanvas{0%{transform:scale(1.025)}45%{transform:scale(1.006)}100%{transform:none}}
+
+#railgunCoolText{position:absolute;bottom:calc(15% + var(--safeB));left:50%;transform:translate(-50%,0);z-index:8;
+  pointer-events:none;white-space:nowrap;font:700 min(10px,3vw) 'Press Start 2P',monospace;letter-spacing:1.5px;
+  color:#8fb0c8;text-shadow:1px 1px 0 #000;opacity:0;transition:opacity .3s}
+body.railCooling #railgunCoolText{opacity:.85}
+
+@media (prefers-reduced-motion:reduce){
+  #railgunTitle,.railSpark{animation:none!important}
+  #railgunChargedText,body.railFire #railgunWarp,body.railFire #c{animation-duration:.01s!important}
+}
+
 #regionEditBtn{position:absolute;top:calc(182px + var(--safeT));right:calc(92px + var(--safeR));width:36px;height:36px;border-radius:8px;border:1.5px solid #66e0ff66;background:rgba(20,120,160,.22);color:#bff6ff;font-size:18px;font-weight:900;cursor:pointer;pointer-events:auto;z-index:10;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
 #regionEditBtn:active{transform:scale(.92)}
 #regionEditHud{position:absolute;top:calc(224px + var(--safeT));right:calc(8px + var(--safeR));width:min(270px,calc(100vw - 18px - var(--safeL) - var(--safeR)));padding:8px;border-radius:12px;border:1.5px solid rgba(102,224,255,.45);background:rgba(5,10,18,.82);box-shadow:0 0 18px rgba(0,180,255,.18);pointer-events:auto;z-index:40;color:#e7fbff;text-shadow:1px 1px 0 #000;touch-action:manipulation}
@@ -577,7 +634,7 @@ body.creative #bagCreative{display:block}
   #jumpBtn{width:76px;height:48px}
   #flyBtn{width:76px;height:38px}
   #flyDownBtn{width:56px;height:38px}
-  #crustBombBtn,#tsarBombBtn,#longinusBtn{width:56px;height:48px}
+  #crustBombBtn,#tsarBombBtn,#longinusBtn,#railgunBtn{width:56px;height:48px}
   #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
   #weaponBtn{right:calc(18px + var(--safeR));bottom:calc(248px + var(--safeB));width:54px;height:46px}
   #cdBar{right:calc(18px + var(--safeR));bottom:calc(151px + var(--safeB));width:72px}
@@ -588,7 +645,7 @@ body.creative #bagCreative{display:block}
   #menuBtns{gap:4px}
   #jumpBtn .aLabel,#placeBtn .aLabel{display:none}
   #actionWrap{grid-template-columns:auto 58px 76px}
-  #crustBombBtn,#tsarBombBtn,#longinusBtn{width:54px;height:46px}
+  #crustBombBtn,#tsarBombBtn,#longinusBtn,#railgunBtn{width:54px;height:46px}
   #breakBtn{width:76px;height:76px}
   #jumpBtn{width:76px;height:46px}
   #placeBtn{width:58px;height:58px}

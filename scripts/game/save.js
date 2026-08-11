@@ -187,6 +187,9 @@ async function saveGame(){
     // クールダウンだけ引き継ぐ）。着弾済みのクレーター/専用ブロックは worldEdits 経由で
     // 通常のブロック編集と同様に保存されるため、ここでは別途保存する必要が無い。
     longinus:(typeof longinusSaveState==='function')?longinusSaveState():null,
+    // 🚀 RAILGUN: LONGINUSと同じ理由でクールダウンだけ保存する（掘られたトンネルは
+    // worldEdits経由で保存される）。
+    railgun:(typeof railgunSaveState==='function')?railgunSaveState():null,
     chestCount,chests:chests.map(c=>({x:c.x,y:c.y,z:c.z,contents:{...c.contents}})),
     bedCount,beds:beds.map(b=>({x:b.x,y:b.y,z:b.z})),
     trophyCount,trophies:trophies.map(t=>({x:t.x,y:t.y,z:t.z})),

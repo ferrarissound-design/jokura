@@ -125,6 +125,57 @@ function sfxLonginusImpact(vol){
   sfxTsarRumble(v*.85,1.6);
 }
 
+// ─── 🚀 超大型レールガン 用（既存のWeb Audioノイズ/オシレーター手法を流用） ───
+// チャージ音: 徐々に音程が上がる「唸り」。tsarのように鳴らしっぱなしにできるよう
+// オシレーターを保持し、発射/中断時に sfxRailgunChargeStop で確実に止める。
+let _railChargeOscs=null,_railChargeGain=null;
+function sfxRailgunChargeStart(dur){
+  if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
+  sfxRailgunChargeStop(true);
+  try{
+    const t0=audioCtx.currentTime,d=Math.max(.3,dur||3);
+    const o1=audioCtx.createOscillator();o1.type='sawtooth';
+    o1.frequency.setValueAtTime(85,t0);o1.frequency.exponentialRampToValueAtTime(920,t0+d);
+    const o2=audioCtx.createOscillator();o2.type='sine';
+    o2.frequency.setValueAtTime(170,t0);o2.frequency.exponentialRampToValueAtTime(1840,t0+d);
+    const g=audioCtx.createGain();
+    g.gain.setValueAtTime(.0001,t0);
+    g.gain.exponentialRampToValueAtTime(.075,t0+d*.55);
+    g.gain.exponentialRampToValueAtTime(.15,t0+d);
+    o1.connect(g);o2.connect(g);g.connect(audioOut());
+    o1.start();o2.start();
+    _railChargeOscs=[o1,o2];_railChargeGain=g;
+  }catch(e){}
+}
+function sfxRailgunChargeStop(fast){
+  if(!_railChargeOscs)return;
+  try{
+    const t=audioCtx.currentTime,ramp=fast?.05:.12;
+    _railChargeGain.gain.cancelScheduledValues(t);
+    _railChargeGain.gain.setValueAtTime(Math.max(.0001,_railChargeGain.gain.value),t);
+    _railChargeGain.gain.exponentialRampToValueAtTime(.0001,t+ramp);
+    for(const o of _railChargeOscs)o.stop(t+ramp+.02);
+  }catch(e){}
+  _railChargeOscs=null;_railChargeGain=null;
+}
+// 発射音: 甲高い電気クラック(バチッ)の直後に低音の砲声(ドン)を重ねる
+function sfxRailgunFire(vol){
+  if(settings.sfxMuted)return;initAudio();if(!audioCtx||audioCtx.state!=='running')return;
+  const v=Math.max(.03,Math.min(.9,vol||.6));
+  try{
+    const d=.11,t0=audioCtx.currentTime;
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*d),audioCtx.sampleRate);
+    const data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+    const src=audioCtx.createBufferSource();src.buffer=buf;
+    const hp=audioCtx.createBiquadFilter();hp.type='highpass';hp.frequency.setValueAtTime(3400,t0);hp.Q.value=.9;
+    const g=audioCtx.createGain();g.gain.setValueAtTime(v,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    src.connect(hp);hp.connect(g);g.connect(audioOut());src.start();src.stop(t0+d);
+  }catch(e){}
+  setTimeout(()=>{playTone(66,.3,Math.min(.9,v*.95),'square');playTone(42,.42,Math.min(.9,v*.7),'sawtooth');},55);
+}
+// 遠くから返ってくる衝撃音（ゴゴゴゴ…）: tsarの轟音生成をそのまま再利用する
+function sfxRailgunRumble(vol,dur){sfxTsarRumble(vol,dur);}
+
 // ═══ BGM ═══
 let bgmNodes=[],bgmSeqTimer=null,bgmBiome=-1,bgmBoss=false,bgmWave=false,bgmUnder=false,bgmUnderDragon=false;
 function stopBgm(){stopSeq();bgmNodes.forEach(n=>{try{n.stop(audioCtx.currentTime+.05);}catch(e){}});bgmNodes=[];}
