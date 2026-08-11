@@ -73,8 +73,7 @@ const TsarBombaConfig={
   secondaryBooms:4,      // 遅れて鳴る二次爆発の回数
 
   // ── 誤使用防止 ──
-  confirm:true,          // 二段確認（一度目=警告、二度目=起動）を要求するか
-  confirmWindow:4.0,     // 二段確認の受付時間（秒）
+  confirm:true,          // 使用前にYES/NO確認ダイアログを出すか
 };
 
 // 実効値（DEBUG_SCALE 反映）。設定変更に追従できるよう毎回計算する軽い getter。
@@ -309,7 +308,6 @@ const _tsarAimMat=new THREE.MeshBasicMaterial({color:0xff2200,transparent:true,o
 const _tsarBombs=[];         // 落下/設置中の TsarBombaEntity
 let _tsarBombCD=0;           // クールダウン残り
 let _tsarTrailAcc=0;
-let _tsarArmT=0;             // 二段確認の受付タイマー
 let _tsarPlayerVX=0,_tsarPlayerVZ=0; // プレイヤーへの衝撃波ノックバック（main.js が消費）
 let _tsarFlashLevel=0;       // 全画面白飛びの現在レベル（毎フレーム減衰）
 let _tsarFlashEl=null;
@@ -621,7 +619,6 @@ function _tsarBombSweep(b){
 
 function updateTsarBomba(dt){
   if(_tsarBombCD>0)_tsarBombCD=Math.max(0,_tsarBombCD-dt);
-  if(_tsarArmT>0)_tsarArmT=Math.max(0,_tsarArmT-dt);
   const C=TsarBombaConfig;
   _tsarTrailAcc+=dt;const emitTrail=_tsarTrailAcc>=0.05;if(emitTrail)_tsarTrailAcc=0;
 
@@ -717,7 +714,7 @@ function tsarPlayerImpulse(dt){
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// 使用（設置 or 空中投下）＋誤使用防止（二段確認）
+// 使用（設置 or 空中投下）＋誤使用防止（YES/NO確認）
 // ══════════════════════════════════════════════════════════════════════════
 function _tsarAltitude(){const gy=surfaceHeightAt(Math.floor(P.x),Math.floor(P.z));return P.y-gy;}
 
@@ -727,15 +724,12 @@ function deployTsarBomba(){
   if(!gs.running)return;
   if(_tsarBombCD>0){showBonus('☢ チャージ中… '+_tsarBombCD.toFixed(1)+'s');playTone(200,.08,.06,'square');return;}
   if(!isCreative()&&(inv.tsarBomba|0)<=0){showBonus('☢ ツァーリ・ボンバがない！ クラフトしよう');playTone(180,.1,.08,'sawtooth');return;}
-  // 二段確認（誤使用防止）。設定 tsarConfirm=false で無効化できる。
+  // YES/NO確認（誤使用防止）。設定 tsarConfirm=false で無効化できる。
   const needConfirm=(typeof settings!=='undefined'&&settings.tsarConfirm===false)?false:TsarBombaConfig.confirm;
-  if(needConfirm&&_tsarArmT<=0){
-    _tsarArmT=TsarBombaConfig.confirmWindow;
-    showAlert('☢ 本当に使用しますか？ ワールドが崩壊します。もう一度で起動');
+  if(needConfirm&&!confirm('☢ 本当に使用しますか？ ワールドが崩壊します。')){
     playTone(140,.18,.12,'sawtooth');setTimeout(()=>playTone(110,.2,.1,'sawtooth'),160);
     return;
   }
-  _tsarArmT=0;
   const flying=typeof P!=='undefined'&&P.flying;
   if(flying&&_tsarAltitude()>=TsarBombaConfig.minAltitude){_tsarAirDrop();}
   else{_tsarGroundPlace();}
@@ -777,7 +771,7 @@ function updateTsarBombBtn(){
   const has=isCreative()||(inv.tsarBomba|0)>0;
   const show=!isDesktop&&gs.running&&has;
   btn.style.display=show?'':'none';
-  if(show){const n=isCreative()?'∞':(inv.tsarBomba|0);const armed=_tsarArmT>0;btn.innerHTML='<span class="aIcon">☢</span><span class="aLabel">'+(armed?'CONFIRM':'TSAR '+n)+'</span>';btn.style.filter=armed?'drop-shadow(0 0 8px #ff3300)':'';}
+  if(show){const n=isCreative()?'∞':(inv.tsarBomba|0);btn.innerHTML='<span class="aIcon">☢</span><span class="aLabel">TSAR '+n+'</span>';}
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -811,7 +805,7 @@ function resetTsarBomba(){
   _tsarBombs.length=0;
   TsarDestructionQueue.reset();ShockwaveController.reset();MushroomCloudEffect.reset();
   if(typeof resetTsarZones==='function')resetTsarZones(); // NEW GAME/ロード開始時は必ず前のワールドの永久破壊領域を消す
-  _tsarBombCD=0;_tsarTrailAcc=0;_tsarArmT=0;_tsarPlayerVX=0;_tsarPlayerVZ=0;_tsarFlashLevel=0;
+  _tsarBombCD=0;_tsarTrailAcc=0;_tsarPlayerVX=0;_tsarPlayerVZ=0;_tsarFlashLevel=0;
   const el=_tsarFlash();if(el)el.style.opacity='0';
 }
 

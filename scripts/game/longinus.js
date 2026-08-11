@@ -26,7 +26,7 @@ const LonginusConfig={
   cooldown:4.0,           // 演出完了後のクールダウン（秒）
   maxTargetRange:isTouch?34:42, // 着弾地点として選べる最大距離（描画範囲内に収め未生成チャンクへの空撃ちを防ぐ）
   minTargetRange:4,       // 近すぎる自爆的な指定を避ける下限
-  confirm:true,confirmWindow:4.0, // 誤使用防止の二段確認
+  confirm:true, // 使用前にYES/NO確認ダイアログを出すか
 
   // ── 発動シーケンス（秒） ──
   lockTime:1.3,          // Phase1: TARGET LOCK
@@ -185,12 +185,12 @@ function _lgnCloudPunch(x,y,z){
 // 状態
 // ══════════════════════════════════════════════════════════════════════════
 const _lgnStrikes=[];
-let _lgnCD=0,_lgnArmT=0;
+let _lgnCD=0;
 let _lgnFlashLevel=0,_lgnFlashEl=null;
 function _lgnFlash(){if(!_lgnFlashEl)_lgnFlashEl=document.getElementById('longinusFlash');return _lgnFlashEl;}
 
 // ══════════════════════════════════════════════════════════════════════════
-// 使用（二段確認 → 照準 → シーケンス開始）
+// 使用（YES/NO確認 → 照準 → シーケンス開始）
 // ══════════════════════════════════════════════════════════════════════════
 function deployLonginus(){
   if(!gs.running)return;
@@ -198,13 +198,10 @@ function deployLonginus(){
   if(_lgnCD>0){showBonus('🔱 チャージ中… '+_lgnCD.toFixed(1)+'s');playTone(200,.08,.06,'square');return;}
   if(!isCreative()&&(inv.longinus|0)<=0){showBonus('🔱 LONGINUSがない！ クラフトしよう');playTone(180,.1,.08,'sawtooth');return;}
   const needConfirm=(typeof settings!=='undefined'&&settings.longinusConfirm===false)?false:LonginusConfig.confirm;
-  if(needConfirm&&_lgnArmT<=0){
-    _lgnArmT=LonginusConfig.confirmWindow;
-    showAlert('🔱 本当に神罰を下しますか？ 世界に永久の傷跡が残ります。もう一度で起動');
+  if(needConfirm&&!confirm('🔱 本当に神罰を下しますか？ 世界に永久の傷跡が残ります。')){
     playTone(160,.18,.12,'sine');setTimeout(()=>playTone(120,.2,.1,'sine'),160);
     return;
   }
-  _lgnArmT=0;
   const tgt=_lgnPickTarget();
   if(!isCreative()){inv.longinus=Math.max(0,(inv.longinus|0)-1);updateInvHUD();}
   _lgnBeginStrike(tgt.x,tgt.y,tgt.z);
@@ -306,7 +303,6 @@ function _lgnEndStrike(s){
 
 function updateLonginus(dt){
   if(_lgnCD>0)_lgnCD=Math.max(0,_lgnCD-dt);
-  if(_lgnArmT>0)_lgnArmT=Math.max(0,_lgnArmT-dt);
   const C=LonginusConfig;
   for(let i=_lgnStrikes.length-1;i>=0;i--){
     const s=_lgnStrikes[i];
@@ -484,7 +480,7 @@ function updateLonginusBtn(){
   const has=isCreative()||(inv.longinus|0)>0;
   const show=!isDesktop&&gs.running&&has;
   btn.style.display=show?'':'none';
-  if(show){const n=isCreative()?'∞':(inv.longinus|0);const armed=_lgnArmT>0;btn.innerHTML='<span class="aIcon">🔱</span><span class="aLabel">'+(armed?'CONFIRM':'LONGINUS '+n)+'</span>';btn.style.filter=armed?'drop-shadow(0 0 8px #fff2c8)':'';}
+  if(show){const n=isCreative()?'∞':(inv.longinus|0);btn.innerHTML='<span class="aIcon">🔱</span><span class="aLabel">LONGINUS '+n+'</span>';}
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -505,7 +501,7 @@ function resetLonginus(){
   }
   _lgnStrikes.length=0;
   LonginusDestructionQueue.reset();
-  _lgnCD=0;_lgnArmT=0;_lgnFlashLevel=0;
+  _lgnCD=0;_lgnFlashLevel=0;
   const el=_lgnFlash();if(el)el.style.opacity='0';
 }
 
