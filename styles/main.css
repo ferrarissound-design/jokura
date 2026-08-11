@@ -829,3 +829,32 @@ body.endZone #dayCluster{visibility:hidden}
 @media (max-width:430px){
   #ezBanner .ezTitle{letter-spacing:2px}
 }
+
+/* ══ 🌀 終端界専用: DESTABILIZATION（崩壊度）ゲージ ══
+   biomeLabel の下に1行だけ足す小さなゲージ。既存HUDを圧迫しないよう最小限のサイズに
+   留め、終端界にいる間だけ JS(destabUpdateHUD)が display を切り替える。 */
+#destabGaugeWrap{display:flex;align-items:center;gap:4px;margin-top:2px}
+#destabGaugeLabel{font-size:7px;color:#d9b3ff;letter-spacing:1px;text-shadow:var(--ui-shadow);white-space:nowrap}
+#destabGaugeBar{display:inline-block;width:64px;height:6px;background:rgba(0,0,0,.55);border:1px solid rgba(180,90,255,.45);border-radius:3px;overflow:hidden}
+#destabGaugeFill{display:block;height:100%;width:0%;background:linear-gradient(90deg,#7a3ff0,#ff3d6b);transition:width .3s}
+#destabGaugePct{font-size:7px;color:#f0c8ff;letter-spacing:.5px;min-width:22px}
+#destabGaugeWrap.critical #destabGaugeLabel,#destabGaugeWrap.critical #destabGaugePct{color:#ff6666;animation:destabPulse 1s ease-in-out infinite}
+#destabGaugeWrap.critical #destabGaugeBar{border-color:rgba(255,60,60,.7)}
+@keyframes destabPulse{0%,100%{opacity:1}50%{opacity:.5}}
+body.creative #destabGaugeWrap{margin-top:1px}
+@media (max-width:430px){#destabGaugeBar{width:52px}}
+@media (max-width:360px){#destabGaugeLabel{display:none}#destabGaugeBar{width:44px}}
+
+/* ══ 🌀 終端界専用: DESTABILIZATIONの段階演出バナー（25/75%警告・100%覚醒・撃破後） ══
+   ezBanner と同じ「短時間で自然に消える中央演出」の型を踏襲しつつ、不穏な赤紫の配色で
+   ezBannerとは異なる文脈だとひと目でわかるようにする。 */
+#destabBanner{
+  position:absolute;top:64%;left:50%;transform:translate(-50%,-50%);z-index:27;
+  pointer-events:none;text-align:center;opacity:0;transition:opacity .4s;
+  text-shadow:2px 2px 0 #000,0 0 24px #ff2a4aaa;width:min(560px,92vw);
+}
+#destabBanner.show{opacity:1}
+.destabBannerTitle{font:900 min(24px,6.6vw) 'Press Start 2P',monospace;letter-spacing:4px;color:#ff5a6e;margin-bottom:10px}
+.destabBannerSub{font:700 min(14px,4vw) 'Press Start 2P',monospace;letter-spacing:2px;color:#e9c8ff}
+@media (max-width:430px){.destabBannerTitle{letter-spacing:2px}.destabBannerSub{letter-spacing:1px}}
+@media (prefers-reduced-motion:reduce){#destabGaugeWrap.critical #destabGaugeLabel,#destabGaugeWrap.critical #destabGaugePct{animation:none}}

@@ -159,6 +159,8 @@ function breakBlock(bh){
     else{delete worldEdits.placed[k];}
   }
   removeBlock(d.x,d.y,d.z);
+  // 🌀 終端界: 通常ブロック破壊でもDESTABILIZATIONがごく少量ずつ増加する
+  if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'&&typeof destabOnBlockBroken==='function')destabOnBlockBroken();
 }
 
 // ─── ENEMY BLOCK BREAKING ───

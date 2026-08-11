@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="jokura.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="styles/main.css?v=20260811endzone1">
+<link rel="stylesheet" href="styles/main.css?v=20260811destab1">
 
 </head>
 <body>
@@ -21,6 +21,13 @@
     <div class="tbCenter">
       <div id="dayCluster"><div id="dayIcon">☀️</div><div class="pval" id="dayVal">DAY 1</div></div>
       <div class="tbRow2"><div id="biomeLabel">🌿 PLAINS</div><div id="creativeBadge">∞ CREATIVE</div></div>
+      <!-- 🌀 終端界専用: DESTABILIZATION（崩壊度）ゲージ。終端界にいる間だけ表示する
+           小さなHUD。既存HUDを圧迫しないよう biomeLabel の下に1行だけ追加する。 -->
+      <div id="destabGaugeWrap" style="display:none">
+        <span id="destabGaugeLabel">DESTABILIZATION</span>
+        <span id="destabGaugeBar"><span id="destabGaugeFill"></span></span>
+        <span id="destabGaugePct">0%</span>
+      </div>
     </div>
     <div class="tbSide tbRight">
       <div class="pi"><div class="plabel">KILLS</div><div class="pval" id="killVal">0</div></div>
@@ -210,6 +217,13 @@
     <div class="ezTitle">THE END ZONE</div>
     <div class="ezLine">建造物の保護機能は停止しています。</div>
     <div class="ezLine ezLine2">取り敢えず、破壊しとけ！</div>
+  </div>
+  <!-- 🌀 終端界専用: DESTABILIZATION 25/75%の警告、100%の覚醒シーケンス、撃破後の
+       余韻テキストなど「不穏な短い演出」をまとめて担う再利用バナー。新規UIを
+       増やしすぎないよう、複数の場面でタイトル/サブテキストだけ差し替えて使う。 -->
+  <div id="destabBanner" aria-hidden="true">
+    <div id="destabBannerTitle" class="destabBannerTitle">WARNING</div>
+    <div id="destabBannerSub" class="destabBannerSub">ANOMALOUS MASS DETECTED</div>
   </div>
   <div id="cdBar"><div id="cdFill"></div></div>
   <div id="bossHpWrap">
@@ -422,7 +436,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260811endzone1';
+  var V='20260811destab1';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
   // dimensions/end_zone/end_zone_structures はその後: world.js のチャンク基盤と
@@ -436,7 +450,7 @@
              'structures_underground_city','structures_sky_city','structures_sunken_city',
              'structures_walking_fortress','structures_registry',
              'dimensions','end_zone','end_zone_structures',
-             'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','longinus','longinus_sequence','railgun','railgun_sequence','hud','region_editor','input','main','cheats','mobileui'];
+             'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','longinus','longinus_sequence','railgun','railgun_sequence','destabilization','colossus','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}
   function loadParts(){
     // async=false で、動的挿入でも挿入順に実行される（HTML 仕様）

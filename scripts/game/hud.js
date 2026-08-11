@@ -112,6 +112,9 @@ function updateHUD(){
   if(currentDimension==='endZone')$bl.textContent='🌀 THE END ZONE';
   else{const _wi=weatherIcon();$bl.textContent=getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z)))+(_wi?'  '+_wi:'');}
   if(currentDimension==='endZone'){$cd.textContent='X:'+Math.floor(P.x)+' Y:'+Math.floor(P.y)+' Z:'+Math.floor(P.z)+'\nTHE END ZONE';}
+  // 🌀 DESTABILIZATION / 巨大骸骨HUD: 終端界にいる間だけ表示・非表示を切り替える
+  if(typeof destabUpdateHUD==='function')destabUpdateHUD();
+  if(typeof colossusUpdateHUD==='function')colossusUpdateHUD();
   else{const aq=typeof getAquaticState==='function'?getAquaticState(P.x,P.z):null;const sy=surfaceHeightAt(Math.floor(P.x),Math.floor(P.z));$cd.textContent='X:'+Math.floor(P.x)+' Y:'+Math.floor(P.y)+' Z:'+Math.floor(P.z)+'\nBiome: '+getBiomeName(getBiome(Math.floor(P.x),Math.floor(P.z))).replace(/^[^ ]+ /,'')+'\nSurface:'+sy+(aq?' WaterY:'+(aq.surfaceY==null?'-':aq.surfaceY)+' Depth:'+aq.depth.toFixed(1)+' '+aq.kind:'');}
   const w=WEAPONS[weaponIdx];
   const arrowIcon=weaponIdx===3&&arrowMode!=='normal'?(arrowMode==='fire'?'🔥':'🧊'):'';

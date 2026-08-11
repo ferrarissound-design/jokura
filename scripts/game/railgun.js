@@ -130,6 +130,11 @@ function _railFire(){
   _railSpawnBeam(ox,oy,oz,dir);
   _railAnnihilateEntitiesAlongLine(ox,oy,oz,dir);
   RailgunDestructionQueue.begin(ox,oy,oz,dir,seed);
+  // 🌀 終端界: DESTABILIZATION加算 + 巨大骸骨の部位を一直線に貫通
+  if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'){
+    if(typeof destabOnWeaponUse==='function')destabOnWeaponUse('railgun',C.tunnelRadius,C.maxRange);
+    if(typeof colossusHitByRailgun==='function')colossusHitByRailgun(ox,oy,oz,dir,C.maxRange);
+  }
 }
 
 // ── 射線上のエンティティを問答無用で撃破する。

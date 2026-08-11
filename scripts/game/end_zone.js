@@ -177,6 +177,10 @@ function ezMount(){
   _ezPrevFogColor=scene.fog.color.clone();_ezPrevHemColor=hemLight.color.clone();
   _ezPrevHemI=hemLight.intensity;_ezPrevSunI=sun.intensity;_ezPrevClear=renderer.getClearColor(new THREE.Color());
   skyMesh.visible=false;rainGroup.visible=false;snowGroup.visible=false;
+  // 🌀 DESTABILIZATION / 巨大骸骨: HUDゲージと巨大骸骨メッシュを終端界の
+  // 入退場ライフサイクルに合わせて表示/非表示する（ezRing/ezParticlesと同じ流儀）
+  if(typeof destabUpdateHUD==='function')destabUpdateHUD();
+  if(typeof colossusMount==='function')colossusMount();
 }
 function ezUnmount(){
   if(!_ezMounted)return;
@@ -184,6 +188,9 @@ function ezUnmount(){
   if(_ezRing)scene.remove(_ezRing);
   if(_ezParticles)scene.remove(_ezParticles);
   document.body.classList.remove('endZone');
+  if(typeof colossusUnmount==='function')colossusUnmount();
+  if(typeof destabUpdateHUD==='function')destabUpdateHUD();
+  if(typeof colossusUpdateHUD==='function')colossusUpdateHUD();
   // 初回バナーがフェード中に離脱した場合、ezTick()が止まってタイマーが進まなくなり
   // バナーが表示されっぱなしになるのを防ぐ
   _ezBannerT=0;if($ezBanner)$ezBanner.classList.remove('show');
@@ -200,6 +207,8 @@ function ezApplyAtmosphere(){
   renderer.setClearColor(scene.fog.color);
   hemLight.color.setRGB(.36,.18,.5);hemLight.intensity=.5;
   sun.intensity=.04;
+  // 🌀 DESTABILIZATION: 崩壊度が上がるほど空/霧をさらに不安定にする（基本値の後に適用）
+  if(typeof destabApplyAtmosphere==='function')destabApplyAtmosphere();
 }
 let _ezBannerT=0;
 const $ezBanner=document.getElementById('ezBanner');
@@ -225,6 +234,9 @@ function ezTick(dt){
   // updateTorchLights()/updateBlockCursor() は main.js の tick() が終端界かどうかに
   // 関わらず毎フレーム呼ぶので、ここでは呼ばない(二重更新を避ける)。
   if(_ezBannerT>0){_ezBannerT-=dt;if(_ezBannerT<=0&&$ezBanner)$ezBanner.classList.remove('show');}
+  // 🌀 DESTABILIZATION / 巨大骸骨: 終端界にいる間だけ更新する（要件どおり）
+  if(typeof destabTick==='function')destabTick(dt);
+  if(typeof colossusTick==='function')colossusTick(dt);
 }
 
 // ═══ 終端界だけを再生成(BUILDメニューの「♻ 終端界を再生成」) ═══
@@ -236,6 +248,10 @@ function regenerateEndZone(){
   if(typeof resetTsarBomba==='function')resetTsarBomba();
   if(typeof resetLonginus==='function')resetLonginus();
   if(typeof resetRailgun==='function')resetRailgun();
+  // 🌀 終端界を再生成した場合は、DESTABILIZATION・巨大骸骨の覚醒状態・部位耐久・
+  // ABYSS CORE露出・撃破状態のすべてを初期状態へ戻す
+  if(typeof resetDestabilization==='function')resetDestabilization();
+  if(typeof resetColossus==='function')resetColossus();
   if(typeof regionEditor!=='undefined'&&regionEditor){regionEditor.close();regionEditor.resetUndo();regionEditor.resetSelection();}
   _disposeAllChunks();
   ezSeed=_deriveEndZoneSeed((WORLD_SEED^Date.now())>>>0);
