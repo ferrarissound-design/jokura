@@ -39,7 +39,11 @@ function _packLiveDimension(dim){
     longinus:(typeof longinusSaveState==='function')?longinusSaveState():null,
     railgun:(typeof railgunSaveState==='function')?railgunSaveState():null,
     px:P.x,py:P.y,pz:P.z,yaw:yaw,pitch:pitch,
-    firstEntryShown:dim==='endZone'?ezFirstEntryShown:undefined
+    firstEntryShown:dim==='endZone'?ezFirstEntryShown:undefined,
+    // 🌀 DESTABILIZATION / 巨大骸骨: ezFirstEntryShownと同じ扱い（終端界にだけ意味を
+    // 持つ単純な状態なので、離脱時にスナップショットへ退避し再入場時に復元する）
+    destab:(dim==='endZone'&&typeof destabSaveState==='function')?destabSaveState():undefined,
+    colossus:(dim==='endZone'&&typeof colossusSaveState==='function')?colossusSaveState():undefined,
   };
 }
 
@@ -73,6 +77,8 @@ function _swapDimension(target){
     ezSeed=snap?snap.seed:_deriveEndZoneSeed(WORLD_SEED);
     if(typeof ezInitNoise==='function')ezInitNoise(ezSeed);
     ezFirstEntryShown=snap?!!snap.firstEntryShown:false;
+    if(typeof destabLoadState==='function')destabLoadState(snap?snap.destab:null);
+    if(typeof colossusLoadState==='function')colossusLoadState(snap?snap.colossus:null);
     if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(snap?snap.tsarZones:[]);
     if(typeof updateEndZoneChunks==='function')updateEndZoneChunks(true);
   }
@@ -159,6 +165,8 @@ function dimensionsApplyContinueLoad(d){
   ezSeed=snap.seed!=null?snap.seed:_deriveEndZoneSeed(d.worldSeed||WORLD_SEED);
   if(typeof ezInitNoise==='function')ezInitNoise(ezSeed);
   ezFirstEntryShown=!!snap.firstEntryShown;
+  if(typeof destabLoadState==='function')destabLoadState(snap.destab||null);
+  if(typeof colossusLoadState==='function')colossusLoadState(snap.colossus||null);
   if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(snap.tsarZones||[]);
   if(typeof updateEndZoneChunks==='function')updateEndZoneChunks(true);
   resetWorldEdits();
@@ -182,4 +190,7 @@ function dimensionsResetForNewGame(){
   if(typeof ezUnmount==='function')ezUnmount();
   document.body.classList.remove('endZone');
   if(typeof ezUpdateMenuButtons==='function')ezUpdateMenuButtons();
+  // 🌀 新規ゲームでは DESTABILIZATION / 巨大骸骨の状態も必ず初期化する
+  if(typeof resetDestabilization==='function')resetDestabilization();
+  if(typeof resetColossus==='function')resetColossus();
 }

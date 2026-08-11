@@ -567,6 +567,13 @@ const TsarBombaExplosionController={
     };
     setTimeout(boom,Math.max(110,Math.min(900,d*7)));
 
+    // 🌀 終端界: DESTABILIZATION加算（威力設定=scaleで変動）+ 巨大骸骨の複数部位へ同時ダメージ
+    if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'){
+      const scaleVal=(typeof settings!=='undefined'&&settings.tsarScale!=null)?Number(settings.tsarScale):1;
+      if(typeof destabOnWeaponUse==='function')destabOnWeaponUse('tsar',S.destroyR,scaleVal);
+      if(typeof colossusHitByTsar==='function')colossusHitByTsar(cx,cy,cz,S.destroyR,scaleVal);
+    }
+
     // ── 第2段階: 中心消滅（強制即死） ──
     _tsarVaporizeEntities(cx,cy,cz,S.vaporizeR);
 

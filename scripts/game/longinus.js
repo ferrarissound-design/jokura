@@ -274,6 +274,11 @@ function _lgnImpact(s){
   if(typeof LonginusSequence!=='undefined')LonginusSequence.impactFlash(cx,topY,cz);
   _lgnVaporizeEntities(cx,topY+1,cz,C.craterRadius*1.35);
   LonginusDestructionQueue.begin(s.tx,s.ty,s.tz,s.seed);
+  // 🌀 終端界: DESTABILIZATION加算 + CHEST COREなど重要部位へ大ダメージ
+  if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'){
+    if(typeof destabOnWeaponUse==='function')destabOnWeaponUse('longinus',C.craterRadius);
+    if(typeof colossusHitByLonginus==='function')colossusHitByLonginus(cx,topY+1,cz,C.craterRadius*1.6);
+  }
   if(s.reticle&&s.reticle.pillarMat)s.reticle.pillarMat.opacity=0.95;
   s.phase='aftermath';s.t=0;
 }

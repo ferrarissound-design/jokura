@@ -175,7 +175,15 @@ const ExplosionEffectManager={
 const ExplosionSystem={
   queue:[],tasks:[],lastPlanned:0,lastMs:0,lastOcclusion:1,lastChunks:new Set(),
   enqueue(ev){this.queue.push(ev);},
-  _start(ev){ExplosionEffectManager.spawn(ev);_tntDamageAndKnockback(ev);const r=Math.ceil(ev.radius),size=r*2+1,total=settings.tntBlockDamage===false?0:size*size*size;this.tasks.push({ev,r,size,scan:0,total,blocks:[],destroy:0,drops:[],debris:0,chunks:new Set(),started:performance.now()});},
+  _start(ev){ExplosionEffectManager.spawn(ev);_tntDamageAndKnockback(ev);
+    // 🌀 終端界: DESTABILIZATION加算 + 巨大骸骨へのダメージ（TNT/地殻貫通爆弾どちらも
+    // ここを通るため、この1箇所だけで両方をカバーできる）
+    if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'){
+      const kind=ev.crust?'crust':'tnt';
+      if(typeof destabOnWeaponUse==='function')destabOnWeaponUse(kind,ev.radius);
+      if(typeof colossusHitByExplosion==='function')colossusHitByExplosion(ev.x,ev.y,ev.z,ev.radius,kind,ev.powerMul||1);
+    }
+    const r=Math.ceil(ev.radius),size=r*2+1,total=settings.tntBlockDamage===false?0:size*size*size;this.tasks.push({ev,r,size,scan:0,total,blocks:[],destroy:0,drops:[],debris:0,chunks:new Set(),started:performance.now()});},
   _scanOne(t){
     const i=t.scan++,s=t.size,dx=i%s-t.r,dy=Math.floor(i/s)%s-t.r,dz=Math.floor(i/(s*s))-t.r,dist=Math.hypot(dx,dy,dz);if(dist>t.ev.radius+.15)return;
     const x=Math.floor(t.ev.x)+dx,y=Math.floor(t.ev.y)+dy,z=Math.floor(t.ev.z)+dz,k=vKey(x,y,z),v=voxels[k];if(!v||!v.active)return;
