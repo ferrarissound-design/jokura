@@ -857,4 +857,36 @@ body.creative #destabGaugeWrap{margin-top:1px}
 .destabBannerTitle{font:900 min(24px,6.6vw) 'Press Start 2P',monospace;letter-spacing:4px;color:#ff5a6e;margin-bottom:10px}
 .destabBannerSub{font:700 min(14px,4vw) 'Press Start 2P',monospace;letter-spacing:2px;color:#e9c8ff}
 @media (max-width:430px){.destabBannerTitle{letter-spacing:2px}.destabBannerSub{letter-spacing:1px}}
+
+/* ══ 🕳 WORLD EATER「世界喰らい」— ABYSS COLOSSUS撃破後にだけ解禁される終端界専用
+   最終破壊装置。爆発ではなく「存在の消去」を表現するため、他の超兵器のような
+   派手な閃光/グリッチ演出は使わず、静かに暗転していく最小限の演出に留める。
+   解禁演出・侵食開始バナーはdestabBanner(このすぐ上)を再利用して新規UIを増やしすぎない。 ══ */
+#weFlash{position:absolute;inset:0;background:#05010a;opacity:0;pointer-events:none;z-index:33;transition:opacity .12s}
+
+/* 侵食中だけ表示し続ける常設の被害率リードアウト。destabBannerの一段下、
+   画面上部やや下寄りに置いて他のHUDと重ならないようにする。 */
+#weLossHud{
+  position:absolute;top:calc(15% + var(--safeT));left:50%;transform:translate(-50%,0);z-index:8;
+  pointer-events:none;text-align:center;display:none;width:min(420px,90vw);
+  text-shadow:2px 2px 0 #000,0 0 16px #6a1fbfaa;
+}
+#weLossHud .weTitle{font:900 min(11px,3.2vw) 'Press Start 2P',monospace;letter-spacing:2px;color:#c99bff}
+#weLossHud .weLine{font:700 min(9px,2.6vw) 'Press Start 2P',monospace;letter-spacing:2px;color:#e6d4ff;margin-top:4px}
+#weLossHud .wePct{font:900 min(17px,4.6vw) 'Press Start 2P',monospace;letter-spacing:1px;color:#ff6ea8;margin-top:4px}
+
+/* WORLD LOSS 100%: 画面が完全な黒へ落ち、「NOTHING REMAINS.」→「満足しましたか？」
+   だけが残る。ここだけは他の超兵器の一発フラッシュ演出と違い、フェードが遅く長い。 */
+#weEndScreen{
+  position:absolute;inset:0;z-index:40;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  background:#000;opacity:0;transition:opacity 2.4s ease;
+}
+#weEndScreen.show{opacity:1}
+#weEndTitle{
+  font:900 min(20px,5.6vw) 'Press Start 2P',monospace;letter-spacing:3px;color:#cfa8ff;
+  text-shadow:0 0 20px #7a2fdccc;text-align:center;width:min(600px,90vw);
+}
+@media (max-width:430px){#weLossHud .weTitle,#weLossHud .weLine{letter-spacing:1px}}
+@media (prefers-reduced-motion:reduce){#weEndScreen{transition-duration:.05s!important}}
 @media (prefers-reduced-motion:reduce){#destabGaugeWrap.critical #destabGaugeLabel,#destabGaugeWrap.critical #destabGaugePct{animation:none}}

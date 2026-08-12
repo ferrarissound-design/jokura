@@ -44,6 +44,9 @@ function _packLiveDimension(dim){
     // 持つ単純な状態なので、離脱時にスナップショットへ退避し再入場時に復元する）
     destab:(dim==='endZone'&&typeof destabSaveState==='function')?destabSaveState():undefined,
     colossus:(dim==='endZone'&&typeof colossusSaveState==='function')?colossusSaveState():undefined,
+    // 🕳 WORLD EATER: 上と同じ扱い。ブロック単位の削除ログではなく特異点座標+半径+seed
+    // だけの軽量スナップショット(worldEaterSaveState参照)。
+    worldEater:(dim==='endZone'&&typeof worldEaterSaveState==='function')?worldEaterSaveState():undefined,
   };
 }
 
@@ -79,6 +82,8 @@ function _swapDimension(target){
     ezFirstEntryShown=snap?!!snap.firstEntryShown:false;
     if(typeof destabLoadState==='function')destabLoadState(snap?snap.destab:null);
     if(typeof colossusLoadState==='function')colossusLoadState(snap?snap.colossus:null);
+    // 🕳 WORLD EATER: ezColossusDefeatedの復元後に読み込む(旧セーブからの自動解禁判定に必要)
+    if(typeof worldEaterLoadState==='function')worldEaterLoadState(snap?snap.worldEater:null);
     if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(snap?snap.tsarZones:[]);
     if(typeof updateEndZoneChunks==='function')updateEndZoneChunks(true);
   }
@@ -167,6 +172,8 @@ function dimensionsApplyContinueLoad(d){
   ezFirstEntryShown=!!snap.firstEntryShown;
   if(typeof destabLoadState==='function')destabLoadState(snap.destab||null);
   if(typeof colossusLoadState==='function')colossusLoadState(snap.colossus||null);
+  // 🕳 WORLD EATER: ezColossusDefeatedの復元後に読み込む(旧セーブからの自動解禁判定に必要)
+  if(typeof worldEaterLoadState==='function')worldEaterLoadState(snap.worldEater||null);
   if(typeof tsarZonesLoadState==='function')tsarZonesLoadState(snap.tsarZones||[]);
   if(typeof updateEndZoneChunks==='function')updateEndZoneChunks(true);
   resetWorldEdits();
@@ -193,4 +200,6 @@ function dimensionsResetForNewGame(){
   // 🌀 新規ゲームでは DESTABILIZATION / 巨大骸骨の状態も必ず初期化する
   if(typeof resetDestabilization==='function')resetDestabilization();
   if(typeof resetColossus==='function')resetColossus();
+  // 🕳 新規ゲームでは WORLD EATER の解禁/発動状態も必ず初期化する
+  if(typeof resetWorldEater==='function')resetWorldEater();
 }

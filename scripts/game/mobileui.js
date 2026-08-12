@@ -228,11 +228,13 @@ if($buildMenuPopover){
   if(rb){$buildMenuPopover.appendChild(rb);rb.addEventListener('pointerdown',()=>closeHudPopovers());}
 }
 if($bombMenuPopover){
-  const cb=document.getElementById('crustBombBtn'),tb=document.getElementById('tsarBombBtn'),lb=document.getElementById('longinusBtn'),rb=document.getElementById('railgunBtn');
+  const cb=document.getElementById('crustBombBtn'),tb=document.getElementById('tsarBombBtn'),lb=document.getElementById('longinusBtn'),rb=document.getElementById('railgunBtn'),wb=document.getElementById('worldEaterBtn');
   if(cb){$bombMenuPopover.appendChild(cb);cb.addEventListener('pointerdown',()=>closeHudPopovers());}
   if(tb){$bombMenuPopover.appendChild(tb);tb.addEventListener('pointerdown',()=>closeHudPopovers());}
   if(lb){$bombMenuPopover.appendChild(lb);lb.addEventListener('pointerdown',()=>closeHudPopovers());}
   if(rb){$bombMenuPopover.appendChild(rb);rb.addEventListener('pointerdown',()=>closeHudPopovers());}
+  // 🕳 WORLD EATER: 他の超兵器と同じ導線(#actionWrap→bombMenuPopover)に乗せる
+  if(wb){$bombMenuPopover.appendChild(wb);wb.addEventListener('pointerdown',()=>closeHudPopovers());}
 }
 
 function closeHudPopovers(){for(const p of _hudPopovers)p.classList.remove('show');}

@@ -64,6 +64,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='KeyM'){if(gs.running&&typeof deployTsarBomba==='function')deployTsarBomba();}
   if(e.code==='KeyL'){if(gs.running&&typeof deployLonginus==='function')deployLonginus();}
   if(e.code==='KeyK'){if(gs.running&&typeof deployRailgun==='function')deployRailgun();}
+  if(e.code==='KeyJ'){if(gs.running&&typeof deployWorldEater==='function')deployWorldEater();}
   if(e.code==='KeyV'){if(typeof _onRegionEditBtnTap==='function')_onRegionEditBtnTap();}
   if(e.code==='Escape'||e.code==='KeyP'){if(gs.running)togglePause();}
 });
