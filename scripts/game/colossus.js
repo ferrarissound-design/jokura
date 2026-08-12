@@ -378,6 +378,8 @@ function _colossusUpdateDefeatSeq(dt){
       ezColossus.defeatPhase='done';ezColossus.defeatT=0;
       if(typeof destabShowBanner==='function')destabShowBanner('SILENCE RESTORED','',3.0);
       if(typeof showBonus==='function')showBonus('🌀 終端界に、癒えない傷跡が残った');
+      // 🕳 WORLD EATER: 「SILENCE RESTORED」の少し後に解禁演出を始める(world_eater.js)
+      if(typeof worldEaterOnColossusDefeated==='function')worldEaterOnColossusDefeated();
     }
   }
   // 'done' フェーズ: 何もしない。骸骨は崩れた姿のまま永久に残る（世界に傷跡を残す）
@@ -500,4 +502,29 @@ function colossusLoadState(saved){
 // コア露出・撃破状態のすべてを初期状態へ戻す ═══
 function resetColossus(){
   colossusLoadState(null);
+}
+
+// ─── 🕳 WORLD EATER: 侵食半径が死骸に到達した分だけ、大量の新規メッシュを
+// 増やさず既存パーツの opacity を下げるだけで徐々に透明化・消失させる
+// (world_eater.js から呼ばれる。t: 0=無傷の死骸のまま 1=完全に消える) ───
+let _colossusErosionT=-1;
+function colossusApplyErosion(t){
+  if(!_colossusRoot)return;
+  t=Math.max(0,Math.min(1,t));
+  if(t===_colossusErosionT)return;
+  _colossusErosionT=t;
+  const op=1-t;
+  const meshes=[];
+  if(_colossusRock)_colossusRock.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  if(_colossusChest){meshes.push(_colossusChest.shell);for(const pl of _colossusChest.plates)meshes.push(pl);}
+  if(_colossusCore)meshes.push(_colossusCore);
+  if(_colossusHead){meshes.push(_colossusHead.shell);for(const f of _colossusHead.fragments)meshes.push(f);}
+  if(_colossusArmL)for(const m of _colossusArmL.shell)meshes.push(m);
+  if(_colossusArmR)for(const m of _colossusArmR.shell)meshes.push(m);
+  for(const m of meshes){
+    if(!m||!m.material)continue;
+    if(!m.material.transparent)m.material.transparent=true;
+    m.material.opacity=op;
+  }
+  _colossusRoot.visible=op>0.01;
 }

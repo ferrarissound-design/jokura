@@ -99,6 +99,9 @@ function generateEndZoneChunk(cx,cz){
   const zoneAny=_tzZones?(x,y,z)=>_tsarZonesRemoveAny(x,y,z,_tzZones):null;
   const put1=(wx,wy,wz,ti)=>{
     if(zoneAny&&zoneAny(wx,wy,wz))return;
+    // 🕳 WORLD EATER: 侵食領域内は「そもそも生成しない」ことで、大量の
+    // voxelを生成してから消すコストを払わずに済む(TSARの永久破壊領域と同じ考え方)
+    if(typeof weZoneRemovesAt==='function'&&weZoneRemovesAt(wx,wy,wz))return;
     const m=addBlock(wx,wy,wz,ti,false);if(m)meshes.add(m);
   };
   const islandsHere=[];
@@ -181,6 +184,8 @@ function ezMount(){
   // 入退場ライフサイクルに合わせて表示/非表示する（ezRing/ezParticlesと同じ流儀）
   if(typeof destabUpdateHUD==='function')destabUpdateHUD();
   if(typeof colossusMount==='function')colossusMount();
+  // 🕳 WORLD EATER: 特異点メッシュ/HUDを終端界の入退場ライフサイクルに合わせる
+  if(typeof worldEaterMount==='function')worldEaterMount();
 }
 function ezUnmount(){
   if(!_ezMounted)return;
@@ -189,6 +194,7 @@ function ezUnmount(){
   if(_ezParticles)scene.remove(_ezParticles);
   document.body.classList.remove('endZone');
   if(typeof colossusUnmount==='function')colossusUnmount();
+  if(typeof worldEaterUnmount==='function')worldEaterUnmount();
   if(typeof destabUpdateHUD==='function')destabUpdateHUD();
   if(typeof colossusUpdateHUD==='function')colossusUpdateHUD();
   // 初回バナーがフェード中に離脱した場合、ezTick()が止まってタイマーが進まなくなり
@@ -209,6 +215,8 @@ function ezApplyAtmosphere(){
   sun.intensity=.04;
   // 🌀 DESTABILIZATION: 崩壊度が上がるほど空/霧をさらに不安定にする（基本値の後に適用）
   if(typeof destabApplyAtmosphere==='function')destabApplyAtmosphere();
+  // 🕳 WORLD EATER: 侵食が進むほど空をさらに暗く・不安定にする（destabの後に適用）
+  if(typeof worldEaterApplyAtmosphere==='function')worldEaterApplyAtmosphere();
 }
 let _ezBannerT=0;
 const $ezBanner=document.getElementById('ezBanner');
@@ -237,6 +245,8 @@ function ezTick(dt){
   // 🌀 DESTABILIZATION / 巨大骸骨: 終端界にいる間だけ更新する（要件どおり）
   if(typeof destabTick==='function')destabTick(dt);
   if(typeof colossusTick==='function')colossusTick(dt);
+  // 🕳 WORLD EATER: 終端界にいる間だけ更新する（要件どおり）
+  if(typeof worldEaterTick==='function')worldEaterTick(dt);
 }
 
 // ═══ 終端界だけを再生成(BUILDメニューの「♻ 終端界を再生成」) ═══
@@ -252,6 +262,9 @@ function regenerateEndZone(){
   // ABYSS CORE露出・撃破状態のすべてを初期状態へ戻す
   if(typeof resetDestabilization==='function')resetDestabilization();
   if(typeof resetColossus==='function')resetColossus();
+  // 🕳 終端界を再生成した場合は、WORLD EATERの解禁・発動・WORLD LOSS・特異点・
+  // 侵食半径もすべて初期状態へ戻す（また最初から遊べるようにする）
+  if(typeof resetWorldEater==='function')resetWorldEater();
   if(typeof regionEditor!=='undefined'&&regionEditor){regionEditor.close();regionEditor.resetUndo();regionEditor.resetSelection();}
   _disposeAllChunks();
   ezSeed=_deriveEndZoneSeed((WORLD_SEED^Date.now())>>>0);
@@ -310,4 +323,6 @@ function ezUpdateMenuButtons(){
     else{if(icon)icon.textContent='🌀';if(label)label.textContent='終端界へ';}
   }
   if($ezRegenBtn)$ezRegenBtn.style.display=(cr&&currentDimension==='endZone')?'':'none';
+  // 🕳 WORLD EATER: ABYSS COLOSSUS未撃破ならボタンごと非表示にする(ロック状態の代わり)
+  if(typeof updateWorldEaterBtn==='function')updateWorldEaterBtn();
 }

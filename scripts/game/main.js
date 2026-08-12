@@ -53,6 +53,9 @@ const $longinusBtn=document.getElementById('longinusBtn');
 if($longinusBtn)bindTapSafe($longinusBtn,()=>{if(typeof deployLonginus==='function')deployLonginus();});
 const $railgunBtn=document.getElementById('railgunBtn');
 if($railgunBtn)bindTapSafe($railgunBtn,()=>{if(typeof deployRailgun==='function')deployRailgun();});
+// 🕳 WORLD EATER(モバイル): ABYSS COLOSSUS撃破後にだけ表示される最終破壊装置ボタン
+const $worldEaterBtnEl=document.getElementById('worldEaterBtn');
+if($worldEaterBtnEl)bindTapSafe($worldEaterBtnEl,()=>{if(typeof deployWorldEater==='function')deployWorldEater();});
 function updateFlyBtns(){
   const show=isCreative()&&!isDesktop&&gs.running;
   if($flyBtn){$flyBtn.style.display=show?'':'none';$flyBtn.textContent=P.flying?'🛬 LAND':'🕊 FLY';}
@@ -61,6 +64,7 @@ function updateFlyBtns(){
   if(typeof updateTsarBombBtn==='function')updateTsarBombBtn();
   if(typeof updateLonginusBtn==='function')updateLonginusBtn();
   if(typeof updateRailgunBtn==='function')updateRailgunBtn();
+  if(typeof updateWorldEaterBtn==='function')updateWorldEaterBtn();
   // 地上⇄飛行のHUD切替: body.flying の有無だけをCSS側の切替スイッチにする
   // (実際の表示/非表示・レイアウトは styles/main.css の body.creative.flying 側で完結させる)。
   document.body.classList.toggle('flying',!!P.flying);
