@@ -246,11 +246,14 @@ function weZoneRemovesAt(x,y,z){
 // （removeBlockを呼ぶだけで、それ以外のFXは一切呼ばない）。
 const WorldEaterErosion={
   update(zone,dt){
-    const C=WorldEaterConfig;
+    const C=WorldEaterConfig,atMax=zone.radius>=zone.maxRadius;
     zone.cursorAge=(zone.cursorAge||0)+dt;
-    if(!zone.cursorKeys||zone.cursorIdx>=zone.cursorKeys.length||zone.cursorAge>C.cursorRebuildInterval){
+    // 最大半径到達後はcursorAgeで途中リセットせず、全チャンクを最後まで走査する。
+    // 1スイープで削除が0件になった時だけ「読み込み済み領域の侵食完了」とみなす。
+    if(!zone.cursorKeys||(!atMax&&zone.cursorAge>C.cursorRebuildInterval)){
       zone.cursorKeys=Object.keys(chunks);zone.cursorIdx=0;zone.cursorAge=0;
-      if(!zone.cursorKeys.length)return;
+      if(atMax)zone.sweepRemoved=0;
+      if(!zone.cursorKeys.length)return atMax;
     }
     let checks=C.chunkChecksPerFrame,budget=C.blocksPerFrame;
     const prevDefer=_deferDirty;_deferDirty=true;
@@ -268,9 +271,9 @@ const WorldEaterErosion={
       for(const c of[[ox,oz],[ox+CHUNK,oz],[ox,oz+CHUNK],[ox+CHUNK,oz+CHUNK]]){
         const d=Math.hypot(c[0]-zone.x,c[1]-zone.z);if(d>far)far=d;
       }
-      let n=0;
+      let n=0,truncated=false;
       for(const vk of rec.keys){
-        if(n>=budget)break;
+        if(n>=budget){truncated=true;break;}
         const vp=vk.split('|'),x=+vp[0],y=+vp[1],z=+vp[2];
         if(!_weZoneShapeAt(x,y,z,zone))continue;
         const v=voxels[vk];if(!v||!v.active)continue;
@@ -279,9 +282,18 @@ const WorldEaterErosion={
         removeBlock(x,y,z);
       }
       budget-=n;
-      if(far<=zone.radius-margin)zone.doneChunks.add(key); // 完全に飲み込まれた: もう確認不要
+      if(atMax)zone.sweepRemoved=(zone.sweepRemoved||0)+n;
+      // 予算切れで途中までしか見ていないチャンクを完了扱いしない。
+      if(!truncated&&far<=zone.radius-margin)zone.doneChunks.add(key);
     }
     _deferDirty=prevDefer;if(!prevDefer)flushDirtyChunks();
+    if(atMax&&zone.cursorIdx>=zone.cursorKeys.length){
+      const settled=(zone.sweepRemoved||0)===0;
+      // 削除があったスイープの次に「削除ゼロ」を確認するまで繰り返す。
+      zone.cursorKeys=null;zone.cursorIdx=0;zone.cursorAge=0;zone.sweepRemoved=0;
+      return settled;
+    }
+    return false;
   },
 };
 
@@ -298,14 +310,20 @@ function _weApplyColossusErosion(){
 // ═══ WORLD LOSS: 侵食半径からの近似値。厳密な全ブロック走査はしない ═══
 function _weUpdateErosion(dt){
   if(!weZone)return;
-  const C=WorldEaterConfig;
+  const C=WorldEaterConfig,beforeRadius=weZone.radius;
   weZone.radius=Math.min(weZone.maxRadius,weZone.radius+C.growPerSec*dt);
-  weWorldLoss=Math.min(100,(weZone.radius/weZone.maxRadius)*100);
-  WorldEaterErosion.update(weZone,dt);
+  const reachedMax=beforeRadius<weZone.maxRadius&&weZone.radius>=weZone.maxRadius;
+  if(reachedMax){
+    // 成長途中のcursorを捨て、最大半径で必ず新しい完全スイープを開始する。
+    weZone.cursorKeys=null;weZone.cursorIdx=0;weZone.cursorAge=0;weZone.sweepRemoved=0;
+  }
+  // 100%は「半径が最大」ではなく「削除キューまで完全に空」を確認してから表示する。
+  weWorldLoss=Math.min(99,(weZone.radius/weZone.maxRadius)*100);
+  const settled=WorldEaterErosion.update(weZone,dt);
   _weApplyColossusErosion();
   _weUpdateAmbientDecay();
   _weUpdateBoundaryFx(dt);
-  if(weZone.radius>=weZone.maxRadius){
+  if(weZone.radius>=weZone.maxRadius&&settled){
     wePhase='done';wePhaseT=0;weWorldLoss=100;
     _weOnComplete();
   }
