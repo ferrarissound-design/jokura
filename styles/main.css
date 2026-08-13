@@ -1019,6 +1019,16 @@ body.creative #destabGaugeWrap{margin-top:1px}
   #weaponBtn .wIcon{font-size:17px}
   #weaponBtn .wLabel{display:none}
 
+  /* Safari のツールバーで高さが削られても、BUILD / BOMB と武器切替を
+     同じ横一列に保つ。縦積みのままだと約300px以下で互いに重なる。 */
+  body.creative #hudEdgeMenu{
+    top:auto;
+    right:calc(65px + var(--safeR));
+    bottom:calc(120px + var(--safeB));
+    flex-direction:row;
+    gap:7px;
+  }
+
   /* survival 上部HUDを少し圧縮して、視界を中央へ返す */
   #topBar{
     padding-top:calc(4px + var(--safeT));
