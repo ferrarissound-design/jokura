@@ -23,122 +23,92 @@ jobs:
           if ! grep -q "IPHONE_LANDSCAPE_COMPACT_HUD_V1" styles/main.css; then
             cat >> styles/main.css <<'EOF'
 
-/* ═══════════════════════════════════════════════════════════════════════
-   IPHONE_LANDSCAPE_COMPACT_HUD_V1
-   iPhone / touch device の横画面は横幅が広くても高さが極端に低い。
-   max-width ベースのスマホ判定から外れるため、短い landscape viewport を
-   独立レイアウトとして扱い、操作領域を下側へ圧縮する。
-   ═══════════════════════════════════════════════════════════════════════ */
-@media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
-  /* 下部ホットバーを少し薄くして、3D表示領域を確保 */
-  #hotbar{
-    bottom:calc(4px + var(--safeB));
-    gap:4px;
-    padding:1px;
-  }
-  .hslot{
-    width:38px;
-    height:38px;
-    border-radius:8px;
-    font-size:6px;
-  }
-  .dot{width:15px;height:15px}
-  .hcount{font-size:7px;right:2px;bottom:0}
+            /* ═══════════════════════════════════════════════════════════════════════
+               IPHONE_LANDSCAPE_COMPACT_HUD_V1
+               iPhone / touch device の横画面は横幅が広くても高さが極端に低い。
+               max-width ベースのスマホ判定から外れるため、短い landscape viewport を
+               独立レイアウトとして扱い、操作領域を下側へ圧縮する。
+               ═══════════════════════════════════════════════════════════════════════ */
+            @media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
+              #hotbar{
+                bottom:calc(4px + var(--safeB));
+                gap:4px;
+                padding:1px;
+              }
+              .hslot{
+                width:38px;
+                height:38px;
+                border-radius:8px;
+                font-size:6px;
+              }
+              .dot{width:15px;height:15px}
+              .hcount{font-size:7px;right:2px;bottom:0}
 
-  /* 左スティックは操作感を残しつつ 118px → 92px に圧縮 */
-  #joyWrap{
-    left:calc(8px + var(--safeL));
-    bottom:calc(48px + var(--safeB));
-    width:92px;
-    height:92px;
-  }
-  #joyKnob{
-    left:27px;
-    top:27px;
-    width:38px;
-    height:38px;
-  }
+              #joyWrap{
+                left:calc(8px + var(--safeL));
+                bottom:calc(48px + var(--safeB));
+                width:92px;
+                height:92px;
+              }
+              #joyKnob{
+                left:27px;
+                top:27px;
+                width:38px;
+                height:38px;
+              }
 
-  /* 右側操作群は縦積みをやめ、横一列のゲームパッド配置にする。
-     クリエイティブでは実際に見えている FLY/JUMP/PLACE/ATTACK を横へ逃がし、
-     Safari の低い viewport でも JUMP が画面上端へ追い出されないようにする。 */
-  body.creative #actionWrap{
-    right:calc(10px + var(--safeR));
-    bottom:calc(48px + var(--safeB));
-    display:flex;
-    flex-direction:row;
-    align-items:flex-end;
-    justify-content:flex-end;
-    gap:7px;
-    width:auto;
-  }
-  body.creative #actionWrap .abtn{
-    flex:none;
-  }
-  body.creative #breakBtn{
-    width:64px;
-    height:64px;
-  }
-  body.creative #breakBtn .aIcon{font-size:23px}
-  body.creative #breakBtn .aLabel{font-size:9px}
-  body.creative #placeBtn{
-    width:52px;
-    height:52px;
-  }
-  body.creative #jumpBtn{
-    width:62px;
-    height:42px;
-  }
-  body.creative #flyBtn{
-    width:60px;
-    height:38px;
-  }
-  body.creative #flyDownBtn{
-    width:52px;
-    height:38px;
-  }
-  body.creative #jumpBtn .aLabel,
-  body.creative #placeBtn .aLabel{
-    display:none;
-  }
+              body.creative #actionWrap{
+                right:calc(10px + var(--safeR));
+                bottom:calc(48px + var(--safeB));
+                display:flex;
+                flex-direction:row;
+                align-items:flex-end;
+                justify-content:flex-end;
+                gap:7px;
+                width:auto;
+              }
+              body.creative #actionWrap .abtn{flex:none}
+              body.creative #breakBtn{width:64px;height:64px}
+              body.creative #breakBtn .aIcon{font-size:23px}
+              body.creative #breakBtn .aLabel{font-size:9px}
+              body.creative #placeBtn{width:52px;height:52px}
+              body.creative #jumpBtn{width:62px;height:42px}
+              body.creative #flyBtn{width:60px;height:38px}
+              body.creative #flyDownBtn{width:52px;height:38px}
+              body.creative #jumpBtn .aLabel,
+              body.creative #placeBtn .aLabel{display:none}
 
-  /* 武器切替は ATTACK の上へ退避 */
-  #weaponBtn{
-    right:calc(14px + var(--safeR));
-    bottom:calc(118px + var(--safeB));
-    width:46px;
-    height:40px;
-  }
-  #weaponBtn .wIcon{font-size:17px}
-  #weaponBtn .wLabel{display:none}
+              #weaponBtn{
+                right:calc(14px + var(--safeR));
+                bottom:calc(118px + var(--safeB));
+                width:46px;
+                height:40px;
+              }
+              #weaponBtn .wIcon{font-size:17px}
+              #weaponBtn .wLabel{display:none}
 
-  /* 右上常設 HUD も短い画面では一回り小さくする */
-  #minimap{width:52px;height:52px}
-  #hudEdgeMenu{
-    top:calc(72px + var(--safeT));
-    gap:7px;
-  }
-  .edgeIcon{width:34px;height:34px;font-size:15px}
-  #buildMenuPopover,#bombMenuPopover{
-    top:calc(66px + var(--safeT));
-  }
+              #minimap{width:52px;height:52px}
+              #hudEdgeMenu{
+                top:calc(72px + var(--safeT));
+                gap:7px;
+              }
+              .edgeIcon{width:34px;height:34px;font-size:15px}
+              #buildMenuPopover,#bombMenuPopover{top:calc(66px + var(--safeT))}
 
-  /* 中央表示と補助ラベルの密度を落とす */
-  #xhair{width:18px;height:18px}
-  #hint,#hintPC,#goalLabel{display:none}
-  #waveAlert{font-size:14px}
+              #xhair{width:18px;height:18px}
+              #hint,#hintPC,#goalLabel{display:none}
+              #waveAlert{font-size:14px}
 
-  /* 低い横画面ではパネル類を viewport 内に固定 */
-  .hudPopover{
-    max-height:calc(100dvh - var(--safeT) - var(--safeB) - 16px);
-  }
-  #regionEditHud{
-    top:calc(6px + var(--safeT));
-    max-height:calc(100dvh - 12px - var(--safeT) - var(--safeB));
-    overflow-y:auto;
-  }
-}
-EOF
+              .hudPopover{
+                max-height:calc(100dvh - var(--safeT) - var(--safeB) - 16px);
+              }
+              #regionEditHud{
+                top:calc(6px + var(--safeT));
+                max-height:calc(100dvh - 12px - var(--safeT) - var(--safeB));
+                overflow-y:auto;
+              }
+            }
+            EOF
           fi
 
       - name: Bust stylesheet cache
@@ -146,9 +116,9 @@ EOF
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          import re
           s = re.sub(r'styles/main\.css\?v=[^"\']+', 'styles/main.css?v=20260813landscape1', s, count=1)
           p.write_text(s, encoding='utf-8')
           PY
