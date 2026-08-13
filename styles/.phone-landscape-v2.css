@@ -1,0 +1,73 @@
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHONE_LANDSCAPE_HUD_V2
+   ホーム画面起動 / Safari を問わず、低いタッチ端末の横画面では survival と
+   creative の両方を同じ「横持ちゲームパッド」配置へ寄せる。
+   V1 は creative の actionWrap だけを横並びにしていたため、survival では
+   JUMP / PLACE / ATTACK が縦積みのまま残っていた。ここでモード共通に補正する。
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
+  /* survival / creative 共通: 右手操作を横並びへ */
+  #actionWrap{
+    right:calc(10px + var(--safeR));
+    bottom:calc(48px + var(--safeB));
+    display:flex;
+    flex-direction:row;
+    align-items:flex-end;
+    justify-content:flex-end;
+    gap:7px;
+    width:auto;
+  }
+  #actionWrap .abtn{flex:none}
+
+  #breakBtn{width:64px;height:64px}
+  #breakBtn .aIcon{font-size:23px}
+  #breakBtn .aLabel{font-size:9px}
+  #placeBtn{width:52px;height:52px}
+  #jumpBtn{width:62px;height:42px}
+  #flyBtn{width:60px;height:38px}
+  #flyDownBtn{width:52px;height:38px}
+
+  /* 横持ちでは主要アイコンを優先し、文字で高さを消費しない */
+  #jumpBtn .aLabel,
+  #placeBtn .aLabel{display:none}
+
+  /* 武器切替を ATTACK 直上から少し離して誤タップを減らす */
+  #weaponBtn{
+    right:calc(14px + var(--safeR));
+    bottom:calc(120px + var(--safeB));
+    width:44px;
+    height:40px;
+  }
+  #weaponBtn .wIcon{font-size:17px}
+  #weaponBtn .wLabel{display:none}
+
+  /* survival 上部HUDを少し圧縮して、視界を中央へ返す */
+  #topBar{
+    padding-top:calc(4px + var(--safeT));
+    padding-left:calc(7px + var(--safeL));
+    padding-right:calc(7px + var(--safeR));
+  }
+  .uiIcon{width:34px;height:34px}
+  .uiIcon svg{width:20px;height:20px}
+  #menuBtns{gap:5px}
+
+  #leftStatus{
+    top:calc(46px + var(--safeT));
+    left:calc(7px + var(--safeL));
+    gap:3px;
+  }
+  #hpBar{width:min(132px,29vw);height:8px}
+  #fdBar{width:min(132px,29vw);height:7px}
+  #hpLabel{font-size:7px}
+  #meatLabel,#petLabel{font-size:8px}
+
+  /* ミニマップと十字を一段軽く */
+  #minimap{width:48px;height:48px}
+  #xhair{width:18px;height:18px}
+
+  /* ポップオーバーはホーム画面起動時も必ず可視領域内に収める */
+  .hudPopover{
+    max-height:calc(100dvh - var(--safeT) - var(--safeB) - 14px);
+  }
+}
