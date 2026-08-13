@@ -122,7 +122,8 @@ function _ssgSpawnEnemyAt(wx,wy,wz,idx){
     if(typeof markShadowCaster==='function')markShadowCaster(built.root);
     scene.add(built.root);
     const wv=(typeof gs!=='undefined'&&gs.wave)||0,mhp=et.hp+Math.floor(wv*.7);
-    enemies.push({root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:wx+.5,lastZ:wz+.5,flashMeshes:[built.body,built.head],dead:false,breakCd:0,lWing:built.lWing,rWing:built.rWing});
+    const spawned={root:built.root,body:built.body,head:built.head,hpBar:built.hpBar,hp:mhp,maxHp:mhp,type:et,velY:0,onGround:false,atkCd:0,stuckT:0,lastX:wx+.5,lastZ:wz+.5,flashMeshes:[built.body,built.head],dead:false,breakCd:0,lWing:built.lWing,rWing:built.rWing};
+    enemies.push(spawned);return spawned;
   }catch(e){console.warn('眠れる石神: 敵の配置に失敗',e);}
 }
 // ── 宝箱をワールド座標へ配置（既存の underTreasures 宝箱システムを流用、type3=豪華報酬）

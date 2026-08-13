@@ -4,7 +4,8 @@
   "private": true,
   "description": "ブラウザで遊べるボクセルサバイバルゲーム",
   "scripts": {
-    "lint": "node tools/lint.mjs"
+    "lint": "node tools/lint.mjs",
+    "test:dungeon": "node tools/test-dungeon-plan.cjs"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

@@ -451,7 +451,7 @@
 // グローバルスコープを共有し、下記の順序で実行される必要がある（元は単一の
 // boot() 関数だった）。THREE の読み込み完了後に順序を保って読み込む。
 (function(){
-  var V='20260813bugs1';
+  var V='20260813dungeon1';
   // structures_*.js は world.js（地形・チャンク基盤）に依存し、
   // structures_registry.js は全 generateXxx を読み込み時に参照するため最後に置く。
   // dimensions/end_zone/end_zone_structures はその後: world.js のチャンク基盤と
@@ -463,7 +463,7 @@
              'structures_sky_temple','structures_world_tree','structures_stone_god',
              'structures_inverted_castle','structures_frozen_village',
              'structures_underground_city','structures_sky_city','structures_sunken_city',
-             'structures_walking_fortress','structures_registry',
+             'structures_walking_fortress','structures_procedural_dungeon','structures_registry',
              'dimensions','end_zone','end_zone_structures',
              'sky','combat','entities','humanoids','explosives','aerial_bomb','tsar_bomba','tsar_sequence','longinus','longinus_sequence','railgun','railgun_sequence','destabilization','colossus','world_eater','hud','region_editor','input','main','cheats','mobileui'];
   function fail(){var t=document.getElementById('ovTitle');if(t)t.textContent='読込失敗';}

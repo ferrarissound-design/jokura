@@ -89,6 +89,7 @@ const $structPanel=document.getElementById('structPanel');
 const $structBody=document.getElementById('structBody');
 const $structCloseBtn=document.getElementById('structCloseBtn');
 let _structGenCooldownT=0;
+let _structCheatAccess=false;
 function buildStructPanel(){
   if(!$structBody)return;
   $structBody.innerHTML='';
@@ -98,7 +99,7 @@ function buildStructPanel(){
     b.innerHTML='<span class="sIcon">'+def.icon+'</span><span class="sLabel">'+def.label+'</span><span class="sDesc">'+def.desc+'</span>';
     b.addEventListener('pointerdown',(e)=>{
       e.stopPropagation(); // cheatBtnと同じ理由: パネルの縦スワイプを潰さない
-      if(!gs.running||!isCreative())return;
+      if(!gs.running||(!isCreative()&&!_structCheatAccess))return;
       const now=performance.now();
       if(now<_structGenCooldownT)return;
       _structGenCooldownT=now+1500;
@@ -110,8 +111,8 @@ function buildStructPanel(){
   }
   $structBody.appendChild(grid);
 }
-function openStructPanel(){if(!gs.running||!isCreative())return;buildStructPanel();setPanel($structPanel,true);}
-function closeStructPanel(){setPanel($structPanel,false);}
+function openStructPanel(cheatAccess){if(!gs.running||(!isCreative()&&!cheatAccess))return;_structCheatAccess=!!cheatAccess;buildStructPanel();setPanel($structPanel,true);}
+function closeStructPanel(){setPanel($structPanel,false);_structCheatAccess=false;}
 function _onStructBtnTap(){if(!gs.running||!isCreative())return;initAudio();openStructPanel();}
 if($structBtn)bindTapSafe($structBtn,_onStructBtnTap);
 function _hotbarSlotName(i){const s=(typeof slots!=='undefined')&&slots[i];return s?s.textContent.replace(/[0-9]/g,'').trim():'';}
@@ -432,6 +433,8 @@ async function continueGame(){
   srcLoadState(d.sunkenCity);
   // 🏰 歩き続ける巨大城塞: 移動体なのでチャンク生成前に位置だけ復元
   wfLoadState(d.walkingFortress);
+  // 🗝 自動生成ダンジョン: レイアウト座標とボス部屋の進行状態を復元
+  pdLoadState(d.proceduralDungeon);
   if(d.villages&&typeof generatedVillageChunks!=='undefined')(d.villages.generatedChunks||[]).forEach(k=>generatedVillageChunks.add(k));
   if(typeof villagesLoadState==='function')villagesLoadState(d.villages);
   // 🌀 終端界: セーブ時点でどちらのディメンションがアクティブだったかで分岐する。
@@ -614,6 +617,7 @@ function tick(now){
   updateCollapsingSkyCity(dt); // ☁ 天空都市: 近距離だけ炉・輪・落石・接触再起動を更新
   srcUpdate(dt); // 🌊 沈んだ王都: 海面メッシュの表示と海中の青いフォグ（遠距離では即リターン）
   updateWalkingFortress(dt); // 🏰 歩き続ける巨大城塞: 低頻度の移動体更新・搭乗中の運搬
+  pdUpdate(dt); // 🗝 自動生成ダンジョン: ボス部屋の封鎖・番人・報酬解放
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
