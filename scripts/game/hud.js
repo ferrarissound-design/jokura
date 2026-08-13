@@ -15,7 +15,7 @@ function updateMeatHUD(){
 }
 // EAT: 焼いたステーキがあれば優先して食べる（回復量が多い）。なければ生肉。
 function eatMeat(){
-  if(!gs.running)return;
+  if(!gs.running||gs.paused)return;
   if((inv.steak||0)>0){inv.steak--;P.food=Math.min(100,P.food+60);P.hp=Math.min(P.maxHp,P.hp+25);gs.score+=MEAT_SCORE;updateMeatHUD();updateInvHUD();showBonus('🍖 ステーキ 満腹度+60 HP+25  +'+MEAT_SCORE);playTone(760,.15,.1,'sine');setTimeout(()=>playTone(1000,.1,.08,'sine'),100);return;}
   if(meat<=0)return;meat--;P.food=Math.min(100,P.food+40);P.hp=Math.min(P.maxHp,P.hp+10);gs.score+=MEAT_SCORE;updateMeatHUD();showBonus('🍖 満腹度+40 HP+10  +'+MEAT_SCORE);playTone(700,.15,.1,'sine');setTimeout(()=>playTone(900,.1,.08,'sine'),100);}
 let _eatBtnLastT=0;

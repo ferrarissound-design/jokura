@@ -278,6 +278,9 @@ function gameComplete(){
   if(typeof longinusSeqAbort==='function')longinusSeqAbort(); // 🔱でボスを倒した場合の演出残留を防ぐ
   if(typeof railgunSeqAbort==='function')railgunSeqAbort(); // 🚀でボスを倒した場合の演出残留を防ぐ
   unlockAchievement('dragonSlayer');
+  // クリアで gs.running=false になるとオートセーブはもう走らない。
+  // 最終実績・クリア報酬・ボス撃破済み状態をここで確実に永続化する。
+  saveGame();
   saveScore(true);
   ovTitle.style.color='#00e5ff';ovTitle.style.textShadow='3px 3px 0 #006688,6px 6px 0 #003344,0 0 30px #00e5ffaa';
   ovTitle.textContent='GAME CLEAR!!';
@@ -719,7 +722,7 @@ function tick(now){
   renderer.render(scene,camera);
 }
 requestAnimationFrame(tick);
-document.addEventListener('touchmove',(e)=>{if(e.target.closest('#craftPanel')||e.target.closest('.menuCard')||e.target.closest('#ovContent'))return;e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',(e)=>{if(e.target.closest('#craftPanel')||e.target.closest('.menuCard')||e.target.closest('#ovContent')||e.target.closest('.hudPopover'))return;e.preventDefault();},{passive:false});
 // iOS Safari: prevent all zoom (pinch, double-tap, gesture)
 document.addEventListener('gesturestart',(e)=>e.preventDefault(),{passive:false});
 document.addEventListener('gesturechange',(e)=>e.preventDefault(),{passive:false});

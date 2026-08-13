@@ -159,9 +159,9 @@ function setFlying(on){
   else{showBonus('🛬 飛行OFF');playTone(500,.08,.06,'sine');}
   updateFlyBtns();
 }
-function toggleFly(){if(!gs.running||!isCreative())return;initAudio();setFlying(!P.flying);}
+function toggleFly(){if(!gs.running||gs.paused||!isCreative())return;initAudio();setFlying(!P.flying);}
 function doJump(){
-  if(!gs.running)return;initAudio();
+  if(!gs.running||gs.paused)return;initAudio();
   if(isCreative()){
     const now=performance.now();
     if(now-_flyTapT<350){_flyTapT=0;toggleFly();return;} // double-tap: toggle flight
