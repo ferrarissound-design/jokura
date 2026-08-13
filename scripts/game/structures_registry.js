@@ -23,6 +23,7 @@ const SPECIAL_STRUCTURES=[
   {key:'collapsingSkyCity',icon:'☁',label:'崩れかけの天空都市',desc:'雲上に浮かぶ半壊都市。中央動力炉を再起動して光の橋と隠し制御室を復旧',fn:generateCollapsingSkyCity},
   {key:'sunkenRoyalCity',icon:'🌊',label:'海底に沈んだ王都',desc:'海面下に眠る巨大都市。城壁と時計塔を越え、王宮の王の間と地下宝物庫を目指せ',fn:generateSunkenRoyalCity},
   {key:'walkingFortress',icon:'🏰',label:'歩き続ける巨大城塞',desc:'四脚でゆっくり世界を歩く地形級の移動要塞。内部ホール・動力炉・制御室を探索',fn:generateWalkingFortress},
+  {key:'proceduralDungeon',icon:'🗝',label:'自動生成ダンジョン',desc:'毎回変わる迷路・罠・宝箱を攻略し、最深部のボス部屋へ進め',fn:generateProceduralDungeon},
 ];
 function generateSpecialStructure(key){
   const def=SPECIAL_STRUCTURES.find(s=>s.key===key);

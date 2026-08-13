@@ -85,7 +85,7 @@ const CHEAT_SECTIONS=[
   {title:'🎲 イベント・移動',btns:[
     ['🧙 行商人を呼ぶ',()=>{removeMerchant();spawnMerchant();showBonus('🧙 行商人');}],
     ['☄ 隕石',()=>{maybeSpawnMeteor();}],
-    ['🏗 特殊生成',()=>{closeCheatPanel();openStructPanel();}],
+    ['🏗 特殊生成',()=>{closeCheatPanel();openStructPanel(true);}],
     ['⬆ 地上へ',()=>{const sh=getHeight(Math.floor(P.x),Math.floor(P.z));P.y=sh+2;P.velY=0;P.onGround=false;showBonus('⬆ 地上へ');}],
     ['🏠 原点(0,0)へ',()=>{P.x=0;P.z=0;const sh=getHeight(0,0);P.y=sh+2;P.velY=0;P.onGround=false;updateChunks(true);showBonus('🏠 原点へ');}],
     ['☁ 天空都市へ',()=>{const C=collapsingSkyCity;if(!C){showBonus('天空都市は未生成');return;}P.x=C.cx;P.z=C.cz;P.y=C.baseY+2;P.velY=0;P.onGround=false;P.flying=isCreative();updateChunks(true);applyWorldEdits();showBonus('☁ 天空都市の中央広場へ');}],

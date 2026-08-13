@@ -1050,6 +1050,7 @@ function clearWorld(){
   resetUndergroundCity(); // 🏛 封印された地底都市の演出メッシュと状態も破棄
   resetCollapsingSkyCity(); // ☁ 崩れかけの天空都市の輪・遠景演出と状態も破棄
   resetSunkenRoyalCity(); // 🌊 海底に沈んだ王都の海面メッシュと状態も破棄
+  resetProceduralDungeon(); // 🗝 自動生成ダンジョンの進行状態も破棄
   _disposeAllChunks();
 }
 

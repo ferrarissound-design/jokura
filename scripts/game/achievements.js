@@ -39,6 +39,7 @@ const ACHIEVEMENT_DEFS={
   phantomHunter:{title:'夜空の狩人',desc:'ファントムを倒す',reward:'SCORE +300',apply(){gs.score+=300;}},
   firstTrade:{title:'商談成立',desc:'行商人と取引する',reward:'SCORE +300',apply(){gs.score+=300;}},
   fullMoonSurvivor:{title:'満月を越えて',desc:'満月の夜を生き延びる',reward:'SCORE +500',apply(){gs.score+=500;}},
+  dungeonConqueror:{title:'迷宮の覇者',desc:'自動生成ダンジョンの番人を倒す',reward:'SCORE +1500',apply(){gs.score+=1500;}},
 };
 const achievements={};
 function resetAchievements(){for(const key of Object.keys(ACHIEVEMENT_DEFS))achievements[key]=false;}
