@@ -890,3 +890,88 @@ body.creative #destabGaugeWrap{margin-top:1px}
 @media (max-width:430px){#weLossHud .weTitle,#weLossHud .weLine{letter-spacing:1px}}
 @media (prefers-reduced-motion:reduce){#weEndScreen{transition-duration:.05s!important}}
 @media (prefers-reduced-motion:reduce){#destabGaugeWrap.critical #destabGaugeLabel,#destabGaugeWrap.critical #destabGaugePct{animation:none}}
+/* ════════════════════════════════════════════════════════════════════════
+   IPHONE_LANDSCAPE_COMPACT_HUD_V1
+   iPhone / touch device の横画面は横幅が広くても高さが極端に低い。
+   max-width ベースのスマホ判定から外れるため、短い landscape viewport を
+   独立レイアウトとして扱い、操作領域を下側へ圧縮する。
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
+  #hotbar{
+    bottom:calc(4px + var(--safeB));
+    gap:4px;
+    padding:1px;
+  }
+  .hslot{
+    width:38px;
+    height:38px;
+    border-radius:8px;
+    font-size:6px;
+  }
+  .dot{width:15px;height:15px}
+  .hcount{font-size:7px;right:2px;bottom:0}
+
+  #joyWrap{
+    left:calc(8px + var(--safeL));
+    bottom:calc(48px + var(--safeB));
+    width:92px;
+    height:92px;
+  }
+  #joyKnob{
+    left:27px;
+    top:27px;
+    width:38px;
+    height:38px;
+  }
+
+  body.creative #actionWrap{
+    right:calc(10px + var(--safeR));
+    bottom:calc(48px + var(--safeB));
+    display:flex;
+    flex-direction:row;
+    align-items:flex-end;
+    justify-content:flex-end;
+    gap:7px;
+    width:auto;
+  }
+  body.creative #actionWrap .abtn{flex:none}
+  body.creative #breakBtn{width:64px;height:64px}
+  body.creative #breakBtn .aIcon{font-size:23px}
+  body.creative #breakBtn .aLabel{font-size:9px}
+  body.creative #placeBtn{width:52px;height:52px}
+  body.creative #jumpBtn{width:62px;height:42px}
+  body.creative #flyBtn{width:60px;height:38px}
+  body.creative #flyDownBtn{width:52px;height:38px}
+  body.creative #jumpBtn .aLabel,
+  body.creative #placeBtn .aLabel{display:none}
+
+  #weaponBtn{
+    right:calc(14px + var(--safeR));
+    bottom:calc(118px + var(--safeB));
+    width:46px;
+    height:40px;
+  }
+  #weaponBtn .wIcon{font-size:17px}
+  #weaponBtn .wLabel{display:none}
+
+  #minimap{width:52px;height:52px}
+  #hudEdgeMenu{
+    top:calc(72px + var(--safeT));
+    gap:7px;
+  }
+  .edgeIcon{width:34px;height:34px;font-size:15px}
+  #buildMenuPopover,#bombMenuPopover{top:calc(66px + var(--safeT))}
+
+  #xhair{width:18px;height:18px}
+  #hint,#hintPC,#goalLabel{display:none}
+  #waveAlert{font-size:14px}
+
+  .hudPopover{
+    max-height:calc(100dvh - var(--safeT) - var(--safeB) - 16px);
+  }
+  #regionEditHud{
+    top:calc(6px + var(--safeT));
+    max-height:calc(100dvh - 12px - var(--safeT) - var(--safeB));
+    overflow-y:auto;
+  }
+}
