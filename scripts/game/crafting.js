@@ -79,7 +79,7 @@ function setArrowMode(m){
   playTone(700,.08,.08,'sine');
 }
 function cycleArrowMode(){
-  if(!gs.running)return;
+  if(!gs.running||gs.paused)return;
   const order=['normal','fire','ice'];
   let i=order.indexOf(arrowMode);
   for(let s=0;s<order.length;s++){

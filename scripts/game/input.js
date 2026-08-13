@@ -9,14 +9,20 @@
 
 // ═══ JOYSTICK ═══
 const joy={x:0,y:0};const jW=document.getElementById('joyWrap'),jK=document.getElementById('joyKnob');
-let jActive=false,jPid=null,jCX=60,jCY=60;const JMAX=38;
-function setKnob(dx,dy){let l=Math.hypot(dx,dy);if(l>JMAX){dx=dx/l*JMAX;dy=dy/l*JMAX;}jK.style.left=(60+dx-25)+'px';jK.style.top=(60+dy-25)+'px';joy.x=dx/JMAX;joy.y=dy/JMAX;}
-function resetKnob(){jK.style.left='35px';jK.style.top='35px';joy.x=0;joy.y=0;}
-if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAudio();jActive=true;jPid=e.pointerId;jW.setPointerCapture(jPid);const r=jW.getBoundingClientRect();jCX=r.left+r.width/2;jCY=r.top+r.height/2;setKnob(e.clientX-jCX,e.clientY-jCY);});jW.addEventListener('pointermove',(e)=>{if(!jActive||e.pointerId!==jPid)return;e.preventDefault();setKnob(e.clientX-jCX,e.clientY-jCY);});const endJ=(e)=>{if(e.pointerId!==jPid)return;jActive=false;jPid=null;resetKnob();};jW.addEventListener('pointerup',endJ);jW.addEventListener('pointercancel',endJ);}
+let jActive=false,jPid=null,jCX=60,jCY=60,jBaseX=60,jBaseY=60,jKnobW=50,jKnobH=50,jMax=34;
+function syncJoyGeometry(){
+  const r=jW.getBoundingClientRect(),kr=jK.getBoundingClientRect();
+  jBaseX=r.width/2||60;jBaseY=r.height/2||60;
+  jKnobW=kr.width||50;jKnobH=kr.height||50;
+  jMax=Math.max(1,Math.min((r.width-jKnobW)/2,(r.height-jKnobH)/2));
+}
+function setKnob(dx,dy){let l=Math.hypot(dx,dy);if(l>jMax){dx=dx/l*jMax;dy=dy/l*jMax;}jK.style.left=(jBaseX+dx-jKnobW/2)+'px';jK.style.top=(jBaseY+dy-jKnobH/2)+'px';joy.x=dx/jMax;joy.y=dy/jMax;}
+function resetKnob(){syncJoyGeometry();jK.style.left=(jBaseX-jKnobW/2)+'px';jK.style.top=(jBaseY-jKnobH/2)+'px';joy.x=0;joy.y=0;}
+if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAudio();jActive=true;jPid=e.pointerId;jW.setPointerCapture(jPid);const r=jW.getBoundingClientRect();syncJoyGeometry();jCX=r.left+r.width/2;jCY=r.top+r.height/2;setKnob(e.clientX-jCX,e.clientY-jCY);});jW.addEventListener('pointermove',(e)=>{if(!jActive||e.pointerId!==jPid)return;e.preventDefault();setKnob(e.clientX-jCX,e.clientY-jCY);});const endJ=(e)=>{if(e.pointerId!==jPid)return;jActive=false;jPid=null;resetKnob();};jW.addEventListener('pointerup',endJ);jW.addEventListener('pointercancel',endJ);window.addEventListener('resize',()=>{if(!jActive)resetKnob();});}
 
 // ═══ X操作（家具・農作業） ═══
 function doFurnitureAction(){
-  if(!gs.running)return;
+  if(!gs.running||gs.paused)return;
   if(mounted){dismountHorse();return;} // 騎乗中のXは常に降車
   if(typeof openNearestVillagerUI==='function'&&openNearestVillagerUI()){}
   else if(_merchantNearby())               openMerchantPanel();
@@ -40,9 +46,15 @@ function doFurnitureAction(){
 
 // ═══ INPUT ═══
 let lActive=false,lId=null,lX=0,lY=0;const LS_BASE=.006;let LS=LS_BASE*(settings.lookSens||1);const uiPointers=new Set();
-if(!isDesktop){document.addEventListener('pointerdown',(e)=>{const jr=jW.getBoundingClientRect(),JPAD=30;if(e.clientX<=jr.right+JPAD&&e.clientY>=jr.top-JPAD)return;const el=e.target;if(el&&(el.closest('#regionEditHud')||el.closest('#tntControl')||el.id==='tntModeBtn'||el.id==='regionEditBtn'||el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='questBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay')||el.closest('.menuPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
+if(!isDesktop){document.addEventListener('pointerdown',(e)=>{const jr=jW.getBoundingClientRect(),JPAD=30;if(e.clientX<=jr.right+JPAD&&e.clientY>=jr.top-JPAD)return;const el=e.target;if(el&&(el.closest('#regionEditHud')||el.closest('#tntControl')||el.id==='tntModeBtn'||el.id==='regionEditBtn'||el.closest('#actionWrap')||el.closest('#hotbar')||el.closest('#overlay')||el.closest('#minimap')||el.closest('#joyWrap')||el.closest('#topBar')||el.closest('.hudPopover')||el.id==='saveFloatBtn'||el.id==='eatBtn'||el.id==='craftBtn'||el.id==='questBtn'||el.id==='weaponBtn'||el.id==='pauseBtn'||el.closest('#craftPanel')||el.closest('#pauseOverlay')||el.closest('.menuPanel'))){uiPointers.add(e.pointerId);return;}lActive=true;lId=e.pointerId;lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointermove',(e)=>{if(!lActive||e.pointerId!==lId)return;yaw-=(e.clientX-lX)*LS;pitch-=(e.clientY-lY)*LS;pitch=Math.max(-1.45,Math.min(1.45,pitch));lX=e.clientX;lY=e.clientY;},{passive:true});document.addEventListener('pointerup',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});document.addEventListener('pointercancel',(e)=>{uiPointers.delete(e.pointerId);if(e.pointerId!==lId)return;lActive=false;lId=null;},{passive:true});}
 const keys={};
 document.addEventListener('keydown',(e)=>{
+  const pauseKey=e.code==='Escape'||e.code==='KeyP';
+  if(gs.paused){
+    keys[e.code]=false;
+    if(pauseKey&&!e.repeat){e.preventDefault();togglePause();}
+    return;
+  }
   keys[e.code]=true;
   if(e.code==='Space'&&gs.running){e.preventDefault();if(!e.repeat)doJump();}
   if(e.code>='Digit1'&&e.code<='Digit9')setType(parseInt(e.code[5])-1);
@@ -66,7 +78,7 @@ document.addEventListener('keydown',(e)=>{
   if(e.code==='KeyK'){if(gs.running&&typeof deployRailgun==='function')deployRailgun();}
   if(e.code==='KeyJ'){if(gs.running&&typeof deployWorldEater==='function')deployWorldEater();}
   if(e.code==='KeyV'){if(typeof _onRegionEditBtnTap==='function')_onRegionEditBtnTap();}
-  if(e.code==='Escape'||e.code==='KeyP'){if(gs.running)togglePause();}
+  if(pauseKey&&gs.running&&!e.repeat)togglePause();
 });
 document.addEventListener('keyup',(e)=>{keys[e.code]=false;});
 if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.();initAudio();});document.addEventListener('mousemove',(e)=>{if(document.pointerLockElement!==canvas)return;yaw-=e.movementX*.003;pitch-=e.movementY*.003;pitch=Math.max(-1.5,Math.min(1.5,pitch));});canvas.addEventListener('mousedown',(e)=>{if(document.pointerLockElement!==canvas)return;if(e.button===0){attackHeld=true;doAttack();}if(e.button===2)doPlace();});document.addEventListener('mouseup',(e)=>{if(e.button===0)attackHeld=false;});canvas.addEventListener('contextmenu',(e)=>e.preventDefault());}
@@ -75,7 +87,7 @@ if(isDesktop){canvas.addEventListener('click',()=>{canvas.requestPointerLock?.()
 let curType=0;const slots=[...document.querySelectorAll('.hslot')];
 function setType(idx){if(idx<0||idx>=SLOT_TI.length)return;curType=idx;slots.forEach(x=>x.classList.remove('active'));slots[idx].classList.add('active');if(typeof updateRegionEditUI==='function')updateRegionEditUI();if(typeof updateTNTModeButton==='function')updateTNTModeButton();}
 slots.forEach(s=>{s.addEventListener('pointerdown',(ev)=>{ev.preventDefault();initAudio();setType(parseInt(s.dataset.i,10));});});
-function cycleWeapon(){let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
+function cycleWeapon(){if(!gs.running||gs.paused)return;let next=(weaponIdx+1)%WEAPONS.length;for(let i=0;i<WEAPONS.length;i++){if(unlockedWeapons[next])break;next=(next+1)%WEAPONS.length;}if(!unlockedWeapons[next]){showBonus('🔒 武器未解放');return;}weaponIdx=next;showBonus(WEAPONS[weaponIdx].name);playTone(600,.08,.08,'sine');}
 
 // ═══ FISHING ═══
 let fishCD=0;
@@ -210,7 +222,7 @@ function tryBossBreakBlock(){
 }
 
 function doAttack(e){
-  if(e)e.preventDefault();if(!gs.running)return;initAudio();
+  if(e)e.preventDefault();if(!gs.running||gs.paused)return;initAudio();
   if(regionEditor&&regionEditor.state.active){const bh=castVoxel(true);if(bh)regionEditor.pick(bh);return;}
   if(attackCD>0)return;
   if(!unlockedWeapons[weaponIdx]){showBonus('🔒 武器未解放！クラフトしよう');playTone(200,.08,.08,'sawtooth');return;}
@@ -265,7 +277,7 @@ function doAttack(e){
 }
 
 function doPlace(e){
-  if(e)e.preventDefault();if(!gs.running)return;initAudio();
+  if(e)e.preventDefault();if(!gs.running||gs.paused)return;initAudio();
   if(regionEditor&&regionEditor.state.active){const rb=castVoxel(true);if(rb)regionEditor.pick(rb);return;}
   const bh=castVoxel(true);if(!bh)return;
   if(bh.ti===TNT_BLOCK&&openTNTControlFromHit(bh))return;

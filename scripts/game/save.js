@@ -240,8 +240,11 @@ const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=docu
 function captureSavePreview(){
   try{
     if(!canvas||!canvas.width||!canvas.height)return '';
+    // WebGL の既定値 preserveDrawingBuffer=false では、通常フレームの描画内容は
+    // 次のタスクまで保持される保証がない。コピー直前に再描画して黒画像を防ぐ。
+    renderer.render(scene,camera);
     const out=document.createElement('canvas');out.width=220;out.height=124;
-    const ctx=out.getContext('2d');ctx.drawImage(canvas,0,0,out.width,out.height);
+    const ctx=out.getContext('2d');ctx.drawImage(renderer.domElement,0,0,out.width,out.height);
     return out.toDataURL('image/jpeg',0.58);
   }catch(e){return '';}
 }
