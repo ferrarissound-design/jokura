@@ -278,3 +278,95 @@ _bindPopAction('bombTntSelectBtn',()=>{
 
 // 初期反映（タイトル表示中も body クラスを整合させておく）
 applyMobileModeUI();
+
+// ============================================================================
+// END ZONE STATE CONSISTENCY HOTFIX
+// PARTSの最後で全モジュールが揃った後に、既存の公開関数を最小限ラップする。
+// 1) 終端界の浮島高度をsurfaceHeightAtへ反映
+// 2) WORLD EATER侵食域へのブロック再配置/再建を禁止
+// 3) ABYSS COLOSSUSの侵食opacityが非表示状態やCOREを復活させないよう修正
+// 4) WORLD EATER完了後の再入場で無音状態を復元
+// ============================================================================
+const _ezHotfixSurfaceHeightAt=surfaceHeightAt;
+function _ezHotfixEndZoneSurfaceHeightAt(wx,wz){
+  wx=Math.floor(wx);wz=Math.floor(wz);
+  // 読み込み済み列は、建造物も含めた実際の最上面を優先する。
+  for(let y=EZ_ISLAND_Y_MAX+30;y>=EZ_VOID_Y;y--){
+    const v=voxels[vKey(wx,y,wz)];
+    if(v&&v.active&&v.ti!==WATER_BLOCK&&v.ti!==LAVA_BLOCK)return y;
+  }
+  let best=null;
+  const testIsland=(isl)=>{
+    if(!isl)return;
+    const dx=wx-isl.wx,dz=wz-isl.wz;
+    const q=(dx*dx)/(isl.rx*isl.rx)+(dz*dz)/(isl.rz*isl.rz);
+    const edge=ezRand(wx,wz,9100+((isl.gx*131+isl.gz*977)|0));
+    if(q>1+(edge-.5)*.22)return;
+    const dome=Math.floor((ezNoiseV(wx*.045,wz*.045)+1)*1.6);
+    const sy=isl.topY-Math.floor(Math.max(0,q-.55)*7)+dome;
+    if(best==null||sy>best)best=sy;
+  };
+  testIsland(_ezCentralIsland());
+  const gx0=Math.floor(wx/EZ_ISLAND_GRID),gz0=Math.floor(wz/EZ_ISLAND_GRID);
+  for(let gx=gx0-1;gx<=gx0+1;gx++)for(let gz=gz0-1;gz<=gz0+1;gz++)testIsland(_ezIslandAt(gx,gz));
+  return best==null?EZ_VOID_Y-1:best;
+}
+window.surfaceHeightAt=function(wx,wz){
+  if(typeof currentDimension!=='undefined'&&currentDimension==='endZone')return _ezHotfixEndZoneSurfaceHeightAt(wx,wz);
+  return _ezHotfixSurfaceHeightAt(wx,wz);
+};
+
+const _ezHotfixAddBlock=addBlock;
+window.addBlock=function(x,y,z,ti,addToScene,playerPlaced,meta){
+  if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'&&typeof weZoneRemovesAt==='function'&&weZoneRemovesAt(x,y,z))return;
+  return _ezHotfixAddBlock(x,y,z,ti,addToScene,playerPlaced,meta);
+};
+
+const _ezHotfixApplyWorldEdits=applyWorldEdits;
+window.applyWorldEdits=function(){
+  if(typeof currentDimension!=='undefined'&&currentDimension==='endZone'&&typeof weZoneRemovesAt==='function'){
+    for(const col of _wePendingCols){
+      const set=_weIndex.get(col);if(!set)continue;
+      for(const k of set){
+        if(worldEdits.placed[k]===undefined)continue;
+        const p=k.split('|'),x=+p[0],y=+p[1],z=+p[2];
+        if(weZoneRemovesAt(x,y,z)){delete worldEdits.placed[k];delete worldEdits.removed[k];}
+      }
+    }
+  }
+  return _ezHotfixApplyWorldEdits();
+};
+
+window.colossusApplyErosion=function(t){
+  if(!_colossusRoot)return;
+  t=Math.max(0,Math.min(1,t));
+  _colossusErosionT=t;
+  const op=1-t,meshes=[];
+  if(_colossusRock)_colossusRock.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  if(_colossusChest){meshes.push(_colossusChest.shell);for(const pl of _colossusChest.plates)meshes.push(pl);}
+  if(_colossusHead){meshes.push(_colossusHead.shell);for(const f of _colossusHead.fragments)meshes.push(f);}
+  if(_colossusArmL)for(const m of _colossusArmL.shell)meshes.push(m);
+  if(_colossusArmR)for(const m of _colossusArmR.shell)meshes.push(m);
+  for(const m of meshes){
+    if(!m||!m.material)continue;
+    if(!m.material.transparent)m.material.transparent=true;
+    m.material.opacity=op;
+  }
+  if(_colossusCore&&_colossusCore.material){
+    if(!_colossusCore.material.transparent)_colossusCore.material.transparent=true;
+    const coreBase=!ezColossusDefeated&&ezColossus.coreExposed&&ezColossus.core.hp>0?.7:0;
+    _colossusCore.material.opacity=coreBase*op;
+  }
+  const baseVisible=(typeof ezDestab!=='undefined'&&ezDestab>=50)||ezColossusAwakened||ezColossusDefeated;
+  _colossusRoot.visible=baseVisible&&op>.01;
+};
+
+const _ezHotfixWorldEaterMount=worldEaterMount;
+window.worldEaterMount=function(){
+  _ezHotfixWorldEaterMount();
+  if(wePhase==='done'&&typeof audioDuckTo==='function')audioDuckTo(.02,.35);
+  else if(wePhase==='eroding'){
+    _weLastDuckPct=-1;
+    if(typeof _weUpdateAmbientDecay==='function')_weUpdateAmbientDecay();
+  }
+};
