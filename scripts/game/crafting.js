@@ -54,6 +54,8 @@ function updateInvHUD(){
   optRow($invIronIngot,'🔩 IRON INGOT',inv.ironIngot,null);
   $invDiamond.textContent='💎 DIAMOND: '+q(inv.diamond);
   $invDragonCore.textContent='💠 DRAGON CORE: '+q(inv.dragonCore);
+  const dungeonKeyRow=document.getElementById('invDungeonKey');
+  if(dungeonKeyRow)dungeonKeyRow.textContent='🗝 DUNGEON KEY: '+q(inv.dungeonKey||0);
   if($invSeed)$invSeed.textContent='🌱 SEED: '+q(inv.seed);
   if($invWheat)$invWheat.textContent='🌾 WHEAT: '+q(inv.wheat);
   if($invWool)$invWool.textContent='🧶 WOOL: '+q(inv.wool);
@@ -68,6 +70,7 @@ function updateInvHUD(){
   if(typeof updateTsarBombBtn==='function')updateTsarBombBtn();
   if(typeof updateLonginusBtn==='function')updateLonginusBtn();
   if(typeof updateRailgunBtn==='function')updateRailgunBtn();
+  if(typeof updateDungeonKeyBtn==='function')updateDungeonKeyBtn();
   if(typeof renderBagIfOpen==='function')renderBagIfOpen();
 }
 
@@ -140,6 +143,7 @@ const MATERIAL_LABELS={
   arrow:'🏹 ARROW',
   diamond:'💎 DIAMOND',
   dragonCore:'💠 DRAGON CORE',
+  dungeonKey:'🗝 DUNGEON KEY',
   slab:'⬜ SLAB',
   stair:'🪜 STAIRS',
   seed:'🌱 SEED',
@@ -401,7 +405,7 @@ document.addEventListener('pointerdown',(e)=>{if(!$craftPanel.classList.contains
 function resetInv(){
   inv.wood=0;inv.stone=0;inv.sand=0;inv.grass=0;inv.brick=0;inv.arrow=0;inv.fireArrow=0;inv.iceArrow=0;inv.diamond=0;inv.dragonCore=0;inv.torch=0;inv.slab=0;inv.stair=0;inv.seed=0;inv.wheat=0;inv.wool=0;
   inv.ice=0;inv.obsidian=0;inv.crystal=0;inv.cactus=0;inv.mushroom=0;inv.clay=0;
-  inv.ironOre=0;inv.ironIngot=0;inv.glass=0;inv.woolBlock=0;inv.tnt=0;inv.steak=0;inv.crustBomb=0;inv.tsarBomba=0;inv.longinus=0;inv.judgmentCore=0;inv.railgun=0;
+  inv.ironOre=0;inv.ironIngot=0;inv.glass=0;inv.woolBlock=0;inv.tnt=0;inv.steak=0;inv.crustBomb=0;inv.tsarBomba=0;inv.longinus=0;inv.judgmentCore=0;inv.railgun=0;inv.dungeonKey=0;
   arrowMode='normal';resetEnchants();
   hasDiamondSword=false;hasIronSword=false;
   WEAPONS[1].name='⚔ Sword';WEAPONS[1].dmg=3;WEAPONS[1].cd=0.4;

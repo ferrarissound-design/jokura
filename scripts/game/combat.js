@@ -788,8 +788,16 @@ function killBoss(){
   sfxBossDie();showBonus((wasMiniBoss?'⚡ MINI BOSS DEAD! ':'💀 BOSS DEAD! ')+'+'+bossScore);
   scene.remove(bossRoot);disposeObject3D(bossRoot);const wasFinal=boss.def.finalBoss||false,wasDungeonBoss=!!boss.def.dungeonBoss;boss=null;$bossWrap.classList.remove('show');
   if(dDrop>0){const hadDiamond=inv.diamond>0;inv.diamond+=dDrop;updateInvHUD();if(!hadDiamond)unlockAchievement('firstDiamond');setTimeout(()=>showBonus('💎×'+dDrop+' ゲット！'),1000);}
+  const wasWaveBoss=!wasMiniBoss&&!wasFinal&&!wasDungeonBoss;
+  const dungeonActive=typeof proceduralDungeon!=='undefined'&&proceduralDungeon&&!proceduralDungeon.bossDefeated;
+  let dungeonKeyDropped=false;
+  if(wasWaveBoss&&!isCreative()&&!dungeonActive&&(inv.dungeonKey||0)<1){
+    inv.dungeonKey=1;dungeonKeyDropped=true;updateInvHUD();
+    setTimeout(()=>showAlert('🗝 迷宮の鍵を手に入れた！ 左上の「迷宮を開く」から挑戦できる'),1250);
+  }
   if(!wasMiniBoss&&!wasFinal)unlockAchievement('bossSlayer');
   if(wasDungeonBoss&&typeof pdOnBossDefeated==='function')pdOnBossDefeated();
+  if(dungeonKeyDropped)saveGame();
   if(wasFinal)setTimeout(()=>gameComplete(),2000);
 }
 function updateBoss(dt){if(!boss)return;const bp=boss.root.position,sc=boss.sc;const dx=P.x-bp.x,dz=P.z-bp.z,dist=Math.hypot(dx,dz);

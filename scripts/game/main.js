@@ -53,6 +53,8 @@ const $longinusBtn=document.getElementById('longinusBtn');
 if($longinusBtn)bindTapSafe($longinusBtn,()=>{if(typeof deployLonginus==='function')deployLonginus();});
 const $railgunBtn=document.getElementById('railgunBtn');
 if($railgunBtn)bindTapSafe($railgunBtn,()=>{if(typeof deployRailgun==='function')deployRailgun();});
+const $dungeonKeyBtn=document.getElementById('dungeonKeyBtn');
+if($dungeonKeyBtn)bindTapSafe($dungeonKeyBtn,()=>{if(typeof openSurvivalDungeon==='function')openSurvivalDungeon();});
 // 🕳 WORLD EATER(モバイル): ABYSS COLOSSUS撃破後にだけ表示される最終破壊装置ボタン
 const $worldEaterBtnEl=document.getElementById('worldEaterBtn');
 if($worldEaterBtnEl)bindTapSafe($worldEaterBtnEl,()=>{if(typeof deployWorldEater==='function')deployWorldEater();});
@@ -183,6 +185,7 @@ function applyModeUI(){
   if(typeof applyMobileModeUI==='function')applyMobileModeUI();
   if(typeof updateTNTModeButton==='function')updateTNTModeButton();
   if(typeof ezUpdateMenuButtons==='function')ezUpdateMenuButtons(); // 🌀 サバイバルでは入口を出さない
+  if(typeof updateDungeonKeyBtn==='function')updateDungeonKeyBtn();
 }
 let _weaponBtnLastT=0;
 function _onWeaponBtnTap(){const now=Date.now();if(now-_weaponBtnLastT<100)return;_weaponBtnLastT=now;cycleWeapon();}

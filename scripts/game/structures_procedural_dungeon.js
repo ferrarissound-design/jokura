@@ -164,6 +164,21 @@ function resetProceduralDungeon(){
   if(typeof enemies!=='undefined')for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(!e.dungeonMob)continue;scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);}
   proceduralDungeon=null;
 }
+function updateDungeonKeyBtn(){
+  const el=document.getElementById('dungeonKeyBtn');if(!el)return;
+  const keys=typeof inv!=='undefined'?(inv.dungeonKey||0):0;
+  const survival=typeof isCreative==='function'?!isCreative():true;
+  const running=typeof gs!=='undefined'&&gs.running;
+  el.style.display=running&&survival&&keys>0?'':'none';
+  const active=!!(proceduralDungeon&&!proceduralDungeon.bossDefeated);
+  el.disabled=_pdBusy||active;
+  el.textContent=_pdBusy?'🗝 迷宮を構築中…':active?'🗝 迷宮攻略中':'🗝 迷宮を開く ×'+keys;
+}
+function openSurvivalDungeon(){
+  if(!gs.running||isCreative())return false;
+  if((inv.dungeonKey||0)<1){showBonus('🗝 迷宮の鍵が必要です');updateDungeonKeyBtn();return false;}
+  return generateProceduralDungeon({consumeKey:true});
+}
 function pdUpdate(dt){
   const D=proceduralDungeon;if(!D||!gs.running||currentDimension!=='overworld')return;const s=D.plan.bossSpot,pd=Math.hypot(P.x-s.x,P.z-s.z);
   if(!D.restored&&pd<70){
@@ -190,12 +205,15 @@ function pdLoadState(d){
   }catch(e){console.warn('自動生成ダンジョン: セーブ復元に失敗',e);proceduralDungeon=null;}
 }
 
-function generateProceduralDungeon(){
-  if(_pdBusy){showBonus('🗝 ダンジョンを生成中…');return;}
-  if(currentDimension!=='overworld'){showBonus('⚠ ダンジョンは通常世界で生成してください');return;}
-  if(proceduralDungeon&&!proceduralDungeon.bossDefeated){showBonus('⚠ 先に現在のダンジョンを攻略してください');return;}
-  if(!window.confirm('自動生成ダンジョンを作ります。約55×55ブロックの地形が変化します。生成しますか？'))return;
-  _pdBusy=true;_pdSetProgress(true,0);
+function generateProceduralDungeon(options){
+  options=options||{};const consumeKey=!!options.consumeKey;
+  if(_pdBusy){showBonus('🗝 ダンジョンを生成中…');return false;}
+  if(currentDimension!=='overworld'){showBonus('⚠ ダンジョンは通常世界で生成してください');return false;}
+  if(proceduralDungeon&&!proceduralDungeon.bossDefeated){showBonus('⚠ 先に現在のダンジョンを攻略してください');return false;}
+  if(consumeKey&&(typeof inv==='undefined'||(inv.dungeonKey||0)<1)){showBonus('🗝 迷宮の鍵が必要です');return false;}
+  const prompt=consumeKey?'迷宮の鍵を1個使って自動生成ダンジョンを開きます。約55×55ブロックの地形が変化します。生成しますか？':'自動生成ダンジョンを作ります。約55×55ブロックの地形が変化します。生成しますか？';
+  if(!window.confirm(prompt))return false;
+  _pdBusy=true;_pdSetProgress(true,0);updateDungeonKeyBtn();
   let plan;
   try{
     const a=_frontAnchor(PROCEDURAL_DUNGEON_CFG.anchorDist),forward=Math.abs(a.fx)>=Math.abs(a.fz)?{x:Math.sign(a.fx)||1,z:0}:{x:0,z:Math.sign(a.fz)||1},right={x:-forward.z,z:forward.x};
@@ -203,9 +221,10 @@ function generateProceduralDungeon(){
     const cx=ex+forward.x*Math.floor(PROCEDURAL_DUNGEON_CFG.gridD/2)*PROCEDURAL_DUNGEON_CFG.cellSize,cz=ez+forward.z*Math.floor(PROCEDURAL_DUNGEON_CFG.gridD/2)*PROCEDURAL_DUNGEON_CFG.cellSize;
     _ensureChunksAround(cx,cz,34,3);const ybase=_footprintYBase(cx,cz,32,4),seed=_pdSeed(ex,ez);
     plan=_pdPlan(seed,{ex,ez,cx,cz,ybase,forward,right});
-  }catch(e){console.error('自動生成ダンジョン: 準備中にエラー',e);_pdBusy=false;_pdSetProgress(false);showBonus('⚠ ダンジョン生成に失敗しました');return;}
+  }catch(e){console.error('自動生成ダンジョン: 準備中にエラー',e);_pdBusy=false;_pdSetProgress(false);updateDungeonKeyBtn();showBonus('⚠ ダンジョン生成に失敗しました');return false;}
   const phases=[];
-  for(let z=0;z<plan.cfg.gridD;z++)phases.push(()=>{for(let x=0;x<plan.cfg.gridW;x++)_pdBuildRoom(plan,{x,z});});
+  const rooms=plan.cells.slice(),roomsPerPhase=(typeof isTouch!=='undefined'&&isTouch)?2:plan.cfg.gridW;
+  for(let start=0;start<rooms.length;start+=roomsPerPhase){const batch=rooms.slice(start,start+roomsPerPhase);phases.push(()=>{for(const cell of batch)_pdBuildRoom(plan,cell);});}
   phases.push(()=>_pdCarveConnections(plan));phases.push(()=>_pdDecorate(plan));
   let idx=0;const step=()=>{
     try{
@@ -213,10 +232,12 @@ function generateProceduralDungeon(){
       if(idx<phases.length)requestAnimationFrame(step);
       else{
         resetProceduralDungeon();_pdRegister(plan,{triggered:false,gateClosed:false,bossDefeated:false,restored:true});_pdSpawnMobs(plan);proceduralDungeon.mobsSpawned=true;
-        _pdBusy=false;_pdSetProgress(false);showAlert('🗝 自動生成ダンジョンが出現！ 最深部を目指せ');
+        if(consumeKey){inv.dungeonKey=Math.max(0,(inv.dungeonKey||0)-1);updateInvHUD();}
+        _pdBusy=false;_pdSetProgress(false);updateDungeonKeyBtn();showAlert('🗝 自動生成ダンジョンが出現！ 最深部を目指せ');
         playTone(196,.18,.12,'triangle');setTimeout(()=>playTone(294,.18,.12,'triangle'),180);saveGame();
       }
-    }catch(e){console.error('自動生成ダンジョン: 生成中にエラー',e);_deferDirty=false;try{flushDirtyChunks();}catch(_){}_pdBusy=false;_pdSetProgress(false);showBonus('⚠ ダンジョン生成に失敗しました');}
+    }catch(e){console.error('自動生成ダンジョン: 生成中にエラー',e);_deferDirty=false;try{flushDirtyChunks();}catch(_){}_pdBusy=false;_pdSetProgress(false);updateDungeonKeyBtn();showBonus('⚠ ダンジョン生成に失敗しました');}
   };
   requestAnimationFrame(step);
+  return true;
 }

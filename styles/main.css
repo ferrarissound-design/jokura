@@ -54,6 +54,10 @@ body.creative #creativeBadge{display:block}
 #eatBtn.disabled{display:none}
 #goalLabel{max-width:min(240px,52vw);padding:3px 7px;border:1px solid rgba(255,216,74,.3);border-radius:var(--ui-radius-sm);background:var(--ui-bg);font-size:9px;color:#fff2c6;text-shadow:var(--ui-shadow);font-weight:700;line-height:1.35;letter-spacing:.2px}
 body.creative #goalLabel{display:none}
+#dungeonKeyBtn{align-self:flex-start;min-height:30px;padding:5px 10px;border:1px solid rgba(255,216,74,.65);border-radius:var(--ui-radius-sm);background:linear-gradient(135deg,rgba(75,55,10,.92),rgba(18,16,11,.94));color:#ffe58c;font-size:10px;font-weight:900;letter-spacing:.4px;text-shadow:var(--ui-shadow);box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#dungeonKeyBtn:active{transform:scale(.96);background:rgba(115,83,15,.95)}
+#dungeonKeyBtn:disabled{opacity:.58;cursor:default;transform:none}
+body.creative #dungeonKeyBtn{display:none!important}
 #invPanel{display:none}
 .invRow{display:none}
 #craftPanel{position:absolute;top:calc(373px + var(--safeT));left:calc(10px + var(--safeL));width:190px;max-height:calc(100vh - 402px - var(--safeT) - var(--safeB));background:rgba(0,0,0,.88);border:1px solid rgba(38,198,218,.4);border-radius:8px;z-index:20;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y}
@@ -657,6 +661,7 @@ body.creative #bagCreative{display:block}
 @media (max-height:440px){
   #leftStatus{gap:2px}
   #goalLabel{display:none}
+  #dungeonKeyBtn{min-height:26px;padding:3px 8px;font-size:9px}
   #hint{display:none}
 }
 

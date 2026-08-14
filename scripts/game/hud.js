@@ -83,6 +83,8 @@ function getCurrentGoal(){
   if(!hasDiamondSword)return '💎 ダイヤ剣を作ろう DIAMOND '+matProgress('diamond',3)+' / WOOD '+matProgress('wood',1);
   if(finalBossPending)return '⚠ 地上へ戻って最終決戦に備えよう';
   if(boss)return '👑 ボスを倒せ！攻撃後は距離を取ろう';
+  if(typeof proceduralDungeon!=='undefined'&&proceduralDungeon&&!proceduralDungeon.bossDefeated)return '🗝 自動生成ダンジョンを攻略し、最深部の番人を倒そう';
+  if((inv.dungeonKey||0)>0)return '🗝 左上の「迷宮を開く」から自動生成ダンジョンに挑戦しよう';
   if(dragon)return '💎 地下ドラゴン戦！ダイヤ武器が有効';
   if(treasureMap)return '🗺 宝の地図: コンパスの先の地上の宝を探そう（'+Math.round(Math.hypot(treasureMap.wx-P.x,treasureMap.wz-P.z))+'m）';
   if(endlessMode)return '♾ エンドレスWAVE'+gs.wave+'  どこまで生き残れるか！';

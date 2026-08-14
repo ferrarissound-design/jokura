@@ -120,7 +120,7 @@ const BAG_TABS=[
     ];
   }},
   {id:'special',label:'特殊アイテム',build(){
-    const out=_infoItems(['diamond','dragonCore']);
+    const out=_infoItems(['diamond','dragonCore','dungeonKey']);
     if(treasureMap)out.push({icon:'🗺',name:'宝の地図',count:null,info:true});
     return out;
   }},

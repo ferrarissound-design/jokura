@@ -46,15 +46,16 @@ console.log('OK: 200 dungeon seeds connected; boss rooms single-entry; placement
 
 // Run the complete generator with lightweight game stubs. This catches missing globals and
 // verifies that the phased build reaches registration without needing WebGL.
-let putCount=0,clearCount=0,alertText='';
+let putCount=0,clearCount=0,alertText='',confirmText='',frameCount=0,invHudUpdates=0;
 const fakeElement=()=>({style:{},textContent:'',position:{set(){}},classList:{add(){},remove(){}}});
 const fullContext={
   WORLD_SEED:12345,_wtRng:mulberry32,Math,
-  document:{getElementById:()=>fakeElement()},window:{confirm:()=>true},
+  document:{getElementById:()=>fakeElement()},window:{confirm:(s)=>{confirmText=s;return true;}},
   currentDimension:'overworld',P:{x:0,y:3,z:0},gs:{running:true,wave:0,score:0},
+  isTouch:true,isCreative:()=>false,inv:{dungeonKey:1},updateInvHUD(){invHudUpdates++;},
   _frontAnchor:()=>({fx:0,fz:1}),_ensureChunksAround(){},_footprintYBase:()=>2,
   surfaceHeightAt:()=>2,put(){putCount++;},clr(){clearCount++;},
-  _deferDirty:false,flushDirtyChunks(){},requestAnimationFrame:(fn)=>fn(),
+  _deferDirty:false,flushDirtyChunks(){},requestAnimationFrame:(fn)=>{frameCount++;fn();},
   vKey:(x,y,z)=>`${x}|${y}|${z}`,underTreasures:{},openedTreasureKeys:new Set(),
   _makeTreasureMesh:()=>fakeElement(),scene:{add(){},remove(){}},
   DEEP_STONE:13,CRYSTAL_BLOCK:21,OBSIDIAN_BLOCK:20,LAVA_BLOCK:8,
@@ -64,14 +65,17 @@ const fullContext={
 };
 vm.createContext(fullContext);
 vm.runInContext(source+`
-generateProceduralDungeon();
+generateProceduralDungeon({consumeKey:true});
 const __initialMobs=enemies.length,__spot=proceduralDungeon.plan.bossSpot;P.x=__spot.x;P.y=__spot.y+1;P.z=__spot.z;pdUpdate(.1);
 globalThis.__bossTriggered=proceduralDungeon.triggered&&proceduralDungeon.gateClosed&&!!proceduralDungeon.bossRef&&boss.def.dungeonBoss;
 boss=null;pdOnBossDefeated();
 const __saved=pdSaveState(),__edgeCount=proceduralDungeon.plan.edges.size;pdLoadState(__saved);pdUpdate(.1);
-globalThis.__fullResult={registered:!!proceduralDungeon,cells:proceduralDungeon&&proceduralDungeon.plan.cells.length,initialMobs:__initialMobs,restoredMobs:enemies.length,bossTriggered:__bossTriggered,bossDefeated:proceduralDungeon.bossDefeated,gateOpen:!proceduralDungeon.gateClosed,restoredEdges:proceduralDungeon.plan.edges.size===__edgeCount};
+const __beforeNoKey={registered:!!proceduralDungeon,cells:proceduralDungeon&&proceduralDungeon.plan.cells.length,initialMobs:__initialMobs,restoredMobs:enemies.length,bossTriggered:__bossTriggered,bossDefeated:proceduralDungeon.bossDefeated,gateOpen:!proceduralDungeon.gateClosed,restoredEdges:proceduralDungeon.plan.edges.size===__edgeCount};
+resetProceduralDungeon();
+const __noKeyRejected=generateProceduralDungeon({consumeKey:true})===false&&!proceduralDungeon;
+globalThis.__fullResult={...__beforeNoKey,noKeyRejected:__noKeyRejected};
 `,fullContext);
-if(!fullContext.__fullResult.registered||fullContext.__fullResult.cells!==25||fullContext.__fullResult.initialMobs!==6||fullContext.__fullResult.restoredMobs!==0||!fullContext.__fullResult.bossTriggered||!fullContext.__fullResult.bossDefeated||!fullContext.__fullResult.gateOpen||!fullContext.__fullResult.restoredEdges||putCount<3000||clearCount<1000||!alertText.includes('迷宮制覇')){
+if(!fullContext.__fullResult.registered||fullContext.__fullResult.cells!==25||fullContext.__fullResult.initialMobs!==6||fullContext.__fullResult.restoredMobs!==0||!fullContext.__fullResult.bossTriggered||!fullContext.__fullResult.bossDefeated||!fullContext.__fullResult.gateOpen||!fullContext.__fullResult.restoredEdges||!fullContext.__fullResult.noKeyRejected||fullContext.inv.dungeonKey!==0||invHudUpdates!==1||frameCount<15||!confirmText.includes('迷宮の鍵を1個')||putCount<3000||clearCount<1000||!alertText.includes('迷宮制覇')){
   console.error({result:fullContext.__fullResult,putCount,clearCount,alertText});
   process.exit(1);
 }

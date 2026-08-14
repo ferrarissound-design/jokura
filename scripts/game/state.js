@@ -26,7 +26,7 @@ const MINIMAP_INTERVAL=isTouch?.7:.35;
 if(isDesktop){document.getElementById('joyWrap').style.display='none';document.getElementById('weaponBtn').style.display='none';document.getElementById('actionWrap').style.display='none';document.getElementById('hint').style.display='none';document.getElementById('hintPC').style.display='block';}
 
 // ═══ INVENTORY ═══
-const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,torch:0,slab:0,stair:0,tnt:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0,crustBomb:0,tsarBomba:0,longinus:0,judgmentCore:0,railgun:0};
+const inv={wood:0,stone:0,sand:0,grass:0,brick:0,arrow:0,fireArrow:0,iceArrow:0,diamond:0,dragonCore:0,dungeonKey:0,torch:0,slab:0,stair:0,tnt:0,seed:0,wheat:0,wool:0,ice:0,obsidian:0,crystal:0,cactus:0,mushroom:0,clay:0,ironOre:0,ironIngot:0,glass:0,woolBlock:0,steak:0,crustBomb:0,tsarBomba:0,longinus:0,judgmentCore:0,railgun:0};
 // 弓に装填する矢の種類: 'normal' | 'fire'(炎上) | 'ice'(鈍足)
 let arrowMode='normal';
 
