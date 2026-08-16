@@ -827,11 +827,10 @@ function buildMerchantPanel(){
     const left=merchant.stockLeft[i];
     if(left<=0){el.classList.add('done');el.textContent='✅ '+t.desc+' (在庫切れ)';}
     else if(!canAffordTrade(t)){el.classList.add('locked');el.textContent='🔒 '+t.desc+' (残り'+left+')';}
-    else{el.textContent='🔵 '+t.desc+' (残り'+left+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doTrade(i);});}
+    else{el.textContent='🔵 '+t.desc+' (残り'+left+')';bindTapSafe(el,()=>doTrade(i));}
     $merchantBody.appendChild(el);
   });
 }
 function openMerchantPanel(){if(!merchant)return;buildMerchantPanel();setPanel($merchantPanel,true);}
 function closeMerchantPanel(){setPanel($merchantPanel,false);}
 if($merchantCloseBtn)bindTapSafe($merchantCloseBtn,closeMerchantPanel);
-
