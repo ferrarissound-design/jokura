@@ -23,6 +23,72 @@ let currentDimension='overworld'; // 'overworld' | 'endZone'
 // 現在アクティブでない方のディメンションの軽量スナップショット（null = 未訪問）
 const _dimStore={overworld:null,endZone:null};
 let _dimTransitioning=false;
+// 通常世界のランタイム物体はチャンク外のscene直下に置かれている。チャンクだけを
+// 破棄すると終端界の同座標へ敵・動物・ドロップが持ち越されるため、入場中は一時退避する。
+let _overworldRuntimeSnapshot=null;
+
+function _runtimeSceneNode(o){return o&&(o.root||o.mesh)||null;}
+function _setRuntimeNodesVisible(list,visible){for(const o of list||[]){const n=_runtimeSceneNode(o);if(n){if(visible)scene.add(n);else scene.remove(n);}}}
+function _setOverworldPersistentSceneVisible(visible){
+  for(const list of[chests,beds,trophies,enchTables,furnaces,farmPlots])_setRuntimeNodesVisible(list,visible);
+  for(const k in underTreasures){const t=underTreasures[k];if(t&&!t.opened&&t.mesh){if(visible)scene.add(t.mesh);else scene.remove(t.mesh);}}
+  _setRuntimeNodesVisible([pet,horse,merchant],visible);
+  const setNode=n=>{if(n){if(visible)scene.add(n);else scene.remove(n);}};
+  if(frozenVillage){for(const a of frozenVillage.arrows||[])setNode(a.mesh);for(const f of frozenVillage.flames||[])setNode(f);setNode(frozenVillage.sprite);}
+  if(undergroundCity){setNode(undergroundCity.group);setNode(undergroundCity.sprite);setNode(undergroundCity.pillar);}
+  if(collapsingSkyCity){setNode(collapsingSkyCity.visual);setNode(collapsingSkyCity.beam);}
+  if(sunkenRoyalCity)setNode(sunkenRoyalCity.visual);
+  if(walkingFortress)setNode(walkingFortress.mesh);
+}
+function _disposeRuntimeList(list){for(const o of list||[]){const n=_runtimeSceneNode(o);if(n){scene.remove(n);disposeObject3D(n);}}}
+function _disposeLooseRuntime(){
+  _disposeRuntimeList(enemies.splice(0));
+  _disposeRuntimeList(mobs.splice(0));
+  _disposeRuntimeList(humanoids.splice(0));
+  for(const it of items.splice(0)){scene.remove(it.mesh);if(it.mat)it.mat.dispose();}
+  for(const p of projectiles.splice(0)){scene.remove(p.mesh);if(p.mesh&&p.mesh.material)p.mesh.material.dispose();}
+  if(boss){scene.remove(boss.root);disposeObject3D(boss.root);boss=null;}
+  if(dragon){scene.remove(dragon.root);disposeObject3D(dragon.root);dragon=null;}
+  if(typeof $bossWrap!=='undefined')$bossWrap.classList.remove('show');
+}
+function _detachOverworldRuntime(){
+  if(_overworldRuntimeSnapshot)return;
+  if(mounted&&typeof dismountHorse==='function')dismountHorse();
+  _overworldRuntimeSnapshot={
+    enemies:enemies.splice(0),mobs:mobs.splice(0),humanoids:humanoids.splice(0),
+    items:items.splice(0),projectiles:projectiles.splice(0),boss,dragon
+  };
+  boss=null;dragon=null;
+  _setRuntimeNodesVisible(_overworldRuntimeSnapshot.enemies,false);
+  _setRuntimeNodesVisible(_overworldRuntimeSnapshot.mobs,false);
+  _setRuntimeNodesVisible(_overworldRuntimeSnapshot.humanoids,false);
+  _setRuntimeNodesVisible(_overworldRuntimeSnapshot.items,false);
+  _setRuntimeNodesVisible(_overworldRuntimeSnapshot.projectiles,false);
+  _setRuntimeNodesVisible([_overworldRuntimeSnapshot.boss,_overworldRuntimeSnapshot.dragon],false);
+  _setOverworldPersistentSceneVisible(false);
+  if(typeof $bossWrap!=='undefined')$bossWrap.classList.remove('show');
+}
+function _restoreOverworldRuntime(){
+  // 終端界でチート召喚などにより作られた通常系ランタイムは通常世界へ持ち帰らない。
+  _disposeLooseRuntime();
+  const s=_overworldRuntimeSnapshot;_overworldRuntimeSnapshot=null;
+  if(s){
+    enemies.push(...s.enemies);mobs.push(...s.mobs);humanoids.push(...s.humanoids);
+    items.push(...s.items);projectiles.push(...s.projectiles);boss=s.boss;dragon=s.dragon;
+    _setRuntimeNodesVisible(s.enemies,true);_setRuntimeNodesVisible(s.mobs,true);_setRuntimeNodesVisible(s.humanoids,true);
+    _setRuntimeNodesVisible(s.items,true);_setRuntimeNodesVisible(s.projectiles,true);
+    _setRuntimeNodesVisible([boss,dragon],true);
+    if(boss&&typeof $bossWrap!=='undefined')$bossWrap.classList.add('show');
+  }
+  _setOverworldPersistentSceneVisible(true);
+}
+function _discardOverworldRuntime(){
+  const s=_overworldRuntimeSnapshot;_overworldRuntimeSnapshot=null;if(!s)return;
+  _disposeRuntimeList(s.enemies);_disposeRuntimeList(s.mobs);_disposeRuntimeList(s.humanoids);
+  for(const it of s.items){scene.remove(it.mesh);if(it.mat)it.mat.dispose();}
+  for(const p of s.projectiles){scene.remove(p.mesh);if(p.mesh&&p.mesh.material)p.mesh.material.dispose();}
+  _disposeRuntimeList([s.boss,s.dragon]);
+}
 
 function _emptyDimSnapshot(){
   return{seed:WORLD_SEED,worldEdits:{v:2,placed:{},removed:[]},explosives:[],tsarBombs:[],tsarZones:[],longinus:null,railgun:null,px:0,py:20,pz:0,yaw:0,pitch:0};
@@ -60,6 +126,7 @@ function _packLiveDimension(dim){
 function _swapDimension(target){
   const leaving=currentDimension;
   _dimStore[leaving]=_packLiveDimension(leaving);
+  if(leaving==='overworld'&&target==='endZone')_detachOverworldRuntime();
   if(typeof resetTNTSystem==='function')resetTNTSystem();
   if(typeof resetCrustBomb==='function')resetCrustBomb();
   if(typeof resetTsarBomba==='function')resetTsarBomba(); // TsarBlastZones/_tsarZoneGridも同時にクリアされる
@@ -93,6 +160,7 @@ function _swapDimension(target){
   if(typeof tsarBombaLoadState==='function')tsarBombaLoadState(snap?snap.tsarBombs:[]);
   if(typeof longinusLoadState==='function')longinusLoadState(snap?snap.longinus:null);
   if(typeof railgunLoadState==='function')railgunLoadState(snap?snap.railgun:null);
+  if(target==='overworld'&&leaving==='endZone')_restoreOverworldRuntime();
   if(snap){P.x=snap.px;P.y=snap.py;P.z=snap.pz;yaw=snap.yaw;pitch=snap.pitch;}
   else if(target==='overworld'){const sp=findSafeSpawn(0,0);P.x=sp.x;P.y=sp.y;P.z=sp.z;}
   else{P.x=EZ_SPAWN.x;P.y=EZ_SPAWN.y;P.z=EZ_SPAWN.z;}
@@ -156,6 +224,7 @@ function dimensionsSaveFields(){
 // （呼び出し側は既存の通常世界読み込みブロックをスキップする）。
 // 戻り値 false = 通常世界がアクティブ。呼び出し側は従来どおりのブロックを実行する。
 function dimensionsApplyContinueLoad(d){
+  _discardOverworldRuntime();
   currentDimension=(d.currentDimension==='endZone')?'endZone':'overworld';
   _dimStore.endZone=d.endZone?{...d.endZone}:null;
   if(currentDimension!=='endZone'){_dimStore.overworld=null;document.body.classList.remove('endZone');return false;}
@@ -192,6 +261,7 @@ function dimensionsApplyContinueLoad(d){
 }
 // main.js の startGame()（新規ゲーム）から呼ぶ。常に通常世界から始める。
 function dimensionsResetForNewGame(){
+  _discardOverworldRuntime();
   currentDimension='overworld';
   _dimStore.overworld=null;_dimStore.endZone=null;
   if(typeof ezUnmount==='function')ezUnmount();
