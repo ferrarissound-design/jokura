@@ -23,6 +23,7 @@ if(!isDesktop){jW.addEventListener('pointerdown',(e)=>{e.preventDefault();initAu
 // ═══ X操作（家具・農作業） ═══
 function doFurnitureAction(){
   if(!gs.running||gs.paused)return;
+  if(currentDimension==='endZone'){showBonus('🌀 終端界では通常世界の家具は使えない');return;}
   if(mounted){dismountHorse();return;} // 騎乗中のXは常に降車
   if(typeof openNearestVillagerUI==='function'&&openNearestVillagerUI()){}
   else if(_merchantNearby())               openMerchantPanel();
@@ -307,4 +308,3 @@ function doPlace(e){
   if(ti===TNT_BLOCK)configurePlacedTNT(pk,_tntPlacementMode);
   sfxPlace();triggerPlaceSwing();
 }
-
