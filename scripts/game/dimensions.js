@@ -26,6 +26,9 @@ let _dimTransitioning=false;
 // 通常世界のランタイム物体はチャンク外のscene直下に置かれている。チャンクだけを
 // 破棄すると終端界の同座標へ敵・動物・ドロップが持ち越されるため、入場中は一時退避する。
 let _overworldRuntimeSnapshot=null;
+// 終端界で保存したデータを直接ロードした場合、通常世界の相棒や動物はまだ生成できない。
+// 通常世界へ戻るまでセーブ由来の軽量データだけを保持する。
+let _stagedOverworldContinueRuntime=null;
 
 function _runtimeSceneNode(o){return o&&(o.root||o.mesh)||null;}
 function _setRuntimeNodesVisible(list,visible){for(const o of list||[]){const n=_runtimeSceneNode(o);if(n){if(visible)scene.add(n);else scene.remove(n);}}}
@@ -83,11 +86,33 @@ function _restoreOverworldRuntime(){
   _setOverworldPersistentSceneVisible(true);
 }
 function _discardOverworldRuntime(){
+  _stagedOverworldContinueRuntime=null;
   const s=_overworldRuntimeSnapshot;_overworldRuntimeSnapshot=null;if(!s)return;
   _disposeRuntimeList(s.enemies);_disposeRuntimeList(s.mobs);_disposeRuntimeList(s.humanoids);
   for(const it of s.items){scene.remove(it.mesh);if(it.mat)it.mat.dispose();}
   for(const p of s.projectiles){scene.remove(p.mesh);if(p.mesh&&p.mesh.material)p.mesh.material.dispose();}
   _disposeRuntimeList([s.boss,s.dragon]);
+}
+
+function dimensionsStageOverworldContinueRuntime(d){
+  if(currentDimension!=='endZone')return;
+  _stagedOverworldContinueRuntime={
+    pet:d.pet?{hp:d.pet.hp,downT:d.pet.downT}:null,
+    horseTamed:!!d.horseTamed,mounted:!!d.mounted
+  };
+  // 家具類は通常世界の座標で復元済みだが、終端界のsceneには表示しない。
+  _setOverworldPersistentSceneVisible(false);
+}
+function dimensionsCompanionSaveFields(){
+  const s=_stagedOverworldContinueRuntime;
+  return s?{pet:s.pet?{...s.pet}:null,horseTamed:s.horseTamed,mounted:s.mounted}:null;
+}
+function _restoreStagedOverworldContinueRuntime(){
+  const s=_stagedOverworldContinueRuntime;if(!s)return;
+  _stagedOverworldContinueRuntime=null;
+  if(s.pet)spawnPetAtPlayer(s.pet.hp!=null?s.pet.hp:PET_MAX_HP,s.pet.downT||0);
+  if(s.horseTamed)spawnHorseAtPlayer(s.mounted);
+  spawnAnimals(8);spawnHumanoids(1);
 }
 
 function _emptyDimSnapshot(){
@@ -164,6 +189,7 @@ function _swapDimension(target){
   if(snap){P.x=snap.px;P.y=snap.py;P.z=snap.pz;yaw=snap.yaw;pitch=snap.pitch;}
   else if(target==='overworld'){const sp=findSafeSpawn(0,0);P.x=sp.x;P.y=sp.y;P.z=sp.z;}
   else{P.x=EZ_SPAWN.x;P.y=EZ_SPAWN.y;P.z=EZ_SPAWN.z;}
+  if(target==='overworld'&&leaving==='endZone')_restoreStagedOverworldContinueRuntime();
   P.velY=0;P.onGround=false;
   _dimStore[target]=null;
   document.body.classList.toggle('endZone',target==='endZone');
