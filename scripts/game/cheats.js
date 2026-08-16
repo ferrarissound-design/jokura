@@ -102,11 +102,7 @@ function buildCheatPanel(){
     const grid=document.createElement('div');grid.className='cheatGrid';
     for(const[label,act] of sec.btns){
       const b=document.createElement('button');b.className='cheatBtn';b.textContent=(typeof label==='function')?label():label;
-      b.addEventListener('pointerdown',(e)=>{
-        // preventDefault はここでは呼ばない: パネル内はボタンがほぼ全面を占めるため、
-        // 呼ぶとボタン上から始めた縦スワイプのスクロールジェスチャーごと潰れてしまう
-        // (craftPanel の .citem と同じ理由で stopPropagation のみに留める)
-        e.stopPropagation();
+      const run=()=>{
         if(!gs.running)return;
         initAudio();
         act();
@@ -114,7 +110,18 @@ function buildCheatPanel(){
         updateInvHUD();updateMeatHUD();updateArmorHUD();updateHUD();
         playTone(760,.06,.06,'square');
         buildCheatPanel(); // 無敵ON/OFFなどラベルを最新化
-      });
+      };
+      if(HAS_POINTER_EVENTS){
+        let pointerId=null,startX=0,startY=0,moved=false;
+        b.addEventListener('pointerdown',(e)=>{e.stopPropagation();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;moved=false;});
+        b.addEventListener('pointermove',(e)=>{if(e.pointerId===pointerId&&Math.hypot(e.clientX-startX,e.clientY-startY)>10)moved=true;});
+        b.addEventListener('pointerup',(e)=>{if(e.pointerId!==pointerId)return;e.stopPropagation();pointerId=null;if(!moved)run();});
+        b.addEventListener('pointercancel',()=>{pointerId=null;moved=true;});
+      }else{
+        // 旧ブラウザでは click を使う。touchstart 即時実行にするとスクロール開始でも
+        // チートが発動してしまうため、指を離した後にだけ実行する。
+        b.addEventListener('click',(e)=>{e.stopPropagation();run();});
+      }
       grid.appendChild(b);
     }
     $cheatBody.appendChild(grid);
@@ -124,20 +131,3 @@ function openCheatPanel(){if(!gs.running)return;buildCheatPanel();setPanel($chea
 function closeCheatPanel(){setPanel($cheatPanel,false);}
 if($cheatBtn)bindTapSafe($cheatBtn,openCheatPanel);
 if($cheatCloseBtn)bindTapSafe($cheatCloseBtn,closeCheatPanel);
-
-const _continueGameRestoreSavedPose=continueGame;
-// 意図的な関数差し替え（ロード後に保存時の座標・視点を復元するラッパー）
-// eslint-disable-next-line no-func-assign
-continueGame=async function(){
-  const d=await loadSaveData();
-  if(!d)return;
-  await _continueGameRestoreSavedPose();
-  P.x=d.px??0;
-  P.z=d.pz??0;
-  P.y=d.py??20;
-  yaw=d.yaw??0;
-  pitch=d.pitch??0;
-  camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);
-  camera.rotation.x=pitch;
-  camera.rotation.y=yaw;
-};

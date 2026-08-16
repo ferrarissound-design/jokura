@@ -615,12 +615,14 @@ function tick(now){
   if(typeof updateLonginus==='function')updateLonginus(dt);
   if(typeof updateRailgun==='function')updateRailgun(dt);
   camera.position.set(P.x,P.y+EYE+(mounted?MOUNT_EYE:0),P.z);camera.rotation.order='YXZ';camera.rotation.x=pitch;camera.rotation.y=yaw;
-  ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
-  sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
-  updateCollapsingSkyCity(dt); // ☁ 天空都市: 近距離だけ炉・輪・落石・接触再起動を更新
-  srcUpdate(dt); // 🌊 沈んだ王都: 海面メッシュの表示と海中の青いフォグ（遠距離では即リターン）
-  updateWalkingFortress(dt); // 🏰 歩き続ける巨大城塞: 低頻度の移動体更新・搭乗中の運搬
-  pdUpdate(dt); // 🗝 自動生成ダンジョン: ボス部屋の封鎖・番人・報酬解放
+  if(!inEndZone){
+    ftvApplyCamShake(dt); // ⏳ 時間結晶の破壊演出: カメラ位置決定後に軽い揺れを重ねる
+    sucUpdate(dt); // 🏛 封印された地底都市: 封印装置の演出・接触解除・地底王の管理（遠距離では即リターン）
+    updateCollapsingSkyCity(dt); // ☁ 天空都市: 近距離だけ炉・輪・落石・接触再起動を更新
+    srcUpdate(dt); // 🌊 沈んだ王都: 海面メッシュの表示と海中の青いフォグ（遠距離では即リターン）
+    updateWalkingFortress(dt); // 🏰 歩き続ける巨大城塞: 低頻度の移動体更新・搭乗中の運搬
+    pdUpdate(dt); // 🗝 自動生成ダンジョン: ボス部屋の封鎖・番人・報酬解放
+  }
   const _moving=(Math.abs(fw)+Math.abs(sr))>.01;
   updateViewBob(_moving,sprinting);
   updateHand(dt,_moving,sprinting);
@@ -640,8 +642,11 @@ function tick(now){
     if(_grew)applyWorldEdits();
     chunkT=0;
   }
-  updateBoss(dt);updateDragon(dt);updateMobs(dt);updateHumanoids(dt);updatePet(dt);updateHorse(dt);updateFarmPlots(dt);updateMerchant(dt,_isUnder);
-  mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
+  updateBoss(dt);updateDragon(dt);updateMobs(dt);updateHumanoids(dt);
+  if(!inEndZone){
+    updatePet(dt);updateHorse(dt);updateFarmPlots(dt);updateMerchant(dt,_isUnder);
+    mobRespawnT-=dt;if(mobRespawnT<=0){mobRespawnT=MOB_RESPAWN_INTERVAL;const lack=MAX_MOBS-mobs.length;if(lack>0)spawnAnimals(Math.min(lack,4));}
+  }
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i],ep=e.root.position;
