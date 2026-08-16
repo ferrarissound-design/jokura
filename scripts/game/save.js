@@ -171,6 +171,7 @@ async function saveGame(){
   // にだけ追加する。dimensionsSaveFields() が現在どちらのディメンションがライブか
   // を吸収するので、ここでは常に同じ形で読める。
   const _dim=(typeof dimensionsSaveFields==='function')?dimensionsSaveFields():null;
+  const _stagedCompanions=(typeof dimensionsCompanionSaveFields==='function')?dimensionsCompanionSaveFields():null;
   const data={
     version:SAVE_VERSION,saveSlot:activeSaveSlot,slotName,
     gameMode,flying:!!P.flying,cheatsUsed,
@@ -181,8 +182,9 @@ async function saveGame(){
     arrowMode,enchants:{...enchants},
     enchTableCount,enchTables:enchTables.map(t=>({x:t.x,y:t.y,z:t.z})),
     furnaceCount,furnaces:furnaces.map(f=>({x:f.x,y:f.y,z:f.z})),
-    pet:pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null,
-    horseTamed:!!horse,mounted,
+    pet:_stagedCompanions?_stagedCompanions.pet:(pet?{hp:Math.round(pet.hp),downT:Math.round(pet.downT)}:null),
+    horseTamed:_stagedCompanions?_stagedCompanions.horseTamed:!!horse,
+    mounted:_stagedCompanions?_stagedCompanions.mounted:mounted,
     armor:armor?{tier:armor.tier,dur:Math.round(armor.dur)}:null,
     worldSeed:_dim?_dim.worldSeed:WORLD_SEED,worldGenVersion:2,
     worldEdits:_dim?_dim.worldEdits:packWorldEdits(worldEdits),
@@ -384,4 +386,3 @@ async function renderRankHUD(){
 renderRankHUD();
 const $saveToast=document.getElementById('saveToast');let saveToastTimer=0;
 function showSaveToast(msg){$saveToast.textContent=msg;$saveToast.classList.add('show');saveToastTimer=2;}
-
