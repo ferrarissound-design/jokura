@@ -407,7 +407,7 @@ async function continueGame(){
   resetWeather();
   finalBossPending=!isCreative()&&!!d.finalBossPending;
   if(!isCreative()&&!finalBossPending&&!endlessMode&&gs.wave>=20&&!achievements.dragonSlayer)finalBossPending=true;
-  P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=d.py||20;
+  P.hp=d.hp||100;P.food=(d.food!=null?d.food:100);P.invT=0;P.velY=0;P.onGround=false;P.x=d.px||0;P.z=d.pz||0;P.y=(d.py!=null?d.py:20);
   P.flying=isCreative()&&!!d.flying;
   weaponIdx=Math.max(0,Math.min(WEAPONS.length-1,d.weaponIdx||0));
   curType=Math.max(0,Math.min(SLOT_TI.length-1,d.curType||0));setType(curType);
@@ -487,12 +487,18 @@ async function continueGame(){
   sccAfterLoad(); // 開封済み集合の復元後に、天空都市の特別な宝箱を安全に登録する
   for(let adj=0;adj<5;adj++){if(!overlaps(P.x,P.y,P.z))break;P.y+=0.5;}
   // 相棒オオカミ復元（ワールド生成後にプレイヤーの隣へ）
-  if(d.pet)spawnPetAtPlayer(d.pet.hp!=null?d.pet.hp:PET_MAX_HP,d.pet.downT||0);
-  // ウマ復元（騎乗状態も引き継ぐ）
-  if(d.horseTamed)spawnHorseAtPlayer(!!d.mounted);
+  if(!_dimHandled){
+    if(d.pet)spawnPetAtPlayer(d.pet.hp!=null?d.pet.hp:PET_MAX_HP,d.pet.downT||0);
+    // ウマ復元（騎乗状態も引き継ぐ）
+    if(d.horseTamed)spawnHorseAtPlayer(!!d.mounted);
+  }
   $pauseBtn.style.display='flex';
   applyModeUI();
-  spawnAnimals(8);spawnHumanoids(1);updateInvHUD();resize();
+  if(_dimHandled){
+    // 終端界から直接ロードしたときは、通常世界の家具・相棒・動物を帰還まで隔離する。
+    if(typeof dimensionsStageOverworldContinueRuntime==='function')dimensionsStageOverworldContinueRuntime(d);
+  }else{spawnAnimals(8);spawnHumanoids(1);}
+  updateInvHUD();resize();
 }
 // アイテムピックアップ（武器ドロップで解放）
 function pickupItem(info){
