@@ -280,7 +280,7 @@ function buildCraftPanel(){
     else if(r.armorTier!=null&&armor&&armor.tier===r.armorTier&&armor.dur>=ARMOR_DEFS[r.armorTier].maxDur){el.classList.add('done');el.textContent='✅ '+r.name+' (装備中)';}
     else if(r.req!=null&&!unlockedWeapons[r.req]){el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 要:'+WEAPONS[r.req].name;}
     else if(!canCraft(r)){el.classList.add('locked');const miss=getMissingMaterialsText(r);el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+miss;}
-    else{el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCraft(i);});}
+    else{el.textContent='🔵 '+r.name+' ('+r.desc+')';bindTapSafe(el,()=>doCraft(i));}
     $craftPanel.appendChild(el);
   });
   // 🔥かまどの近くにいるときだけ精錬・調理メニューを追加
@@ -288,14 +288,14 @@ function buildCraftPanel(){
     const hd=document.createElement('div');hd.className='citem header';hd.textContent='🔥 精錬（かまど）';$craftPanel.appendChild(hd);
     SMELT_RECIPES.forEach((r,i)=>{
       const el=document.createElement('div');el.className='citem';
-      if(canCraft(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doSmelt(i);});}
+      if(canCraft(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';bindTapSafe(el,()=>doSmelt(i));}
       else{el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+getMissingMaterialsText(r);}
       $craftPanel.appendChild(el);
     });
     const chd=document.createElement('div');chd.className='citem header';chd.textContent='🍖 調理（かまど）';$craftPanel.appendChild(chd);
     COOK_RECIPES.forEach((r,i)=>{
       const el=document.createElement('div');el.className='citem';
-      if(canCook(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doCook(i);});}
+      if(canCook(r)){el.textContent='🔵 '+r.name+' ('+r.desc+')';bindTapSafe(el,()=>doCook(i));}
       else{el.classList.add('locked');el.textContent='🔒 '+r.name+' ('+r.desc+') / 不足 '+getMissingFoodText(r);}
       $craftPanel.appendChild(el);
     });
@@ -311,7 +311,7 @@ function buildCraftPanel(){
         const cost=d.cost(lv+1);
         const afford=isCreative()||Object.entries(cost).every(([k,v])=>(inv[k]||0)>=v);
         const label=d.icon+' '+d.name+(d.max>1?' Lv'+(lv+1):'')+' ('+enchCostText(cost)+')';
-        if(afford){el.textContent='🔵 '+label;el.addEventListener('pointerdown',(e)=>{e.stopPropagation();doEnchant(i);});}
+        if(afford){el.textContent='🔵 '+label;bindTapSafe(el,()=>doEnchant(i));}
         else{el.classList.add('locked');el.textContent='🔒 '+label;}
       }
       $craftPanel.appendChild(el);
@@ -382,7 +382,7 @@ let _craftBtnLastT=0;
 function _onCraftBtnTap(){const now=Date.now();if(now-_craftBtnLastT<100)return;_craftBtnLastT=now;toggleCraftPanel();}
 const HAS_POINTER_EVENTS='PointerEvent' in window;
 function bindTapSafe(el,fn){
-  let lockUntil=0;
+  let lockUntil=0,pointerId=null,startX=0,startY=0,moved=false;
   const run=(e)=>{
     const now=performance.now();
     if(now<lockUntil)return;
@@ -391,8 +391,21 @@ function bindTapSafe(el,fn){
     e.stopPropagation();
     fn(e);
   };
-  if(HAS_POINTER_EVENTS)el.addEventListener('pointerdown',run);
-  else el.addEventListener('touchstart',run,{passive:false});
+  if(HAS_POINTER_EVENTS){
+    el.addEventListener('pointerdown',(e)=>{
+      if(pointerId!==null||e.isPrimary===false||(e.pointerType==='mouse'&&e.button!==0))return;
+      pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;moved=false;
+      try{el.setPointerCapture(e.pointerId);}catch(_){}
+    });
+    el.addEventListener('pointermove',(e)=>{
+      if(e.pointerId===pointerId&&Math.hypot(e.clientX-startX,e.clientY-startY)>10)moved=true;
+    });
+    el.addEventListener('pointerup',(e)=>{
+      if(e.pointerId!==pointerId)return;
+      pointerId=null;if(!moved)run(e);
+    });
+    el.addEventListener('pointercancel',()=>{pointerId=null;moved=true;});
+  }else el.addEventListener('click',run);
 }
 
 bindTapSafe($craftBtn,_onCraftBtnTap);
@@ -418,4 +431,3 @@ function resetInv(){
   armor=null;updateArmorHUD();
   updateInvHUD();
 }
-
