@@ -184,6 +184,14 @@ function _weUpdateMotes(dt){
 }
 function _weClearMotes(){for(const m of _weSingMotes){scene.remove(m.mesh);m.mat.dispose();}_weSingMotes.length=0;}
 
+// WORLD EATER中は足場そのものが消えるため、観測者を強制的にクリエイティブ飛行へ移す。
+// 侵食中にLANDしても次フレームで飛行へ戻し、奈落→消えた開始島へ復帰のループを防ぐ。
+function _weEnsureObserverFlight(){
+  if(!isCreative()||!weActive()||(wePhase!=='eroding'&&wePhase!=='done')||P.flying)return;
+  P.flying=true;P.velY=0;P.onGround=false;
+  if(typeof updateFlyBtns==='function')updateFlyBtns();
+}
+
 // ═══ 特異点フェーズ: 約2秒間、周囲の音が弱まり・光が吸い込まれ・粒子が中心へ ═══
 function _weBeginSingularity(tx,ty,tz){
   const cx=tx+0.5,cz=tz+0.5,cy=ty+1.0;
@@ -212,6 +220,7 @@ function _weUpdateSingularity(dt){
 }
 function _weBeginErosion(){
   wePhase='eroding';wePhaseT=0;
+  _weEnsureObserverFlight();
   if(typeof destabShowBanner==='function')destabShowBanner('WORLD STRUCTURE FAILURE','',2.6);
   if(typeof showBonus==='function')showBonus('🕳 侵食が始まった…もう戻れない');
   playTone(32,2.0,.22,'sine');
@@ -392,12 +401,12 @@ function _weOnComplete(){
 // ═══ 毎フレーム更新(end_zone.js の ezTick から、終端界にいる間だけ呼ばれる) ═══
 function worldEaterTick(dt){
   _weUpdateUnlockSeq(dt);
+  _weEnsureObserverFlight();
   if(wePhase==='singularity')_weUpdateSingularity(dt);
   else if(wePhase==='eroding')_weUpdateErosion(dt);
   else if(wePhase==='done')_weApplyColossusErosion();
   worldEaterUpdateHUD();
 }
-
 // ═══ HUD ═══
 const $weLossHud=document.getElementById('weLossHud'),$weLossPct=document.getElementById('weLossPct');
 function worldEaterUpdateHUD(){
