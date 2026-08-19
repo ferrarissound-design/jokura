@@ -418,12 +418,12 @@ function worldEaterUpdateHUD(){
   if(typeof updateWorldEaterBtn==='function')updateWorldEaterBtn();
 }
 
-// ═══ ボタン(モバイル): 既存のcrustBomb/tsarBomb/longinus/railgunと同じ
+// ═══ ボタン: 既存のcrustBomb/tsarBomb/longinus/railgunと同じ
 // #actionWrap→#bombMenuPopoverの導線に乗せる(mobileui.js側で移設)。
-// PCはキーバインド(input.js)のみ ═══
+// PCでも解禁済みの技としてBOMBメニューに表示し、Jキーでも発動できる。 ═══
 function updateWorldEaterBtn(){
   const btn=document.getElementById('worldEaterBtn');if(!btn)return;
-  const show=!isDesktop&&gs.running&&isCreative()&&weActive()&&weUnlocked;
+  const show=gs.running&&isCreative()&&weActive()&&weUnlocked;
   btn.style.display=show?'':'none';
 }
 
