@@ -125,23 +125,24 @@ function makeRegionEditor(){
     ensureChunks(b);
     const ti=SLOT_TI[curType],undo=[];let x=b.minX,y=b.minY,z=b.minZ;
     state.busy=true;state.done=0;state.total=n;setMsg();_deferDirty=true;
+    // x/y/z はフレームを跨いで持ち越す走査カーソル。1バッチ分書き込んだら
+    // requestAnimationFrame で続きを処理する。中断する前に必ずカーソルを次のセルへ
+    // 進めること（進めずに return すると再開時に同じセルをもう一度 write してしまい、
+    // undo 履歴に「編集後の状態」がもう1件積まれて、そのブロックだけ Undo で
+    // 元に戻らなくなる）。
     function step(){
       let c=0;
-      try{
-        for(;y<=b.maxY;y++,x=b.minX,z=b.minZ)for(;z<=b.maxZ;z++,x=b.minX)for(;x<=b.maxX;x++){
-          if(kind==='box'&&!shouldEdit(kind,x,y,z,b))write(x,y,z,null,undo);
-          else if(shouldEdit(kind,x,y,z,b))write(x,y,z,kind==='delete'?null:ti,undo);
-          state.done++;
-          if(++c>=REGION_EDIT_BATCH){setMsg();requestAnimationFrame(step);return;}
-        }
-      }finally{
-        if(y>b.maxY){
-          _deferDirty=false;flushDirtyChunks();state.busy=false;
-          state.undoStack.push(undo);
-          if(state.undoStack.length>REGION_EDIT_UNDO_MAX)state.undoStack.shift();
-          safePlayer();setMsg();showBonus('範囲編集 完了（↩ Undoで戻せます）');
-        }
+      while(y<=b.maxY){
+        if(kind==='box'&&!shouldEdit(kind,x,y,z,b))write(x,y,z,null,undo);
+        else if(shouldEdit(kind,x,y,z,b))write(x,y,z,kind==='delete'?null:ti,undo);
+        state.done++;
+        if(++x>b.maxX){x=b.minX;if(++z>b.maxZ){z=b.minZ;y++;}}
+        if(++c>=REGION_EDIT_BATCH&&y<=b.maxY){setMsg();requestAnimationFrame(step);return;}
       }
+      _deferDirty=false;flushDirtyChunks();state.busy=false;
+      state.undoStack.push(undo);
+      if(state.undoStack.length>REGION_EDIT_UNDO_MAX)state.undoStack.shift();
+      safePlayer();setMsg();showBonus('範囲編集 完了（↩ Undoで戻せます）');
     }
     requestAnimationFrame(step);
   }
@@ -149,16 +150,15 @@ function makeRegionEditor(){
     if(state.busy||!state.undoStack.length)return showBonus('Undo履歴がありません');
     const hist=state.undoStack.pop();let i=0;
     state.busy=true;state.total=hist.length;state.done=0;setMsg();_deferDirty=true;
+    // run() と同じ理由でカーソル i を進めてから中断する（進めないと再開時に
+    // 同じ履歴をもう一度適用し、進捗が total を超えてしまう）。
     function step(){
       let c=0;
-      try{
-        for(;i<hist.length;i++){
-          restoreHistoryEntry(hist[i]);state.done++;
-          if(++c>=REGION_EDIT_BATCH){setMsg();requestAnimationFrame(step);return;}
-        }
-      }finally{
-        if(i>=hist.length){_deferDirty=false;flushDirtyChunks();state.busy=false;setMsg();showBonus('Undoしました'+(state.undoStack.length?'（残り'+state.undoStack.length+'回）':''));}
+      while(i<hist.length){
+        restoreHistoryEntry(hist[i++]);state.done++;
+        if(++c>=REGION_EDIT_BATCH&&i<hist.length){setMsg();requestAnimationFrame(step);return;}
       }
+      _deferDirty=false;flushDirtyChunks();state.busy=false;setMsg();showBonus('Undoしました'+(state.undoStack.length?'（残り'+state.undoStack.length+'回）':''));
     }
     requestAnimationFrame(step);
   }

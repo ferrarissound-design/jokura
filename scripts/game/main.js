@@ -655,7 +655,10 @@ function tick(now){
   }
   const t=Date.now()/1000;
   for(let i=enemies.length-1;i>=0;i--){
-    const e=enemies[i],ep=e.root.position;
+    // このループの中から enemies を縮める処理（finalizeEnemyDeath / creeperExplode）が
+    // 走るため、i が配列末尾より後ろを指すことがある。その場合は次の要素へ送る。
+    const e=enemies[i];if(!e)continue;
+    const ep=e.root.position;
     if(e.hp<=0&&!e.dead){e.dead=true;finalizeEnemyDeath(e);continue;}
     // ⏳ 時間が止まった村: 停止中(frozen)の敵はAI・移動・攻撃・距離デスポーンを
     // すべてスキップして「一枚絵」のまま保つ（攻撃は受けるのでHPバーの向きだけ更新）
@@ -683,7 +686,11 @@ function tick(now){
         const fl=Math.floor(e.fuseT*12)%2===0;
         for(const m of[e.body,e.head]){m.material.emissive.setHex(fl?0xffffff:e.type.emissive);m.material.emissiveIntensity=fl?1.5:.15;}
         e.root.scale.setScalar(1+(1.15-Math.max(0,e.fuseT))/1.15*.3);
-        if(e.fuseT<=0){creeperExplode(e);scene.remove(e.root);disposeObject3D(e.root);enemies.splice(i,1);continue;}
+        // creeperExplode() は巻き込んだ敵を hitEnemy → finalizeEnemyDeath 経由で
+        // enemies から取り除くことがある。インデックス i はその時点でずれているので、
+        // クリーパー自身は必ず参照で取り除く（indexで消すと別の敵が消え、
+        // 自分は死骸のまま配列に残って二重爆発する）。
+        if(e.fuseT<=0){creeperExplode(e);scene.remove(e.root);disposeObject3D(e.root);const ci=enemies.indexOf(e);if(ci>=0)enemies.splice(ci,1);continue;}
         e.hpBar.lookAt(camera.position);
         continue;
       }

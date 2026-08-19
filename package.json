@@ -5,7 +5,9 @@
   "description": "ブラウザで遊べるボクセルサバイバルゲーム",
   "scripts": {
     "lint": "node tools/lint.mjs",
-    "test:dungeon": "node tools/test-dungeon-plan.cjs"
+    "test": "npm run test:dungeon && npm run test:region-edit",
+    "test:dungeon": "node tools/test-dungeon-plan.cjs",
+    "test:region-edit": "node tools/test-region-edit.cjs"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
