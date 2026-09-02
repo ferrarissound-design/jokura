@@ -370,3 +370,109 @@ window.worldEaterMount=function(){
     if(typeof _weUpdateAmbientDecay==='function')_weUpdateAmbientDecay();
   }
 };
+
+// ============================================================================
+// FINAL POLISH
+// 長時間プレイとスマホ操作で残っていた小さな不整合を、全モジュール読込後に補正する。
+// ============================================================================
+
+// ─── バッグ: スクロール開始をタップとして誤認しない ───
+// craft/cheat系と同じ bindTapSafe を使い、指を動かしたジェスチャでは選択・消費しない。
+window.renderBag=function(){
+  if(!_bagGridEl||!_bagTabsEl)return;
+  if(!_bagTabsEl.childElementCount){
+    for(const t of BAG_TABS){
+      const b=document.createElement('button');b.className='bagTab';b.dataset.tab=t.id;b.textContent=t.label;
+      bindTapSafe(b,()=>{bagTab=t.id;window.renderBag();playTone(520,.05,.05,'sine');});
+      _bagTabsEl.appendChild(b);
+    }
+  }
+  for(const b of _bagTabsEl.children)b.classList.toggle('sel',b.dataset.tab===bagTab);
+  const tab=BAG_TABS.find(t=>t.id===bagTab)||BAG_TABS[0];
+  const bagItems=tab.build();
+  _bagGridEl.innerHTML='';
+  for(const d of bagItems){
+    const el=document.createElement('div');
+    el.className='bagItem'+(d.sel?' sel':'')+(d.locked?' locked':'')+(d.info?' info':'')+(d.empty?' empty':'')+((d.act&&!d.locked)?' act':'');
+    if(!isCreative()&&!d.info&&!d.locked&&typeof d.count==='number'&&d.count<=0)el.classList.add('empty');
+    const cnt=_bagCount(d);
+    el.innerHTML='<div class="bagIcon">'+d.icon+'</div><div class="bagName">'+d.name+'</div>'+
+      (cnt!==''?'<div class="bagCount">'+cnt+'</div>':'')+
+      (d.badge?'<div class="bagBadge">'+d.badge+'</div>':'');
+    if(d.act&&!d.locked)bindTapSafe(el,()=>{d.act();window.renderBag();});
+    _bagGridEl.appendChild(el);
+  }
+  if(_bagHint)_bagHint.textContent=bagTab==='blocks'?'ブロックをタップでホットバー選択。設置はサブアクションで。'
+    :bagTab==='weapons'?'武器をタップで装備。矢をタップで装填切替。'
+    :bagTab==='food'?'肉・ステーキをタップで食べる。'
+    :'所持アイテムの一覧です。';
+};
+if(_bagTabsEl&&_bagTabsEl.childElementCount)_bagTabsEl.innerHTML='';
+if(bagOpen)window.renderBag();
+
+// ─── HUDポップオーバー: 他UIが stopPropagation しても外側タップで必ず閉じる ───
+document.addEventListener('pointerdown',(e)=>{
+  if(e.target.closest('.hudPopover,#hudMenuBtn,#buildMenuBtn,#bombMenuBtn'))return;
+  closeHudPopovers();
+},true);
+
+// ─── 設置家具の当たり判定: 強化台とかまどもチェスト等と同様に実体を持たせる ───
+const _finishOverlaps=overlaps;
+window.overlaps=function(px,py,pz,hw,hh){
+  if(_finishOverlaps(px,py,pz,hw,hh))return true;
+  hw=hw||.35;hh=hh||1.75;
+  const hitBox=(cx,cy,cz,hx,hy,hz)=>px-hw<cx+hx&&px+hw>cx-hx&&py<cy+hy&&py+hh>cy&&pz-hw<cz+hz&&pz+hw>cz-hz;
+  for(const t of enchTables){if(hitBox(t.x+.5,t.y,t.z+.5,.48,1.08,.48))return true;}
+  for(const f of furnaces){if(hitBox(f.x+.5,f.y,f.z+.5,.48,1.02,.48))return true;}
+  return false;
+};
+
+// ─── 家具/畑のGPUリソース解放 ───
+// 一部家具は共有Geometryを使うため disposeObject3D を一律適用せず、共有Geometryだけ
+// 保護しつつ、インスタンス固有のGeometry/Materialを重複なく破棄する。
+const _finishChestKeepGeos=new Set([_chestGeo]);
+const _finishBedKeepGeos=new Set(Object.values(_bedGeos));
+const _finishFarmKeepGeos=new Set([_farmSoilGeo,..._cropStageGeos]);
+function _finishDisposeFurnitureMesh(root,keepGeos){
+  if(!root)return;
+  const geos=new Set(),mats=new Set();
+  root.traverse(o=>{
+    if(o.geometry&&(!keepGeos||!keepGeos.has(o.geometry)))geos.add(o.geometry);
+    if(o.material){
+      if(Array.isArray(o.material)){for(const m of o.material)if(m)mats.add(m);}
+      else mats.add(o.material);
+    }
+  });
+  for(const g of geos)if(g&&typeof g.dispose==='function')g.dispose();
+  for(const m of mats)if(m&&typeof m.dispose==='function')m.dispose();
+}
+function _finishDisposeMeshes(meshes,keepGeos){for(const mesh of meshes)_finishDisposeFurnitureMesh(mesh,keepGeos);}
+
+const _finishResetChests=resetChests;
+window.resetChests=function(){const meshes=chests.map(c=>c.mesh);_finishResetChests();_finishDisposeMeshes(meshes,_finishChestKeepGeos);};
+const _finishResetBeds=resetBeds;
+window.resetBeds=function(){const meshes=beds.map(b=>b.mesh);_finishResetBeds();_finishDisposeMeshes(meshes,_finishBedKeepGeos);};
+const _finishResetTrophies=resetTrophies;
+window.resetTrophies=function(){const meshes=trophies.map(t=>t.mesh);_finishResetTrophies();_finishDisposeMeshes(meshes,null);};
+const _finishResetEnchTables=resetEnchTables;
+window.resetEnchTables=function(){const meshes=enchTables.map(t=>t.mesh);_finishResetEnchTables();_finishDisposeMeshes(meshes,null);};
+const _finishResetFurnaces=resetFurnaces;
+window.resetFurnaces=function(){const meshes=furnaces.map(f=>f.mesh);_finishResetFurnaces();_finishDisposeMeshes(meshes,null);};
+const _finishResetFarmPlots=resetFarmPlots;
+window.resetFarmPlots=function(){const meshes=farmPlots.map(f=>f.mesh);_finishResetFarmPlots();_finishDisposeMeshes(meshes,_finishFarmKeepGeos);};
+
+const _finishUpdateFarmPlots=updateFarmPlots;
+window.updateFarmPlots=function(dt){
+  const oldMeshes=new Map();for(const f of farmPlots)oldMeshes.set(f,f.mesh);
+  _finishUpdateFarmPlots(dt);
+  for(const [f,mesh] of oldMeshes)if(mesh&&f.mesh!==mesh)_finishDisposeFurnitureMesh(mesh,_finishFarmKeepGeos);
+};
+
+const _finishHarvestNearestCrop=harvestNearestCrop;
+window.harvestNearestCrop=function(){
+  let nearest=null,nd=2.3;
+  for(const f of farmPlots){if(f.stage<2)continue;const dx=f.x+.5-P.x,dz=f.z+.5-P.z,dy=f.y+.3-(P.y+.8);const d=Math.hypot(dx,dy,dz);if(d<nd){nd=d;nearest=f;}}
+  const mesh=nearest&&nearest.mesh;
+  _finishHarvestNearestCrop();
+  if(mesh&&!farmPlots.some(f=>f.mesh===mesh))_finishDisposeFurnitureMesh(mesh,_finishFarmKeepGeos);
+};
