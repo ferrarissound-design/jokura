@@ -19,3 +19,5 @@ jobs:
       - run: npm run lint
       # ロジック回帰テスト（WebGL 不要）: 自動生成ダンジョンの経路生成 / 範囲編集のUndo
       - run: npm test
+      - run: npx playwright install --with-deps chromium --only-shell
+      - run: npm run test:browser

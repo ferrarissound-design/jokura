@@ -7,9 +7,11 @@
     "lint": "node tools/lint.mjs",
     "test": "npm run test:dungeon && npm run test:region-edit",
     "test:dungeon": "node tools/test-dungeon-plan.cjs",
-    "test:region-edit": "node tools/test-region-edit.cjs"
+    "test:region-edit": "node tools/test-region-edit.cjs",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "eslint": "^9.0.0",
     "globals": "^15.0.0"
   }

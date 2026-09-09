@@ -369,7 +369,8 @@ function findSafeSpawn(bx,bz){
   return {x:bx+.5,y:surfaceHeightAt(bx,bz)+1.01,z:bz+.5}; // 最後の手段: 実測高さの真上
 }
 async function startGame(){
-  await deleteSave();$contDeathBtn.style.display='none';
+  if(!await deleteSave())return;
+  $contDeathBtn.style.display='none';
   ovTitle.style.color='';ovTitle.style.textShadow='';ovTitle.textContent='ジョークラ';
   ovSub.textContent='VOXEL SURVIVAL';rotateSplash();
   overlay.classList.add('hide');initAudio();
@@ -742,7 +743,7 @@ function tick(now){
   updateParticles(dt);
   hudT+=dt;if(hudT>.1){updateHUD();hudT=0;}
   minimapT+=dt;if(minimapT>MINIMAP_INTERVAL){if(inEndZone&&typeof drawEndZoneMinimap==='function')drawEndZoneMinimap();else drawMinimap();minimapT=0;}
-  if(settings.autoSave&&gs.running&&!gs.paused){autoSaveT+=dt;if(autoSaveT>=AUTOSAVE_INTERVAL){autoSaveT=0;saveGame();showSaveToast('💾 AUTO-SAVED');}}
+  if(settings.autoSave&&gs.running&&!gs.paused){autoSaveT+=dt;if(autoSaveT>=AUTOSAVE_INTERVAL){autoSaveT=0;saveGame({auto:true});}}
   if(regionEditor&&regionEditor.state.active)regionEditor.updateVisuals();
   renderer.render(scene,camera);
 }
