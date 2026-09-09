@@ -57,6 +57,8 @@ document.addEventListener('keydown',(e)=>{
     return;
   }
   keys[e.code]=true;
+  // Continuous movement uses keys; discrete actions must require a fresh press.
+  if(e.repeat){if(e.code==='Space'||e.code==='F5')e.preventDefault();return;}
   if(e.code==='Space'&&gs.running){e.preventDefault();if(!e.repeat)doJump();}
   if(e.code>='Digit1'&&e.code<='Digit9')setType(parseInt(e.code[5])-1);
   if(e.code==='Digit0')setType(9);
