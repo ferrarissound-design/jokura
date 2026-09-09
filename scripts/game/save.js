@@ -152,18 +152,28 @@ async function getAllSaveSlots(){
   for(let slot=1;slot<=SAVE_SLOT_COUNT;slot++)rows.push({slot,data:await loadSaveData(slot)});
   return rows;
 }
+function showStorageFailure(action,error){
+  const reason=error&&error.name==='QuotaExceededError'?'保存容量が不足しています':'端末の保存設定を確認してください';
+  showSaveToast('⚠ '+action+'失敗: '+reason+'。再試行してください');
+}
 async function deleteSave(slot=activeSaveSlot){
   const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
-  try{await window.storage.delete(saveKeyForSlot(safeSlot));}catch(e){}
-  try{await window.storage.delete('jokura-save-v6-slot-'+safeSlot);}catch(e){}
-  if(safeSlot===1){
-    try{await window.storage.delete(SAVE_KEY);}catch(e){}
-    for(const key of LEGACY_SAVE_KEYS){try{await window.storage.delete(key);}catch(e){}}
-  }
+  // Remove legacy copies first so a failed delete never resurrects an old save.
+  const keys=['jokura-save-v6-slot-'+safeSlot];
+  if(safeSlot===1)keys.push(SAVE_KEY,...LEGACY_SAVE_KEYS);
+  keys.push(saveKeyForSlot(safeSlot));
+  try{
+    for(const key of keys){
+      if(await window.storage.delete(key)===false)throw new Error('Storage delete failed');
+    }
+    return true;
+  }catch(e){showStorageFailure('削除',e);return false;}
 }
-async function saveGame(){
-  const existing=await loadSaveData(activeSaveSlot);
-  const slotName=(existing&&existing.slotName)||('SLOT '+activeSaveSlot);
+async function saveGame(options={}){
+  const slot=activeSaveSlot;
+  try{
+  const existing=await loadSaveData(slot);
+  const slotName=(existing&&existing.slotName)||('SLOT '+slot);
   // 🌀 終端界: 通常世界向けのトップレベル項目(worldSeed/worldEdits/explosives/
   // tsarBombs/tsarZones/longinus/railgun/px/py/pz/yaw/pitch)は、アクティブな
   // ディメンションに関わらず常に「通常世界」を指す(既存セーブとの後方互換のため
@@ -173,7 +183,7 @@ async function saveGame(){
   const _dim=(typeof dimensionsSaveFields==='function')?dimensionsSaveFields():null;
   const _stagedCompanions=(typeof dimensionsCompanionSaveFields==='function')?dimensionsCompanionSaveFields():null;
   const data={
-    version:SAVE_VERSION,saveSlot:activeSaveSlot,slotName,
+    version:SAVE_VERSION,saveSlot:slot,slotName,
     gameMode,flying:!!P.flying,cheatsUsed,
     score:gs.score,kills:gs.kills,wave:gs.wave,day:gs.day,time:gs.time,
     nextWave:gs.nextWave,hp:P.hp,food:P.food,weaponIdx,curType,finalBossPending,endlessMode,
@@ -231,13 +241,14 @@ async function saveGame(){
     goalText:getSaveGoalText(),
     savedAt:Date.now()
   };
-  try{
-    const r=await window.storage.set(saveKeyForSlot(activeSaveSlot),JSON.stringify(data));
-    showSaveToast(r?'💾 SLOT '+activeSaveSlot+' SAVED!':'⚠ 保存失敗');
+    const r=await window.storage.set(saveKeyForSlot(slot),JSON.stringify(data));
+    if(!r)throw new Error('Storage write failed');
+    showSaveToast(options.auto?'💾 AUTO-SAVED':'💾 SLOT '+slot+' SAVED!');
     updateOverlaySaveInfo();
     if($saveSlotPanel&&$saveSlotPanel.classList.contains('show'))renderSaveSlots();
   }
-  catch(e){showSaveToast('⚠ 保存失敗');}
+  catch(e){showStorageFailure('保存',e);return false;}
+  return true;
 }
 const $contBtn=document.getElementById('contBtn'),$saveSlotsBtn=document.getElementById('saveSlotsBtn'),$saveInfo=document.getElementById('saveInfo');
 const $saveSlotPanel=document.getElementById('saveSlotPanel'),$saveSlotList=document.getElementById('saveSlotList'),$saveSlotCloseBtn=document.getElementById('saveSlotCloseBtn');
@@ -323,7 +334,7 @@ async function renderSaveSlots(){
     if(data){
       const rename=document.createElement('button');rename.className='slotBtn secondary';rename.textContent='NAME';rename.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();await renameSaveSlot(slot,data);});btns.appendChild(rename);
       const fresh=document.createElement('button');fresh.className='slotBtn danger';fresh.textContent='NEW';fresh.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();await startNewGameWithConfirm(slot);});btns.appendChild(fresh);
-      const del=document.createElement('button');del.className='slotBtn danger';del.textContent='DELETE';del.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();if(confirm(formatSlotName(slot,data)+' will be deleted. Continue?')){await deleteSave(slot);updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' DELETED');}});btns.appendChild(del);
+      const del=document.createElement('button');del.className='slotBtn danger';del.textContent='DELETE';del.addEventListener('pointerdown',async(e)=>{e.preventDefault();e.stopPropagation();if(confirm(formatSlotName(slot,data)+' will be deleted. Continue?')){if(await deleteSave(slot)){updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' DELETED');}}});btns.appendChild(del);
     }
     body.appendChild(btns);wrap.appendChild(body);$saveSlotList.appendChild(wrap);
   });
@@ -334,8 +345,11 @@ async function renameSaveSlot(slot,data){
   if(next==null)return;
   const clean=next.trim().slice(0,24)||('SLOT '+slot);
   const updated={...data,slotName:clean};
-  await window.storage.set(saveKeyForSlot(slot),JSON.stringify(updated));
-  updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' NAMED');
+  try{
+    if(!await window.storage.set(saveKeyForSlot(slot),JSON.stringify(updated)))throw new Error('Storage write failed');
+    updateOverlaySaveInfo();renderSaveSlots();showSaveToast('SLOT '+slot+' NAMED');
+    return true;
+  }catch(e){showStorageFailure('名前変更',e);return false;}
 }
 async function startNewGameWithConfirm(slot=activeSaveSlot){
   const safeSlot=Math.max(1,Math.min(SAVE_SLOT_COUNT,Number(slot)||1));
