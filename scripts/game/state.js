@@ -12,8 +12,8 @@
 if(!window.storage){
   window.storage={
     get:function(k){try{var v=localStorage.getItem(k);return Promise.resolve(v!=null?{value:v}:null);}catch(e){return Promise.resolve(null);}},
-    set:function(k,v){try{localStorage.setItem(k,v);return Promise.resolve(true);}catch(e){return Promise.resolve(false);}},
-    delete:function(k){try{localStorage.removeItem(k);}catch(e){}return Promise.resolve();}
+    set:function(k,v){try{localStorage.setItem(k,v);return Promise.resolve(true);}catch(e){return Promise.reject(e);}},
+    delete:function(k){try{localStorage.removeItem(k);return Promise.resolve(true);}catch(e){return Promise.reject(e);}}
   };
 }
 
